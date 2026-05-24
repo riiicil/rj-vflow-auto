@@ -1,0 +1,175 @@
+<!-- /*
+
+ RJ V-Flow Auto
+ Copyright (c) 2025 Riiicil
+ Licensed under the MIT License. See LICENSE file for details.
+
+ 
+ ██████╗ ██╗██╗██╗ ██████╗██╗██╗
+ ██╔══██╗██║██║██║██╔════╝██║██║
+ ██████╔╝██║██║██║██║     ██║██║
+ ██╔══██╗██║██║██║██║     ██║██║
+ ██║  ██║██║██║██║╚██████╗██║███████╗
+ ╚═╝  ╚═╝╚═╝╚═╝╚═╝ ╚═════╝╚═╝╚══════╝
+
+*/ -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>RJ V-Flow Auto</title>
+	<link rel="stylesheet" href="../bootstrap/css/bootstrap.min.css">
+	<link rel="stylesheet" href="sidepanel.css">
+</head>
+
+<body>
+	<div class="panel-wrapper mx-auto">
+		<header class="py-3 text-center">
+			<h1 class="h6 mb-0 text-uppercase letter-spacing" style="font-size: large; font-weight: bolder;">RJ V-Flow
+				Auto</h1>
+		</header>
+
+		<main class="panel-content px-3 py-3">
+			<div class="control-row mb-3">
+				<div class="d-flex align-items-center gap-2 flex-fill min-control-width">
+					<span class="icon-chip" title="Mode">
+						<svg width="15" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path d="M4 20V4H8.2L12 11.2 15.8 4H20V20H16.5V10.8L12 18.8 7.5 10.8V20H4Z"></path>
+						</svg>
+					</span>
+					<select class="form-select form-select-sm text-light bg-dark border-secondary" id="modeSelect"
+						aria-label="Mode">
+						<option value="text-image">text to img</option>
+						<option value="text-video">text to vid</option>
+						<option value="img-to-vid">img to vid</option>
+						<!-- <option value="edit-image">edit image</option> -->
+					</select>
+				</div>
+				<div class="d-flex align-items-center gap-2 flex-fill min-control-width" id="ratioControl">
+					<span class="icon-chip" title="Aspect Ratio">
+						<svg width="15" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path
+								d="M5 3H9V5H7V7H5V3ZM19 3V7H17V5H15V3H19ZM9 17V19H5V15H7V17H9ZM19 15V19H15V17H17V15H19ZM7 9H9V11H7V9ZM11 9H13V11H11V9ZM15 9H17V11H15V9ZM7 13H9V15H7V13ZM11 13H13V15H11V13ZM15 13H17V15H15V13Z">
+							</path>
+						</svg>
+					</span>
+					<select class="form-select form-select-sm text-light bg-dark border-secondary" id="ratioSelect"
+						aria-label="Aspect ratio">
+					</select>
+				</div>
+				<div class="d-flex align-items-center gap-2 flex-fill min-control-width" id="outputControl">
+					<span class="icon-chip" title="Outputs per command">
+						<svg width="15" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path
+								d="M5 5H19V7H5V5ZM5 9H13V11H5V9ZM5 13H11V15H5V13ZM5 17H9V19H5V17ZM19 12L16 9V11H13V13H16V15L19 12Z">
+							</path>
+						</svg>
+					</span>
+					<select class="form-select form-select-sm text-light bg-dark border-secondary" id="outputSelect"
+						aria-label="Outputs per command">
+						<option value="1">1 Output</option>
+						<option value="2">2 Outputs</option>
+						<option value="3">3 Outputs</option>
+						<option value="4">4 Outputs</option>
+					</select>
+				</div>
+
+				<div class="d-flex align-items-center gap-2 flex-fill min-control-width" id="downloadGroup">
+					<span class="icon-chip" title="Download Quality">
+						<svg width="15" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path d="M12 16L7 11H10V4H14V11H17L12 16ZM5 18V20H19V18H5Z"></path>
+						</svg>
+					</span>
+					<select class="form-select form-select-sm text-light bg-dark border-secondary" id="downloadSelect"
+						aria-label="Download quality">
+					</select>
+				</div>
+				<div class="d-flex align-items-center gap-2 flex-fill min-control-width" id="modelGroup">
+					<span class="icon-chip" title="Model">
+						<svg width="15" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path d="M4 4H14V6H4V4ZM4 9H14V11H4V9ZM4 14H14V16H4V14ZM18 4L23 7.5V16.5L18 20V4Z"></path>
+						</svg>
+					</span>
+					<select class="form-select form-select-sm text-light bg-dark border-secondary" id="modelSelect"
+						aria-label="Model">
+					</select>
+				</div>
+
+			</div>
+
+			<section id="textPromptSection" class="mb-3">
+				<div class="dropzone" id="promptDropzone">
+					<textarea id="promptTextarea" class="form-control prompt-input" style="font-size: small;"
+						spellcheck="false"></textarea>
+					<div class="overlay">
+						<span>Paste prompts here<br>or<br></span>
+						<button type="button" class="btn btn-outline-light btn-sm browse-trigger"
+							style="font-size: small;" id="promptBrowseBtn">Browse file</button>
+					</div>
+				</div>
+				<input type="file" id="promptFileInput" accept=".txt" hidden>
+			</section>
+
+			<section id="assetPromptSection" class="mb-3 d-none">
+				<div class="dropzone" id="imagePromptDropzone">
+					<textarea id="imagePromptTextarea" style="font-size: small;" class="form-control prompt-input"
+						spellcheck="false"></textarea>
+					<div class="overlay">
+						<span>Paste prompts for assets<br>or<br></span>
+						<button type="button" class="btn btn-outline-light btn-sm browse-trigger"
+							style="font-size: small;" id="imagePromptBrowseBtn">Browse file</button>
+					</div>
+				</div>
+				<input type="file" id="imagePromptFileInput" accept=".txt" hidden>
+			</section>
+
+			<section id="imageAssetSection" class="d-none">
+				<div class="dropzone dropzone-image mb-3" id="imageDropzone">
+					<div class="overlay">
+						<span>Drop images here<br>or<br></span>
+						<button type="button" style="font-size: small;"
+							class="btn btn-outline-light btn-sm browse-trigger" id="imageBrowseBtn">Browse</button>
+					</div>
+				</div>
+				<input type="file" id="imageFileInput" accept="image/*" multiple hidden>
+
+				<div class="image-list mt-3 mb-3 d-none" id="imageList"></div>
+				<div class="image-actions text-center d-none mb-3 mt-3" id="imageListActions">
+					<button type="button" style="font-size: small;" class="btn btn-outline-light btn-sm"
+						id="clearAssetsBtn">Clear assets</button>
+				</div>
+				<div id="assetStatusMessage" class="status-message text-center small"></div>
+			</section>
+		</main>
+
+		<div class="panel-actions px-3 py-3">
+			<div class="status-message text-center small" style="font-size: small;" id="statusMessage"></div>
+			<div class="d-flex justify-content-center gap-2">
+				<button type="button" class="btn btn-success px-4" id="startButton">Start</button>
+				<button type="button" class="btn btn-outline-light px-4" id="stopButton" disabled>Stop</button>
+			</div>
+		</div>
+
+		<footer class="py-3 text-center">
+			<small class="text-muted" style="font-size: 10px;">
+				This tool is FREE. If you paid, you were scammed. <br>
+				Official version only available at:
+				<a href="https://s.id/riiicil/" target="_blank" rel="noopener noreferrer"
+					class="text-decoration-none text-muted">
+					s.id/riiicil
+				</a>
+				<br>
+				© Riiicil 2026 - All rights reserved.
+			</small>
+		</footer>
+	</div>
+
+	<script src="../bootstrap/js/bootstrap.bundle.min.js"></script>
+	<script src="sidepanel.js" type="module"></script>
+</body>
+
+</html>
