@@ -49,7 +49,7 @@ Before making any changes, read these files in order:
 
 - Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `style:`
 - Subject line: `<type>(<scope>): <description>` — max 72 characters
-- Body explains WHY, not WHAT
+- Body explains WHY, not WHAT. Or simple bullet points.
 
 ## Hard Safety Rules
 
@@ -83,7 +83,7 @@ Implement **only** what the current task specifies. Do not add extra features or
 
 ## Code Comment Policy
 
-- Comments explain WHY, not WHAT.
+- Comments explain WHY, not WHAT. Or simple bullet points.
 - No debug artifacts or commented-out code in production.
 - No redundant comments that restate what the code does.
 
