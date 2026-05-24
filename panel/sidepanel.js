@@ -25,7 +25,8 @@ const DEFAULT_STATE = {
 	model: "",
 	downloadQuality: "max",
 	promptText: "",
-	imagePromptText: ""
+	imagePromptText: "",
+	duration: "10s"
 };
 
 const MODEL_OPTIONS = [
@@ -34,7 +35,8 @@ const MODEL_OPTIONS = [
 	{ value: "Imagen 4", label: "Imagen 4", modes: ["text-image", "edit-image"] },
 	{ value: "Veo 3.1 - Lite", label: "Veo 3.1 - L", modes: ["text-video", "img-to-vid"] },
 	{ value: "Veo 3.1 - Fast", label: "Veo 3.1 - F", modes: ["text-video", "img-to-vid"] },
-	{ value: "Veo 3.1 - Quality", label: "Veo 3.1 - Q", modes: ["text-video"] }
+	{ value: "Veo 3.1 - Quality", label: "Veo 3.1 - Q", modes: ["text-video"] },
+	{ value: "Omni Flash", label: "Omni Flash", modes: ["text-video", "img-to-vid"] }
 ];
 
 const RATIO_OPTIONS = {
@@ -89,6 +91,8 @@ const elements = {
 	outputSelect: document.getElementById("outputSelect"),
 	modelSelect: document.getElementById("modelSelect"),
 	modelGroup: document.getElementById("modelGroup"),
+	durationSelect: document.getElementById("durationSelect"),
+	durationGroup: document.getElementById("durationGroup"),
 	downloadSelect: document.getElementById("downloadSelect"),
 	downloadGroup: document.getElementById("downloadGroup"),
 	promptSection: document.getElementById("textPromptSection"),
@@ -152,9 +156,9 @@ function restorePanelState() {
 }
 
 function savePanelState() {
-	const { mode, ratio, outputs, model, downloadQuality, promptText, imagePromptText } = panelState;
+	const { mode, ratio, outputs, model, duration, downloadQuality, promptText, imagePromptText } = panelState;
 	chrome.storage.local.set({
-		[STORAGE_KEY]: { mode, ratio, outputs, model, downloadQuality, promptText, imagePromptText }
+		[STORAGE_KEY]: { mode, ratio, outputs, model, duration, downloadQuality, promptText, imagePromptText }
 	});
 }
 
@@ -163,6 +167,8 @@ function applyStateToUI() {
 	refreshRatioOptions();
 	elements.outputSelect.value = panelState.outputs;
 	refreshModelOptions();
+	elements.durationSelect.value = panelState.duration;
+	refreshDurationVisibility();
 	refreshDownloadOptions();
 	elements.promptTextarea.value = panelState.promptText;
 	if (elements.imagePromptTextarea) {
@@ -195,6 +201,12 @@ function attachEventListeners() {
 
 	elements.modelSelect.addEventListener("change", () => {
 		panelState.model = elements.modelSelect.value;
+		refreshDurationVisibility();
+		savePanelState();
+	});
+
+	elements.durationSelect.addEventListener("change", () => {
+		panelState.duration = elements.durationSelect.value;
 		savePanelState();
 	});
 
@@ -342,6 +354,13 @@ function refreshModeSections() {
 	syncImagePromptOverlay();
 }
 
+function refreshDurationVisibility() {
+	if (elements.durationGroup) {
+		const isOmni = panelState.model === "Omni Flash";
+		elements.durationGroup.classList.toggle("d-none", !isOmni);
+	}
+}
+
 function syncPromptOverlay() {
 	const hasValue = elements.promptTextarea.value.trim().length > 0;
 	elements.promptDropzone.classList.toggle("has-value", hasValue);
@@ -436,6 +455,7 @@ function refreshDisabledState() {
 	elements.ratioSelect.disabled = running;
 	elements.outputSelect.disabled = running;
 	elements.modelSelect.disabled = running;
+	elements.durationSelect.disabled = running;
 	elements.downloadSelect.disabled = running;
 
 	elements.promptTextarea.disabled = running || !isTextMode;
@@ -783,12 +803,12 @@ async function requestStop() {
 	if (!response?.ok) {
 		showStatus(response?.reason ? `Unable to stop: ${response.reason}` : "Unable to stop automation.", "danger");
 	} else {
-		showStatus("Stop requested.", "warning");
+	showStatus("Stop requested.", "warning");
 	}
 }
 
 async function buildPayload() {
-	const { mode, ratio, outputs, model, downloadQuality, promptText } = panelState;
+	const { mode, ratio, outputs, model, duration, downloadQuality, promptText } = panelState;
 
 	if (mode === "text-image" || mode === "text-video") {
 		const prompts = sanitizePromptList(promptText);
@@ -799,7 +819,7 @@ async function buildPayload() {
 		return {
 			mode, ratio,
 			outputs: Number.parseInt(outputs, 10) || 1,
-			model, downloadQuality, prompts
+			model, duration, downloadQuality, prompts
 		};
 	}
 
@@ -828,7 +848,7 @@ async function buildPayload() {
 		return {
 			mode, ratio,
 			outputs: Number.parseInt(outputs, 10) || 1,
-			model, downloadQuality, assets
+			model, duration, downloadQuality, assets
 		};
 	}
 

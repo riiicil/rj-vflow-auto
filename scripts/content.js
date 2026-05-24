@@ -629,8 +629,8 @@ async function configureTileGridSettings() {
 }
 
 async function configureSettings(payload) {
-	const { mode, ratio, outputs, model } = payload;
-	console.log(LOG_PREFIX, "Configuring settings", { mode, ratio, outputs, model });
+	const { mode, ratio, outputs, model, duration } = payload;
+	console.log(LOG_PREFIX, "Configuring settings", { mode, ratio, outputs, model, duration });
 
 	let settingsTrigger = null;
 	try {
@@ -677,6 +677,10 @@ async function configureSettings(payload) {
 	if (model) {
 		await selectModel(menu, model);
 		await delay(CONTROL_DELAY_MS);
+		if (model === "Omni Flash" && duration) {
+			await selectTab(menu, duration, "duration");
+			await delay(CONTROL_DELAY_MS);
+		}
 	}
 
 	if (mode === "img-to-vid") {
@@ -844,6 +848,12 @@ async function selectTab(menu, targetValue, settingType) {
 				if (ariaControls.includes(`-content-${targetValue}`)) {
 					targetTab = tab;
 				} else if (text === `x${targetValue}`) {
+					targetTab = tab;
+				}
+				break;
+
+			case "duration":
+				if (text.toLowerCase() === targetValue.toLowerCase()) {
 					targetTab = tab;
 				}
 				break;
