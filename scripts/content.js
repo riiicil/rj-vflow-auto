@@ -31,8 +31,8 @@ const automation = {
 
 const LOG_PREFIX = "[RJ V-Flow]";
 const FLOW_HOSTS = ["labs.google", "veo.genaipro.vn"];
-const STEP_DELAY_MS = 500;
-const CONTROL_DELAY_MS = 500;
+const STEP_DELAY_MS = "STEP";
+const CONTROL_DELAY_MS = "CONTROL";
 const GENERATION_POLL_MS = 3000;
 const GENERATION_TIMEOUT_MS = 600000;
 
@@ -127,6 +127,7 @@ async function runTextPromptLoop(payload) {
 	const downloadQuality = payload?.downloadQuality ?? "max";
 	const outputCount = payload?.outputs ?? 1;
 	const mode = payload?.mode ?? "text-image";
+	const useCDP = mode === "text-image"; // only text-image uses CDP; text-video uses non-CDP
 
 	for (let index = 0; index < prompts.length; index += 1) {
 		checkForStop();
@@ -144,7 +145,7 @@ async function runTextPromptLoop(payload) {
 		const existingTileIds = snapshotTileIds();
 		console.log(LOG_PREFIX, "Tile snapshot", { existingCount: existingTileIds.size });
 
-		await setPromptText(prompts[index] ?? "");
+		await setPromptText(prompts[index] ?? "", useCDP);
 		await delay(STEP_DELAY_MS);
 
 		// Verify text landed — retry once with extra delay if editor is still empty
@@ -153,7 +154,7 @@ async function runTextPromptLoop(payload) {
 		if (editorTextAfter.length === 0 && (prompts[index] ?? "").length > 0) {
 			console.warn(LOG_PREFIX, "setPromptText: editor still empty after first attempt, retrying...");
 			await delay(800);
-			await setPromptText(prompts[index] ?? "");
+			await setPromptText(prompts[index] ?? "", useCDP);
 			await delay(STEP_DELAY_MS);
 		}
 
@@ -175,7 +176,7 @@ async function runTextPromptLoop(payload) {
 		}
 
 		checkForStop();
-		await triggerGenerate({ prompt: prompts[index] ?? "", payload, outputCount, promptIndex: index, totalPrompts: prompts.length, existingTileIds });
+		await triggerGenerate({ prompt: prompts[index] ?? "", payload, outputCount, promptIndex: index, totalPrompts: prompts.length, existingTileIds, useCDP });
 		sendProgress({ message: `Prompt ${index + 1} submitted. Waiting for generation...`, level: "info" });
 
 		const completedTileIds = await waitForGenerationComplete(existingTileIds, outputCount);
@@ -191,8 +192,23 @@ async function runTextPromptLoop(payload) {
 
 		sendProgress({ message: `Prompt ${index + 1} done. ${index + 1}/${prompts.length} completed.`, level: "success" });
 
-		await setPromptText("");
-		await delay(STEP_DELAY_MS);
+		await setPromptText("", useCDP);
+		if (index < prompts.length - 1) {
+			const hadFailure = completedTileIds.length < outputCount;
+			const isPeriodicRest = (index + 1) % 10 === 0;
+			if (isPeriodicRest) {
+				sendProgress({ message: `Periodic rest after ${index + 1} prompts...`, level: "info" });
+				await randomDelay(15000, 25000);
+			} else if (hadFailure) {
+				sendProgress({ message: `Resting longer after partial failure...`, level: "info" });
+				await randomDelay(12000, 20000);
+			} else {
+				sendProgress({ message: `Resting before next prompt...`, level: "info" });
+				await randomDelay(3000, 10000);
+			}
+		} else {
+			await delay(STEP_DELAY_MS);
+		}
 	}
 }
 
@@ -230,14 +246,14 @@ async function runImgToVidLoop(payload) {
 		await delay(STEP_DELAY_MS);
 		checkForStop();
 
-		await setPromptText(asset.prompt || "");
+		await setPromptText(asset.prompt || "", false); // img-to-vid: non-CDP
 		await delay(STEP_DELAY_MS);
 
 		const existingTileIds = snapshotTileIds();
 		console.log(LOG_PREFIX, "Existing tile IDs before generate", { count: existingTileIds.size });
 
 		checkForStop();
-		await triggerGenerate();
+		await triggerGenerate({ useCDP: false }); // img-to-vid: non-CDP
 		sendProgress({ message: `Image ${index + 1} submitted. Waiting for generation...`, level: "info" });
 
 		const completedTileIds = await waitForGenerationComplete(existingTileIds, outputCount);
@@ -253,8 +269,23 @@ async function runImgToVidLoop(payload) {
 
 		sendProgress({ message: `Image ${index + 1} done. ${index + 1}/${assets.length} completed.`, level: "success" });
 
-		await setPromptText("");
-		await delay(STEP_DELAY_MS);
+		await setPromptText("", false); // img-to-vid: non-CDP clear
+		if (index < assets.length - 1) {
+			const hadFailure = completedTileIds.length < outputCount;
+			const isPeriodicRest = (index + 1) % 10 === 0;
+			if (isPeriodicRest) {
+				sendProgress({ message: `Periodic rest after ${index + 1} images...`, level: "info" });
+				await randomDelay(15000, 25000);
+			} else if (hadFailure) {
+				sendProgress({ message: `Resting longer after partial failure...`, level: "info" });
+				await randomDelay(12000, 20000);
+			} else {
+				sendProgress({ message: `Resting before next image...`, level: "info" });
+				await randomDelay(3000, 10000);
+			}
+		} else {
+			await delay(STEP_DELAY_MS);
+		}
 	}
 }
 
@@ -276,29 +307,30 @@ function getSlateEditor() {
 		|| document.querySelector('[role="textbox"][contenteditable="true"]');
 }
 
-async function setPromptText(text) {
+async function setPromptText(text, useCDP = true) {
 	console.log(LOG_PREFIX, "setPromptText called", { textLength: (text ?? "").length, preview: (text ?? "").slice(0, 40) });
 	const editor = getSlateEditor();
 	if (!editor) throw new Error("Prompt editor not found.");
 
-	const editorRect = editor.getBoundingClientRect();
-	const editorX = Math.round(editorRect.left + editorRect.width / 2);
-	const editorY = Math.round(editorRect.top + editorRect.height / 2);
+		const editorRect = editor.getBoundingClientRect();
+		const { x: editorX, y: editorY } = getJitteredCoords(editorRect);
 
 	if (!text) {
-		// For clearing: click editor, Ctrl+A, Delete via CDP
-		try {
-			const clearResult = await chrome.runtime.sendMessage({
-				type: 'cdp:action', action: 'insertText',
-				x: editorX, y: editorY, text: ''
-			});
-			if (clearResult?.ok) {
-				console.log(LOG_PREFIX, "setPromptText: CDP clear OK");
-				await delay(200);
-				return;
-			}
-		} catch (_) {}
-		// Fallback: execCommand delete
+		if (useCDP) {
+			// For clearing: click editor, Ctrl+A, Delete via CDP
+			try {
+				const clearResult = await chrome.runtime.sendMessage({
+					type: 'cdp:action', action: 'insertText',
+					x: editorX, y: editorY, text: ''
+				});
+				if (clearResult?.ok) {
+					console.log(LOG_PREFIX, "setPromptText: CDP clear OK");
+					await delay(200);
+					return;
+				}
+			} catch (_) {}
+		}
+		// execCommand clear (non-CDP path or fallback)
 		console.log(LOG_PREFIX, "setPromptText: clearing editor (empty text)");
 		simulateClick(editor);
 		await delay(150);
@@ -316,25 +348,27 @@ async function setPromptText(text) {
 		return;
 	}
 
-	// Strategy 1: CDP insertText (isTrusted: true at browser level)
-	try {
-		const cdpResult = await chrome.runtime.sendMessage({
-			type: 'cdp:action', action: 'insertText',
-			x: editorX, y: editorY, text
-		});
-		if (cdpResult?.ok) {
-			await delay(400);
-			const currentText = getEditorText(editor);
-			if (currentText.toLowerCase().includes(text.toLowerCase())) {
-				console.log(LOG_PREFIX, "setPromptText: CDP insertText OK", { length: currentText.length });
+	if (useCDP) {
+		// Strategy 1: CDP insertText (isTrusted: true at browser level)
+		try {
+			const cdpResult = await chrome.runtime.sendMessage({
+				type: 'cdp:action', action: 'insertText',
+				x: editorX, y: editorY, text
+			});
+			if (cdpResult?.ok) {
+				await delay(400);
+				const currentText = getEditorText(editor);
+				if (currentText.toLowerCase().includes(text.toLowerCase())) {
+					console.log(LOG_PREFIX, "setPromptText: CDP insertText OK", { length: currentText.length });
+					return;
+				}
+				console.warn(LOG_PREFIX, "setPromptText: CDP sent OK but text not verified in DOM, continuing anyway", { currentText });
 				return;
 			}
-			console.warn(LOG_PREFIX, "setPromptText: CDP sent OK but text not verified in DOM, continuing anyway", { currentText });
-			return;
+			console.warn(LOG_PREFIX, "setPromptText: CDP insertText failed", cdpResult?.reason);
+		} catch (err) {
+			console.warn(LOG_PREFIX, "setPromptText: CDP error", err?.message);
 		}
-		console.warn(LOG_PREFIX, "setPromptText: CDP insertText failed", cdpResult?.reason);
-	} catch (err) {
-		console.warn(LOG_PREFIX, "setPromptText: CDP error", err?.message);
 	}
 
 	// Strategy 2: execCommand (fallback)
@@ -521,7 +555,7 @@ async function runEditImageLoop(payload) {
 		checkForStop();
 
 		// Set prompt text (mandatory for edit-image)
-		await setPromptText(asset.prompt || "");
+		await setPromptText(asset.prompt || "", false); // edit-image: non-CDP
 		await delay(STEP_DELAY_MS);
 
 		// SNAPSHOT: collect all existing tile IDs BEFORE generating
@@ -529,7 +563,7 @@ async function runEditImageLoop(payload) {
 		console.log(LOG_PREFIX, "Existing tile IDs before generate", { count: existingTileIds.size });
 
 		checkForStop();
-		await triggerGenerate();
+		await triggerGenerate({ useCDP: false }); // edit-image: non-CDP
 		sendProgress({ message: `Image ${index + 1} submitted. Waiting for generation...`, level: "info" });
 
 		// Wait for generation to complete
@@ -548,8 +582,23 @@ async function runEditImageLoop(payload) {
 		sendProgress({ message: `Image ${index + 1} done. ${index + 1}/${assets.length} completed.`, level: "success" });
 
 		// Clear prompt for next iteration
-		await setPromptText("");
-		await delay(STEP_DELAY_MS);
+		await setPromptText("", false); // edit-image: non-CDP clear
+		if (index < assets.length - 1) {
+			const hadFailure = completedTileIds.length < outputCount;
+			const isPeriodicRest = (index + 1) % 10 === 0;
+			if (isPeriodicRest) {
+				sendProgress({ message: `Periodic rest after ${index + 1} images...`, level: "info" });
+				await randomDelay(15000, 25000);
+			} else if (hadFailure) {
+				sendProgress({ message: `Resting longer after partial failure...`, level: "info" });
+				await randomDelay(12000, 20000);
+			} else {
+				sendProgress({ message: `Resting before next image...`, level: "info" });
+				await randomDelay(3000, 10000);
+			}
+		} else {
+			await delay(STEP_DELAY_MS);
+		}
 	}
 }
 
@@ -943,58 +992,63 @@ async function selectModel(menu, modelName) {
 }
 
 async function triggerGenerate(options = {}) {
+	const { useCDP = true } = options;
 	const button = findGenerateButton();
 	if (!button) {
 		console.warn(LOG_PREFIX, "Generate button not found");
 		return false;
 	}
 	const rect = button.getBoundingClientRect();
-	const btnX = Math.round(rect.left + rect.width / 2);
-	const btnY = Math.round(rect.top + rect.height / 2);
+	const { x: btnX, y: btnY } = getJitteredCoords(rect);
 
 	console.log(LOG_PREFIX, "Clicking generate button", {
+		useCDP,
 		ariaDisabled: button.getAttribute("aria-disabled"),
 		iconText: getIconText(button).trim()
 	});
 
-	// Strategy 1: CDP click (isTrusted: true)
-	try {
-		const cdpResult = await chrome.runtime.sendMessage({
-			type: 'cdp:action', action: 'click',
-			x: btnX, y: btnY
-		});
-		if (cdpResult?.ok) {
-			console.log(LOG_PREFIX, "triggerGenerate: CDP click sent");
-			await delay(800);
-			return true;
-		}
-		console.warn(LOG_PREFIX, "triggerGenerate: CDP click failed", cdpResult?.reason);
-	} catch (err) {
-		console.warn(LOG_PREFIX, "triggerGenerate: CDP click error", err?.message);
-	}
-
-	// Strategy 2: CDP pressEnter on Slate editor
-	const editor = getSlateEditor();
-	if (editor) {
-		const editorRect = editor.getBoundingClientRect();
-		const editorX = Math.round(editorRect.left + editorRect.width / 2);
-		const editorY = Math.round(editorRect.top + editorRect.height / 2);
+	if (useCDP) {
+		// Strategy 1: CDP click (isTrusted: true)
 		try {
-			const enterResult = await chrome.runtime.sendMessage({
-				type: 'cdp:action', action: 'pressEnter',
-				x: editorX, y: editorY
+			const cdpResult = await chrome.runtime.sendMessage({
+				type: 'cdp:action', action: 'click',
+				x: btnX, y: btnY
 			});
-			if (enterResult?.ok) {
-				console.log(LOG_PREFIX, "triggerGenerate: CDP pressEnter sent");
+			if (cdpResult?.ok) {
+				console.log(LOG_PREFIX, "triggerGenerate: CDP click sent");
 				await delay(800);
 				return true;
 			}
+			console.warn(LOG_PREFIX, "triggerGenerate: CDP click failed", cdpResult?.reason);
 		} catch (err) {
-			console.warn(LOG_PREFIX, "triggerGenerate: CDP pressEnter error", err?.message);
+			console.warn(LOG_PREFIX, "triggerGenerate: CDP click error", err?.message);
+		}
+
+		// Strategy 2: CDP pressEnter on Slate editor
+		const editor = getSlateEditor();
+		if (editor) {
+			const editorRect = editor.getBoundingClientRect();
+			const { x: editorX, y: editorY } = getJitteredCoords(editorRect);
+			try {
+				const enterResult = await chrome.runtime.sendMessage({
+					type: 'cdp:action', action: 'pressEnter',
+					x: editorX, y: editorY
+				});
+				if (enterResult?.ok) {
+					console.log(LOG_PREFIX, "triggerGenerate: CDP pressEnter sent");
+					await delay(800);
+					return true;
+				}
+			} catch (err) {
+				console.warn(LOG_PREFIX, "triggerGenerate: CDP pressEnter error", err?.message);
+			}
 		}
 	}
 
-	await delay(500);
+	// Non-CDP path: React fiber onClick or synthetic pointer/mouse events
+	console.log(LOG_PREFIX, "triggerGenerate: using non-CDP click");
+	await clickButtonElement(button);
+	await delay(800);
 	return true;
 }
 
@@ -1247,8 +1301,16 @@ async function waitForGenerationComplete(existingTileIds, expectedCount) {
 
 	await delay(2000);
 
+	let nextIdleMoveAt = Date.now() + Math.floor(Math.random() * 7000) + 8000; // first idle move after 8-15s
+
 	while (Date.now() - startTime < GENERATION_TIMEOUT_MS) {
 		checkForStop();
+
+		// Idle mouse movement — simulate human presence without scrolling
+		if (Date.now() >= nextIdleMoveAt) {
+			sendIdleMouseMove();
+			nextIdleMoveAt = Date.now() + Math.floor(Math.random() * 7000) + 8000;
+		}
 
 		const newTiles = getNewTiles(existingTileIds);
 		if (newTiles.length === 0) {
@@ -1823,7 +1885,37 @@ function sendProgress(payload) {
 }
 
 function delay(ms) {
+	if (ms === STEP_DELAY_MS) {
+		ms = Math.floor(Math.random() * (1200 - 500 + 1)) + 500;
+	} else if (ms === CONTROL_DELAY_MS) {
+		ms = Math.floor(Math.random() * (800 - 400 + 1)) + 400;
+	}
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getJitteredCoords(rect) {
+	// No coordinate jitter — the gap between the Slate editor and the Agen button
+	// below it is only ~17px, making any offset risky. Mouse trail + hover already
+	// provide sufficient humanization.
+	return {
+		x: Math.round(rect.left + rect.width / 2),
+		y: Math.round(rect.top + rect.height / 2)
+	};
+}
+
+function randomDelay(min, max) {
+	// Power-law distribution — bias toward smaller values, occasional long pause
+	const ms = min + Math.pow(Math.random(), 1.8) * (max - min);
+	return delay(Math.round(ms));
+}
+
+async function sendIdleMouseMove() {
+	// Move mouse to a random safe area (tile grid zone) to simulate idle presence
+	const x = Math.floor(Math.random() * 450) + 200; // 200-650
+	const y = Math.floor(Math.random() * 300) + 150; // 150-450
+	try {
+		await chrome.runtime.sendMessage({ type: 'cdp:action', action: 'mouseMove', x, y });
+	} catch (_) {}
 }
 
 function waitFor(predicate, options = {}) {

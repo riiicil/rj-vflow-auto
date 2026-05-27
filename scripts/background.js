@@ -196,8 +196,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				const { action } = message;
 
 				if (action === 'insertText') {
-					// Focus element first via mouse click at its center
 					const { x, y, text } = message;
+					// Focus editor via click
+					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 });
+					await sleep(50);
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1 });
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0 });
 					await sleep(150);
@@ -205,14 +207,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers: 8 }); // Ctrl+A
 					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 8 });
 					await sleep(80);
-					await cdpSend(debuggee, 'Input.insertText', { text });
+
+					if (text && text.length > 0) {
+						// Type like a human in chunks
+						const chars = Array.from(text);
+						let i = 0;
+						while (i < chars.length) {
+							const chunkSize = Math.floor(Math.random() * 6) + 3; // 3 to 8 characters
+							const chunk = chars.slice(i, i + chunkSize).join('');
+							await cdpSend(debuggee, 'Input.insertText', { text: chunk });
+							await sleep(Math.floor(Math.random() * 41) + 20); // 20ms to 60ms
+							i += chunkSize;
+						}
+					} else {
+						// Clearing editor
+						await cdpSend(debuggee, 'Input.insertText', { text: '' });
+					}
+
 					await sleep(150);
 					sendResponse({ ok: true });
 
 				} else if (action === 'click') {
 					const { x, y } = message;
-					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 });
-					await sleep(50);
+					await simulateHover(debuggee, x, y);
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1 });
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0 });
 					await sleep(50);
@@ -226,6 +243,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					await sleep(100);
 					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
 					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+					sendResponse({ ok: true });
+
+				} else if (action === 'mouseMove') {
+					// Idle mouse movement during generation wait — single move, no trail
+					const { x, y } = message;
+					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 });
 					sendResponse({ ok: true });
 
 				} else {
@@ -293,4 +316,17 @@ function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Simulates hand tremor and pause right before a click
+async function simulateHover(debuggee, x, y) {
+	const microMoves = Math.floor(Math.random() * 3) + 2; // 2-4 micro moves
+	for (let i = 0; i < microMoves; i++) {
+		const jx = Math.round(x + (Math.random() - 0.5) * 6);
+		const jy = Math.round(y + (Math.random() - 0.5) * 6);
+		await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: jx, y: jy, button: 'none', buttons: 0 });
+		await sleep(Math.floor(Math.random() * 21) + 30); // 30-50ms
+	}
+	// Final settle on target
+	await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none', buttons: 0 });
+	await sleep(Math.floor(Math.random() * 71) + 80); // 80-150ms pause before click
+}
 
