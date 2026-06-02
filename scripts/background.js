@@ -268,9 +268,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					const script = `(() => {
 						try {
 							const dom = document.querySelector('[data-slate-editor="true"]');
-							if (!dom) return '{"ok":false,"reason":"no-dom"}';
+							if (!dom) return JSON.stringify({ ok: false, reason: "no-dom" });
 							const fk = Object.keys(dom).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
-							if (!fk) return '{"ok":false,"reason":"no-fiber-key"}';
+							if (!fk) return JSON.stringify({ ok: false, reason: "no-fiber-key" });
 							let fiber = dom[fk];
 							let ed = null;
 							for (let i = 0; fiber && i < 400; i++, fiber = fiber.return) {
@@ -281,11 +281,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 									}
 								} catch(_) {}
 							}
-							if (!ed) return '{"ok":false,"reason":"no-editor"}';
-							if (ed.selection && typeof ed.deleteFragment === 'function') ed.deleteFragment();
+							if (!ed) return JSON.stringify({ ok: false, reason: "no-editor" });
+
+							// Select all content dynamically
+							try {
+								const getFirstTextPath = (node, path = []) => {
+									if (node && typeof node.text === 'string') return path;
+									if (node && node.children && node.children.length > 0) {
+										return getFirstTextPath(node.children[0], [...path, 0]);
+									}
+									return path;
+								};
+
+								const getLastTextPath = (node, path = []) => {
+									if (node && typeof node.text === 'string') return { path, node };
+									if (node && node.children && node.children.length > 0) {
+										const idx = node.children.length - 1;
+										return getLastTextPath(node.children[idx], [...path, idx]);
+									}
+									return { path, node };
+								};
+
+								const startPath = getFirstTextPath(ed);
+								const { path: endPath, node: endNode } = getLastTextPath(ed);
+								if (startPath.length > 0 && endPath.length > 0) {
+									const start = { path: startPath, offset: 0 };
+									const end = { path: endPath, offset: endNode ? endNode.text.length : 0 };
+									ed.selection = { anchor: start, focus: end };
+								}
+							} catch (selErr) {
+								// if selection failed, proceed with current selection if any
+							}
+
+							if (ed.selection && typeof ed.deleteFragment === 'function') {
+								ed.deleteFragment();
+							}
+
 							const t = ${safeText};
-							if (t && typeof ed.insertText === 'function') ed.insertText(t);
-							return '{"ok":true}';
+							if (t && typeof ed.insertText === 'function') {
+								ed.insertText(t);
+							}
+							return JSON.stringify({ ok: true });
 						} catch(e) { return JSON.stringify({ ok: false, reason: e.message }); }
 					})()`;
 

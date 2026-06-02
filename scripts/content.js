@@ -89,10 +89,10 @@ async function runAutomation(payload) {
 		automation.stopRequested = false;
 		updateState({ status: "running", mode, stopRequested: false });
 
-		// Attach CDP session once for the full run (text-image only).
+		// Attach CDP session once for the full run (all modes).
 		// Keeping it attached avoids interrupting reCAPTCHA validation calls
 		// that Flow fires between generate requests.
-		const useCDPMode = (mode === "text-image");
+		const useCDPMode = true;
 		if (useCDPMode) {
 			try {
 				const attachResult = await chrome.runtime.sendMessage({ type: 'cdp:attach' });
@@ -146,9 +146,8 @@ async function runTextPromptLoop(payload) {
 	const downloadQuality = payload?.downloadQuality ?? "max";
 	const outputCount = payload?.outputs ?? 1;
 	const mode = payload?.mode ?? "text-image";
-	// CDP is used for both text insertion and button click in text-image mode.
-	// Non-CDP (execCommand) is used for video modes.
-	const useCDP = (mode === "text-image");
+	// CDP is used for both text insertion and button click in all text modes.
+	const useCDP = true;
 
 	for (let index = 0; index < prompts.length; index += 1) {
 		checkForStop();
@@ -216,7 +215,7 @@ async function runTextPromptLoop(payload) {
 
 		sendProgress({ message: `Prompt ${index + 1} done. ${index + 1}/${prompts.length} completed.`, level: "success" });
 
-		await setPromptText("", false);
+		await setPromptText("", useCDP);
 		if (index < prompts.length - 1) {
 			const hadFailure = completedTileIds.length < outputCount;
 			const isPeriodicRest = (index + 1) % 10 === 0;
@@ -271,16 +270,16 @@ async function runImgToVidLoop(payload) {
 		checkForStop();
 
 		// Clear before inserting prompt — ensures no leftover text from prior asset.
-		await setPromptText("", false); // img-to-vid: clear
+		await setPromptText("", true); // img-to-vid: clear
 		await delay(200);
-		await setPromptText(asset.prompt || "", false); // img-to-vid: non-CDP
+		await setPromptText(asset.prompt || "", true); // img-to-vid: CDP
 		await delay(STEP_DELAY_MS);
 
 		const existingTileIds = snapshotTileIds();
 		console.log(LOG_PREFIX, "Existing tile IDs before generate", { count: existingTileIds.size });
 
 		checkForStop();
-		await triggerGenerate({ useCDP: false }); // img-to-vid: non-CDP
+		await triggerGenerate({ useCDP: true }); // img-to-vid: CDP
 		sendProgress({ message: `Image ${index + 1} submitted. Waiting for generation...`, level: "info" });
 
 		const completedTileIds = await waitForGenerationComplete(existingTileIds, outputCount);
@@ -296,7 +295,7 @@ async function runImgToVidLoop(payload) {
 
 		sendProgress({ message: `Image ${index + 1} done. ${index + 1}/${assets.length} completed.`, level: "success" });
 
-		await setPromptText("", false); // img-to-vid: non-CDP clear
+		await setPromptText("", true); // img-to-vid: CDP clear
 		if (index < assets.length - 1) {
 			const hadFailure = completedTileIds.length < outputCount;
 			const isPeriodicRest = (index + 1) % 10 === 0;
@@ -342,9 +341,36 @@ async function setPromptText(text, useCDP = true) {
 		const editorRect = editor.getBoundingClientRect();
 		const { x: editorX, y: editorY } = getJitteredCoords(editorRect);
 
+	if (useCDP) {
+		// Strategy 1: CDP insertText (isTrusted: true at browser level)
+		try {
+			const cdpResult = await chrome.runtime.sendMessage({
+				type: 'cdp:action', action: 'insertText',
+				x: editorX, y: editorY, text: text || ""
+			});
+			if (cdpResult?.ok) {
+				await delay(400);
+				const currentText = getEditorText(editor);
+				if (!text) {
+					if (currentText.length === 0) {
+						console.log(LOG_PREFIX, "setPromptText: CDP clear OK");
+						return;
+					}
+				} else if (currentText.toLowerCase().includes(text.toLowerCase())) {
+					console.log(LOG_PREFIX, "setPromptText: CDP insertText OK", { length: currentText.length });
+					return;
+				}
+				console.warn(LOG_PREFIX, "setPromptText: CDP sent OK but text not verified in DOM, continuing anyway", { currentText });
+				return;
+			}
+			console.warn(LOG_PREFIX, "setPromptText: CDP insertText failed", cdpResult?.reason);
+		} catch (err) {
+			console.warn(LOG_PREFIX, "setPromptText: CDP error", err?.message);
+		}
+	}
+
+	// Strategy 1b (Non-CDP): clearing editor
 	if (!text) {
-		// CDP is not used for clearing — Slate does not require isTrusted for deletion.
-		// execCommand("delete") after a DOM selection works reliably.
 		console.log(LOG_PREFIX, "setPromptText: clearing editor");
 		simulateClick(editor);
 		await delay(150);
@@ -360,29 +386,6 @@ async function setPromptText(text, useCDP = true) {
 		editor.dispatchEvent(new Event("input", { bubbles: true }));
 		await delay(200);
 		return;
-	}
-
-	if (useCDP) {
-		// Strategy 1: CDP insertText (isTrusted: true at browser level)
-		try {
-			const cdpResult = await chrome.runtime.sendMessage({
-				type: 'cdp:action', action: 'insertText',
-				x: editorX, y: editorY, text
-			});
-			if (cdpResult?.ok) {
-				await delay(400);
-				const currentText = getEditorText(editor);
-				if (currentText.toLowerCase().includes(text.toLowerCase())) {
-					console.log(LOG_PREFIX, "setPromptText: CDP insertText OK", { length: currentText.length });
-					return;
-				}
-				console.warn(LOG_PREFIX, "setPromptText: CDP sent OK but text not verified in DOM, continuing anyway", { currentText });
-				return;
-			}
-			console.warn(LOG_PREFIX, "setPromptText: CDP insertText failed", cdpResult?.reason);
-		} catch (err) {
-			console.warn(LOG_PREFIX, "setPromptText: CDP error", err?.message);
-		}
 	}
 
 	// Strategy 2: execCommand (fallback)
@@ -569,10 +572,10 @@ async function runEditImageLoop(payload) {
 		checkForStop();
 
 		// Clear before inserting prompt — ensures no leftover text from prior asset.
-		await setPromptText("", false); // edit-image: clear
+		await setPromptText("", true); // edit-image: clear
 		await delay(200);
 		// Set prompt text (mandatory for edit-image)
-		await setPromptText(asset.prompt || "", false); // edit-image: non-CDP
+		await setPromptText(asset.prompt || "", true); // edit-image: CDP
 		await delay(STEP_DELAY_MS);
 
 		// SNAPSHOT: collect all existing tile IDs BEFORE generating
@@ -580,7 +583,7 @@ async function runEditImageLoop(payload) {
 		console.log(LOG_PREFIX, "Existing tile IDs before generate", { count: existingTileIds.size });
 
 		checkForStop();
-		await triggerGenerate({ useCDP: false }); // edit-image: non-CDP
+		await triggerGenerate({ useCDP: true }); // edit-image: CDP
 		sendProgress({ message: `Image ${index + 1} submitted. Waiting for generation...`, level: "info" });
 
 		// Wait for generation to complete
@@ -599,7 +602,7 @@ async function runEditImageLoop(payload) {
 		sendProgress({ message: `Image ${index + 1} done. ${index + 1}/${assets.length} completed.`, level: "success" });
 
 		// Clear prompt for next iteration
-		await setPromptText("", false); // edit-image: non-CDP clear
+		await setPromptText("", true); // edit-image: CDP clear
 		if (index < assets.length - 1) {
 			const hadFailure = completedTileIds.length < outputCount;
 			const isPeriodicRest = (index + 1) % 10 === 0;

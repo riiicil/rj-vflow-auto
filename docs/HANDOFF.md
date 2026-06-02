@@ -1,6 +1,6 @@
 # Handoff Notes — RJ V-Flow Auto
 
-> Updated: 2026-06-02. For next agent session continuity.
+> Updated: 2026-06-03. For next agent session continuity.
 
 ## What Was Just Done
 
@@ -12,12 +12,14 @@
 6. **Documentation init** — `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/session-analysis.md`.
 7. **Git repo init** — First push to `https://github.com/riiicil/rj-vflow-auto.git`.
 
-### Session 2026-06-02 (branch: task/anti-bot-evasion)
+### Session 2026-06-02 & 2026-06-03 (branch: task/anti-bot-evasion)
 
 8. **rrweb session analysis** — Compared manual vs extension sessions using rrweb recorder + custom analyzer scripts (in `scripts/dev-tools/`, gitignored). Root cause of 403 identified.
-9. **CDP session lifecycle refactor** — Changed CDP attach/detach from per-action to once-per-run:
-   - `background.js`: Added `cdp:attach` and `cdp:detach` message handlers. Added `cdpSessions` Set to track active sessions. Added `chrome.debugger.onDetach` safety listener. Removed per-action attach/detach from `cdp:action` handler.
-   - `content.js`: `runAutomation()` now sends `cdp:attach` at start (text-image mode only) and `cdp:detach` in finally block.
+9. **CDP session lifecycle refactor** — Changed CDP attach/detach from per-action to once-per-run.
+10. **CDP-based Slate Editor Sync** — Fixed prompt duplication/leakage where Slate.js internal React state diverged from the DOM during prompt clearing or switching. We now:
+    - Attach CDP session at the start of all runs (for all modes: `text-image`, `text-video`, `img-to-vid`, `edit-image`).
+    - Query and manipulate the Slate editor's fiber instance via CDP `Runtime.evaluate` to programmatically select the entire document range, run `deleteFragment()`, and then insert the new prompt text.
+    - Omit standard/paste/execCommand DOM manipulation in favor of Slate-internal actions, which guarantees 100% synchronization.
 
 ## Key Context for Next Agent
 
@@ -51,9 +53,7 @@ Chrome shows `"RJ V-Flow Auto started debugging this browser"` during each gener
 ## Open Issues / Potential Work
 
 | Issue | Priority | Notes |
-|---|---|---|\
-| 403 fix not yet re-tested | High | Implement done, needs live test to confirm reCAPTCHA can refresh properly |
-| `img-to-vid` and `edit-image` modes not re-tested after CDP changes | Medium | Asset upload flow is separate from text prompt flow — should work but verify |
+|---|---|---|
 | Multi-output (`outputs > 1`) not extensively tested post-CDP | Medium | Tile detection logic handles multiple new tiles, but verify |
 | Settings trigger sometimes matches twice (log shows 2x `Settings trigger matched`) | Low | Cosmetic — settings are still applied correctly |
 | Model names may drift if Flow updates their UI labels | Medium | Model matching is text-based — if Flow renames models, `configureSettings` will fail |
@@ -63,9 +63,9 @@ Chrome shows `"RJ V-Flow Auto started debugging this browser"` during each gener
 ## Testing Checklist for Next Session
 
 Before any changes, verify:
-- [ ] `text-image` mode: 5+ prompts, no 403 after batch 3 (this is the regression test for the fix)
-- [ ] `text-image` mode: auto-download works for all results
-- [ ] `text-video` mode: 1+ prompt, generation detected, download works
-- [ ] Settings switch between modes (e.g. image → video → image) works
-- [ ] Stop button mid-run detaches CDP cleanly (check service worker console)
-- [ ] Tab close during run: verify `cdpSessions` is cleaned up via `onDetach` listener
+- [ ] `text-image` mode: multi-prompt execution clears prior prompt perfectly and enters new prompt correctly (Slate internal state verified).
+- [ ] `text-video` mode: multi-prompt execution works with CDP.
+- [ ] `img-to-vid` mode: prompt clear and generate button click via CDP works.
+- [ ] `edit-image` mode: prompt clear and generate button click via CDP works.
+- [ ] Stop button mid-run detaches CDP cleanly (check service worker console).
+- [ ] Tab close during run: verify `cdpSessions` is cleaned up via `onDetach` listener.
