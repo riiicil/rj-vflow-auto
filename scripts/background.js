@@ -22,6 +22,11 @@ const automationState = {
 	stopRequested: false
 };
 
+// Tracks which tabIds currently have a CDP debugger session attached.
+// Attach once per automation run, detach when done — avoids interrupting
+// reCAPTCHA network calls that Flow uses to validate each generate request.
+const cdpSessions = new Set();
+
 function normalizeDownloadFilename(filename, url) {
 	const fallback = String(url || "").match(/\/([^/?#]+)(?:[?#]|$)/)?.[1] || "download";
 	const name = String(filename || fallback);
@@ -178,7 +183,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		return true; // Required for async sendResponse
 	}
 
-	if (message.type === 'cdp:action') {
+	// Attach CDP session for the current automation run.
+	// Called once by content.js at the start of runAutomation — not per-action.
+	if (message.type === 'cdp:attach') {
 		const tabId = sender.tab?.id;
 		if (!tabId) {
 			sendResponse({ ok: false, reason: 'no-tab-id' });
@@ -187,11 +194,59 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		const debuggee = { tabId };
 		(async () => {
 			try {
-				await chrome.debugger.attach(debuggee, '1.3');
+				if (!cdpSessions.has(tabId)) {
+					await chrome.debugger.attach(debuggee, '1.3');
+					cdpSessions.add(tabId);
+					console.log(LOG_PREFIX, 'CDP session attached', { tabId });
+				}
+				sendResponse({ ok: true });
 			} catch (e) {
-				// Already attached or failed — try to continue anyway
-				console.warn(LOG_PREFIX, 'CDP attach warning:', e?.message);
+				console.warn(LOG_PREFIX, 'CDP attach failed:', e?.message);
+				sendResponse({ ok: false, reason: e?.message });
 			}
+		})();
+		return true;
+	}
+
+	// Detach CDP session after automation run completes.
+	if (message.type === 'cdp:detach') {
+		const tabId = sender.tab?.id;
+		if (!tabId) {
+			sendResponse({ ok: false, reason: 'no-tab-id' });
+			return true;
+		}
+		const debuggee = { tabId };
+		(async () => {
+			try {
+				if (cdpSessions.has(tabId)) {
+					await chrome.debugger.detach(debuggee);
+					cdpSessions.delete(tabId);
+					console.log(LOG_PREFIX, 'CDP session detached', { tabId });
+				}
+				sendResponse({ ok: true });
+			} catch (e) {
+				cdpSessions.delete(tabId);
+				console.warn(LOG_PREFIX, 'CDP detach warning:', e?.message);
+				sendResponse({ ok: true }); // non-fatal
+			}
+		})();
+		return true;
+	}
+
+	if (message.type === 'cdp:action') {
+		const tabId = sender.tab?.id;
+		if (!tabId) {
+			sendResponse({ ok: false, reason: 'no-tab-id' });
+			return true;
+		}
+		if (!cdpSessions.has(tabId)) {
+			// Session not attached — caller missed cdp:attach. Fail clearly.
+			console.error(LOG_PREFIX, 'cdp:action called but no session attached for tab', tabId);
+			sendResponse({ ok: false, reason: 'no-cdp-session' });
+			return true;
+		}
+		const debuggee = { tabId };
+		(async () => {
 			try {
 				const { action } = message;
 
@@ -203,29 +258,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1 });
 					await cdpSend(debuggee, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0 });
 					await sleep(150);
-					// Select all existing text then insert new text
-					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers: 8 }); // Ctrl+A
-					await cdpSend(debuggee, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 8 });
-					await sleep(80);
 
-					if (text && text.length > 0) {
-						// Type like a human in chunks
-						const chars = Array.from(text);
-						let i = 0;
-						while (i < chars.length) {
-							const chunkSize = Math.floor(Math.random() * 6) + 3; // 3 to 8 characters
-							const chunk = chars.slice(i, i + chunkSize).join('');
-							await cdpSend(debuggee, 'Input.insertText', { text: chunk });
-							await sleep(Math.floor(Math.random() * 41) + 20); // 20ms to 60ms
-							i += chunkSize;
-						}
-					} else {
-						// Clearing editor
-						await cdpSend(debuggee, 'Input.insertText', { text: '' });
-					}
+					// Use Runtime.evaluate to manipulate Slate's internal state directly.
+					// CDP Input events (insertText, keyDown/char) don't include targetRanges
+					// in the beforeinput event, so Slate inserts at cursor instead of
+					// replacing the current selection. Calling editor.deleteFragment() +
+					// editor.insertText() via the React fiber is the only reliable path.
+					const safeText = JSON.stringify(text ?? '');
+					const script = `(() => {
+						try {
+							const dom = document.querySelector('[data-slate-editor="true"]');
+							if (!dom) return '{"ok":false,"reason":"no-dom"}';
+							const fk = Object.keys(dom).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+							if (!fk) return '{"ok":false,"reason":"no-fiber-key"}';
+							let fiber = dom[fk];
+							let ed = null;
+							for (let i = 0; fiber && i < 400; i++, fiber = fiber.return) {
+								try {
+									const p = fiber.memoizedProps || fiber.pendingProps || {};
+									if (p.editor && Array.isArray(p.editor.children) && typeof p.editor.onChange === 'function') {
+										ed = p.editor; break;
+									}
+								} catch(_) {}
+							}
+							if (!ed) return '{"ok":false,"reason":"no-editor"}';
+							if (ed.selection && typeof ed.deleteFragment === 'function') ed.deleteFragment();
+							const t = ${safeText};
+							if (t && typeof ed.insertText === 'function') ed.insertText(t);
+							return '{"ok":true}';
+						} catch(e) { return JSON.stringify({ ok: false, reason: e.message }); }
+					})()`;
 
-					await sleep(150);
-					sendResponse({ ok: true });
+					const evalResult = await chrome.debugger.sendCommand(debuggee, 'Runtime.evaluate', {
+						expression: script, returnByValue: true, awaitPromise: false
+					});
+					const parsed = (() => { try { return JSON.parse(evalResult?.result?.value); } catch(_) { return null; } })();
+					await sleep(200);
+					sendResponse(parsed ?? { ok: false, reason: 'eval-parse-fail' });
 
 				} else if (action === 'click') {
 					const { x, y } = message;
@@ -257,13 +326,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			} catch (err) {
 				console.error(LOG_PREFIX, 'CDP action error:', err?.message);
 				sendResponse({ ok: false, reason: err?.message });
-			} finally {
-				try { await chrome.debugger.detach(debuggee); } catch (_) {}
 			}
+			// No detach here — session stays alive until cdp:detach is called.
 		})();
 		return true;
 	}
 
+});
+
+// Safety net: if Chrome detaches the debugger externally (tab closed, user
+// clicked 'Stop' on the banner, etc.), clean up cdpSessions accordingly.
+chrome.debugger.onDetach.addListener((source, reason) => {
+	if (source?.tabId && cdpSessions.has(source.tabId)) {
+		cdpSessions.delete(source.tabId);
+		console.log(LOG_PREFIX, 'CDP session externally detached', { tabId: source.tabId, reason });
+	}
 });
 
 async function forwardToFlowTab(message) {

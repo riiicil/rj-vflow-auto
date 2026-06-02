@@ -89,6 +89,21 @@ async function runAutomation(payload) {
 		automation.stopRequested = false;
 		updateState({ status: "running", mode, stopRequested: false });
 
+		// Attach CDP session once for the full run (text-image only).
+		// Keeping it attached avoids interrupting reCAPTCHA validation calls
+		// that Flow fires between generate requests.
+		const useCDPMode = (mode === "text-image");
+		if (useCDPMode) {
+			try {
+				const attachResult = await chrome.runtime.sendMessage({ type: 'cdp:attach' });
+				if (!attachResult?.ok) {
+					console.warn(LOG_PREFIX, 'CDP attach failed at run start:', attachResult?.reason);
+				}
+			} catch (e) {
+				console.warn(LOG_PREFIX, 'CDP attach error at run start:', e?.message);
+			}
+		}
+
 		await ensurePageReady();
 
 		if (mode === "img-to-vid") {
@@ -117,6 +132,10 @@ async function runAutomation(payload) {
 		automation.running = false;
 		automation.stopRequested = false;
 		updateState({ status: "idle", stopRequested: false });
+		// Detach CDP session regardless of how the run ended.
+		try {
+			await chrome.runtime.sendMessage({ type: 'cdp:detach' });
+		} catch (_) {}
 	}
 }
 
@@ -127,7 +146,9 @@ async function runTextPromptLoop(payload) {
 	const downloadQuality = payload?.downloadQuality ?? "max";
 	const outputCount = payload?.outputs ?? 1;
 	const mode = payload?.mode ?? "text-image";
-	const useCDP = mode === "text-image"; // only text-image uses CDP; text-video uses non-CDP
+	// CDP is used for both text insertion and button click in text-image mode.
+	// Non-CDP (execCommand) is used for video modes.
+	const useCDP = (mode === "text-image");
 
 	for (let index = 0; index < prompts.length; index += 1) {
 		checkForStop();
@@ -145,6 +166,9 @@ async function runTextPromptLoop(payload) {
 		const existingTileIds = snapshotTileIds();
 		console.log(LOG_PREFIX, "Tile snapshot", { existingCount: existingTileIds.size });
 
+		// CDP insert: Ctrl+A selects all, then first-char keyDown+char replaces
+		// the selection, rest inserted via insertText. This mirrors how a user
+		// manually types a new prompt over existing content.
 		await setPromptText(prompts[index] ?? "", useCDP);
 		await delay(STEP_DELAY_MS);
 
@@ -192,7 +216,7 @@ async function runTextPromptLoop(payload) {
 
 		sendProgress({ message: `Prompt ${index + 1} done. ${index + 1}/${prompts.length} completed.`, level: "success" });
 
-		await setPromptText("", useCDP);
+		await setPromptText("", false);
 		if (index < prompts.length - 1) {
 			const hadFailure = completedTileIds.length < outputCount;
 			const isPeriodicRest = (index + 1) % 10 === 0;
@@ -246,6 +270,9 @@ async function runImgToVidLoop(payload) {
 		await delay(STEP_DELAY_MS);
 		checkForStop();
 
+		// Clear before inserting prompt — ensures no leftover text from prior asset.
+		await setPromptText("", false); // img-to-vid: clear
+		await delay(200);
 		await setPromptText(asset.prompt || "", false); // img-to-vid: non-CDP
 		await delay(STEP_DELAY_MS);
 
@@ -316,22 +343,9 @@ async function setPromptText(text, useCDP = true) {
 		const { x: editorX, y: editorY } = getJitteredCoords(editorRect);
 
 	if (!text) {
-		if (useCDP) {
-			// For clearing: click editor, Ctrl+A, Delete via CDP
-			try {
-				const clearResult = await chrome.runtime.sendMessage({
-					type: 'cdp:action', action: 'insertText',
-					x: editorX, y: editorY, text: ''
-				});
-				if (clearResult?.ok) {
-					console.log(LOG_PREFIX, "setPromptText: CDP clear OK");
-					await delay(200);
-					return;
-				}
-			} catch (_) {}
-		}
-		// execCommand clear (non-CDP path or fallback)
-		console.log(LOG_PREFIX, "setPromptText: clearing editor (empty text)");
+		// CDP is not used for clearing — Slate does not require isTrusted for deletion.
+		// execCommand("delete") after a DOM selection works reliably.
+		console.log(LOG_PREFIX, "setPromptText: clearing editor");
 		simulateClick(editor);
 		await delay(150);
 		editor.focus();
@@ -554,6 +568,9 @@ async function runEditImageLoop(payload) {
 		await delay(STEP_DELAY_MS);
 		checkForStop();
 
+		// Clear before inserting prompt — ensures no leftover text from prior asset.
+		await setPromptText("", false); // edit-image: clear
+		await delay(200);
 		// Set prompt text (mandatory for edit-image)
 		await setPromptText(asset.prompt || "", false); // edit-image: non-CDP
 		await delay(STEP_DELAY_MS);
