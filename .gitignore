@@ -21,3 +21,4 @@ diagnostic_logs/
 log*/
 setup-silent-debugger.ps1
 bootstrap/
+scripts/dev-tools/

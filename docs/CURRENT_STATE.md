@@ -1,10 +1,10 @@
 # Current State — RJ V-Flow Auto
 
-> Snapshot after CDP integration session (2026-05-24).
+> Snapshot after CDP session lifecycle refactor (2026-06-02).
 
 ## Version
 
-**2.1.3** (branch: `main`)
+**2.1.5** (branch: `task/anti-bot-evasion`, pending merge to dev)
 
 ## What Works ✅
 
@@ -66,10 +66,13 @@ The extension relies on **Chrome DevTools Protocol (CDP)** via `chrome.debugger`
 
 ## Completed Work (This Session)
 
-- **Phase 0**: Docs governance ✅ (this session)
+- **Phase 0**: Docs governance ✅ (2026-05-24)
 - **CDP integration**: `chrome.debugger` handler in background.js ✅
 - **setPromptText rewrite**: CDP `insertText` as primary strategy ✅
 - **triggerGenerate rewrite**: CDP `click` as primary strategy ✅
 - **Queued tile fix**: Double-confirmation in `waitForGenerationComplete` ✅
 - **Log cleanup**: `Tile layer changed` logs only on state change ✅
 - **Git repo init**: First push to `https://github.com/riiicil/rj-vflow-auto.git` ✅
+- **rrweb analysis** (2026-06-02): Root cause of 403/unusual detection identified — CDP per-action attach interrupts reCAPTCHA token refresh ✅
+- **CDP attach-once refactor** (2026-06-02): CDP session attached once per run, detached in finally — allows reCAPTCHA to refresh between generate calls ✅
+- **CDP-based Slate Editor Sync** (2026-06-03): Resolved prompt duplication/leakage by dynamically constructing document selection and clearing/inserting directly in Slate's model via CDP for all extension modes. ✅
