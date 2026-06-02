@@ -140,7 +140,7 @@ async function init() {
 
 function restorePanelState() {
 	return new Promise((resolve) => {
-		chrome.storage.local.get([STORAGE_KEY, IMAGE_STORAGE_KEY], (data) => {
+		chrome.storage.local.get([STORAGE_KEY, IMAGE_STORAGE_KEY], async (data) => {
 			const stored = data?.[STORAGE_KEY];
 			if (stored) {
 				Object.assign(panelState, DEFAULT_STATE, stored);
@@ -149,7 +149,7 @@ function restorePanelState() {
 					panelState.mode = "text-image";
 				}
 			}
-			restoreImageQueue(data?.[IMAGE_STORAGE_KEY] || []);
+			await restoreImageQueue(data?.[IMAGE_STORAGE_KEY] || []);
 			resolve();
 		});
 	});
@@ -522,6 +522,7 @@ async function addImages(files) {
 			hasFullImage: true,
 			prompt: ""
 		});
+		saveImageFile(id, file); // Async store raw file to IndexedDB
 	});
 	applyPromptLinesToImages();
 	refreshImageList();
@@ -542,6 +543,7 @@ function removeImage(id) {
 	syncImagePromptOverlay();
 	updateImagePromptTextareaFromQueue();
 	persistImageQueue();
+	deleteImageFile(id); // Async delete from IndexedDB
 }
 
 function clearAllImages() {
@@ -552,6 +554,7 @@ function clearAllImages() {
 	syncImagePromptOverlay();
 	updateImagePromptTextareaFromQueue();
 	persistImageQueue();
+	clearAllImageFiles(); // Async clear IndexedDB
 	showAssetStatus("Cleared image assets.", "warning");
 }
 
@@ -650,10 +653,14 @@ function updateImageListInteractivity() {
 	}
 }
 
-function restoreImageQueue(serialized = []) {
+async function restoreImageQueue(serialized = []) {
 	imageQueue.length = 0;
-	serialized.forEach((entry) => {
-		if (!entry || !entry.thumbnailUrl) return;
+	for (const entry of serialized) {
+		if (!entry || !entry.thumbnailUrl) continue;
+		
+		// Attempt to load raw file from IndexedDB
+		const file = await getImageFile(entry.id);
+		
 		imageQueue.push({
 			id: entry.id || (crypto.randomUUID ? crypto.randomUUID() : `img-${Date.now()}-${Math.random().toString(16).slice(2)}`),
 			name: entry.name || "Image",
@@ -663,10 +670,10 @@ function restoreImageQueue(serialized = []) {
 			dataUrl: null,
 			thumbnailUrl: entry.thumbnailUrl,
 			previewUrl: entry.thumbnailUrl,
-			hasFullImage: false,
-			file: null
+			hasFullImage: !!file,
+			file: file || null
 		});
-	});
+	}
 }
 
 function serializeImageQueue() {
@@ -913,3 +920,86 @@ function handleRuntimeMessage(message) {
 		showStatus(payload.message ?? "", payload.level ?? "info");
 	}
 }
+
+// --- IndexedDB Storage Helper for raw image files ---
+const DB_NAME = "vflowImageDB";
+const DB_VERSION = 1;
+const STORE_NAME = "images";
+
+function openDB() {
+	return new Promise((resolve, reject) => {
+		const request = indexedDB.open(DB_NAME, DB_VERSION);
+		request.onupgradeneeded = (e) => {
+			const db = e.target.result;
+			if (!db.objectStoreNames.contains(STORE_NAME)) {
+				db.createObjectStore(STORE_NAME, { keyPath: "id" });
+			}
+		};
+		request.onsuccess = (e) => resolve(e.target.result);
+		request.onerror = (e) => reject(e.target.error);
+	});
+}
+
+async function saveImageFile(id, file) {
+	try {
+		const db = await openDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE_NAME, "readwrite");
+			const store = tx.objectStore(STORE_NAME);
+			store.put({ id, file });
+			tx.oncomplete = () => resolve(true);
+			tx.onerror = (e) => reject(tx.error || e.target.error);
+		});
+	} catch (err) {
+		console.warn("IndexedDB save error:", err);
+		return false;
+	}
+}
+
+async function getImageFile(id) {
+	try {
+		const db = await openDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE_NAME, "readonly");
+			const store = tx.objectStore(STORE_NAME);
+			const request = store.get(id);
+			request.onsuccess = () => resolve(request.result?.file || null);
+			request.onerror = (e) => reject(request.error || e.target.error);
+		});
+	} catch (err) {
+		console.warn("IndexedDB read error:", err);
+		return null;
+	}
+}
+
+async function deleteImageFile(id) {
+	try {
+		const db = await openDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE_NAME, "readwrite");
+			const store = tx.objectStore(STORE_NAME);
+			store.delete(id);
+			tx.oncomplete = () => resolve(true);
+			tx.onerror = (e) => reject(tx.error || e.target.error);
+		});
+	} catch (err) {
+		console.warn("IndexedDB delete error:", err);
+		return false;
+	}
+}
+
+async function clearAllImageFiles() {
+	try {
+		const db = await openDB();
+		return new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE_NAME, "readwrite");
+			const store = tx.objectStore(STORE_NAME);
+			store.clear();
+			tx.oncomplete = () => resolve(true);
+			tx.onerror = (e) => reject(tx.error || e.target.error);
+		});
+	} catch (err) {
+		console.warn("IndexedDB clear error:", err);
+		return false;
+	}
+}
