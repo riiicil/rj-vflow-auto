@@ -1471,6 +1471,11 @@ async function downloadViaMoreVert(tileEl, tileId, preferredQuality, downloadMod
 			await delay(3000);
 		}
 
+		// Snapshot existing toasts to avoid matching them during this download attempt
+		const existingToasts = new Set(
+			Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
+		);
+
 		const clicked = await triggerMenuAndSelect(tileEl, tileId, preferredQuality);
 		if (!clicked) {
 			console.warn(LOG_PREFIX, `Menu interaction failed on attempt ${attempt}`, { tileId });
@@ -1481,7 +1486,7 @@ async function downloadViaMoreVert(tileEl, tileId, preferredQuality, downloadMod
 		}
 
 		if (downloadMode === "slow") {
-			const result = await awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode);
+			const result = await awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode, existingToasts);
 			if (result.ok) {
 				console.log(LOG_PREFIX, "Upscale completed successfully on attempt", attempt, result.reason);
 				return true;
@@ -1593,7 +1598,7 @@ function isUpscaledQuality(preferredQuality, mode) {
 	}
 }
 
-async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode) {
+async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode, existingToasts = new Set()) {
 	if (!isUpscaledQuality(preferredQuality, mode)) {
 		console.log(LOG_PREFIX, "Original quality selected, bypassing upscale wait", { tileId, preferredQuality });
 		return { ok: true, reason: "original-quality" };
@@ -1610,7 +1615,8 @@ async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode) 
 
 	while (Date.now() - startTime < initialTimeout) {
 		const toasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
-			.filter(isElementVisible);
+			.filter(isElementVisible)
+			.filter(t => !existingToasts.has(t));
 
 		const hasUpscaleToast = toasts.some(t => {
 			const txt = (t.textContent || "").toLowerCase();
@@ -1643,7 +1649,8 @@ async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode) 
 	const pollInterval = 500;
 	while (Date.now() - startTime < maxWaitTime) {
 		const toasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
-			.filter(isElementVisible);
+			.filter(isElementVisible)
+			.filter(t => !existingToasts.has(t));
 
 		const successToast = toasts.find(t => {
 			const txt = (t.textContent || "").toLowerCase();
@@ -1671,7 +1678,8 @@ async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode) 
 		if (!hasUpscaleToast) {
 			await delay(1500);
 			const finalToasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
-				.filter(isElementVisible);
+				.filter(isElementVisible)
+				.filter(t => !existingToasts.has(t));
 			const hasFailFinal = finalToasts.some(t => {
 				const txt = (t.textContent || "").toLowerCase();
 				return /fail|gagal|error|wrong|salah|terjadi/i.test(txt);
