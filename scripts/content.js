@@ -207,7 +207,7 @@ async function runTextPromptLoop(payload) {
 
 		if (completedTileIds.length > 0) {
 			sendProgress({ message: `Downloading ${completedTileIds.length} result(s) for prompt ${index + 1}...`, level: "info" });
-			await downloadNewResults(completedTileIds, mode, downloadQuality);
+			await downloadNewResults(completedTileIds, mode, downloadQuality, payload?.downloadMode ?? "fast");
 		} else {
 			sendProgress({ message: `No successful results for prompt ${index + 1}.`, level: "warning" });
 		}
@@ -287,7 +287,7 @@ async function runImgToVidLoop(payload) {
 
 		if (completedTileIds.length > 0) {
 			sendProgress({ message: `Downloading ${completedTileIds.length} result(s) for image ${index + 1}...`, level: "info" });
-			await downloadNewResults(completedTileIds, "img-to-vid", downloadQuality);
+			await downloadNewResults(completedTileIds, "img-to-vid", downloadQuality, payload?.downloadMode ?? "fast");
 		} else {
 			sendProgress({ message: `No successful results for image ${index + 1}.`, level: "warning" });
 		}
@@ -593,7 +593,7 @@ async function runEditImageLoop(payload) {
 		// Download results
 		if (completedTileIds.length > 0) {
 			sendProgress({ message: `Downloading ${completedTileIds.length} result(s) for image ${index + 1}...`, level: "info" });
-			await downloadNewResults(completedTileIds, "edit-image", downloadQuality);
+			await downloadNewResults(completedTileIds, "edit-image", downloadQuality, payload?.downloadMode ?? "fast");
 		} else {
 			sendProgress({ message: `No successful results for image ${index + 1}.`, level: "warning" });
 		}
@@ -698,8 +698,8 @@ async function configureTileGridSettings() {
 }
 
 async function configureSettings(payload) {
-	const { mode, ratio, outputs, model, duration } = payload;
-	console.log(LOG_PREFIX, "Configuring settings", { mode, ratio, outputs, model, duration });
+	const { mode, ratio, outputs, model } = payload;
+	console.log(LOG_PREFIX, "Configuring settings", { mode, ratio, outputs, model });
 
 	let settingsTrigger = null;
 	try {
@@ -746,10 +746,6 @@ async function configureSettings(payload) {
 	if (model) {
 		await selectModel(menu, model);
 		await delay(CONTROL_DELAY_MS);
-		if (model === "Omni Flash" && duration) {
-			await selectTab(menu, duration, "duration");
-			await delay(CONTROL_DELAY_MS);
-		}
 	}
 
 	if (mode === "img-to-vid") {
@@ -1396,8 +1392,8 @@ async function waitForGenerationComplete(existingTileIds, expectedCount) {
 		.map((t) => t.getAttribute("data-tile-id"));
 }
 
-async function downloadNewResults(completedTileIds, mode, preferredQuality) {
-	console.log(LOG_PREFIX, "Starting download", { count: completedTileIds.length, mode, preferredQuality });
+async function downloadNewResults(completedTileIds, mode, preferredQuality, downloadMode = "fast") {
+	console.log(LOG_PREFIX, "Starting download", { count: completedTileIds.length, mode, preferredQuality, downloadMode });
 
 	let downloadCount = 0;
 
@@ -1416,7 +1412,7 @@ async function downloadNewResults(completedTileIds, mode, preferredQuality) {
 		let downloaded = false;
 
 		try {
-			downloaded = await downloadViaMoreVert(tileEl, tileId, preferredQuality);
+			downloaded = await downloadViaMoreVert(tileEl, tileId, preferredQuality, downloadMode, mode);
 		} catch (menuError) {
 			console.warn(LOG_PREFIX, "More_vert download failed, will try direct URL", { tileId, error: menuError?.message });
 		}
@@ -1464,7 +1460,48 @@ function isResolutionMenu(menu) {
 	return false;
 }
 
-async function downloadViaMoreVert(tileEl, tileId, preferredQuality) {
+async function downloadViaMoreVert(tileEl, tileId, preferredQuality, downloadMode = "fast", mode = "text-image") {
+	const maxAttempts = downloadMode === "slow" ? 3 : 1;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		console.log(LOG_PREFIX, `Download attempt ${attempt} of ${maxAttempts} for tile`, { tileId });
+
+		if (attempt > 1) {
+			sendProgress({ message: `Upscaling failed on attempt ${attempt - 1}. Retrying in 3s...`, level: "warning" });
+			await delay(3000);
+		}
+
+		const clicked = await triggerMenuAndSelect(tileEl, tileId, preferredQuality);
+		if (!clicked) {
+			console.warn(LOG_PREFIX, `Menu interaction failed on attempt ${attempt}`, { tileId });
+			if (attempt === maxAttempts) {
+				return false;
+			}
+			continue;
+		}
+
+		if (downloadMode === "slow") {
+			const result = await awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode);
+			if (result.ok) {
+				console.log(LOG_PREFIX, "Upscale completed successfully on attempt", attempt, result.reason);
+				return true;
+			} else {
+				console.warn(LOG_PREFIX, "Upscale attempt failed:", result.reason);
+				dismissAllMenus();
+			}
+		} else {
+			// Fast mode: fire and forget
+			await delay(1500);
+			dismissAllMenus();
+			return true;
+		}
+	}
+
+	console.error(LOG_PREFIX, `All ${maxAttempts} upscale download attempts failed`, { tileId });
+	return false;
+}
+
+async function triggerMenuAndSelect(tileEl, tileId, preferredQuality) {
 	const outerTile = getTileOuter(tileEl);
 
 	const hoverTarget = outerTile.querySelector('[role="button"][aria-roledescription="draggable"]')
@@ -1542,10 +1579,115 @@ async function downloadViaMoreVert(tileEl, tileId, preferredQuality) {
 	}
 
 	await selectDownloadResolution(resolutionMenu, preferredQuality);
-	await delay(1500);
-
-	dismissAllMenus();
 	return true;
+}
+
+function isUpscaledQuality(preferredQuality, mode) {
+	const q = String(preferredQuality).toLowerCase();
+	const isVideo = mode === "text-video" || mode === "img-to-vid";
+	if (q === "max") return true;
+	if (isVideo) {
+		return q.includes("1080p") || q.includes("4k") || q.includes("upscal");
+	} else {
+		return q.includes("2k") || q.includes("4k") || q.includes("upscal");
+	}
+}
+
+async function awaitUpscaleNotification(tileEl, tileId, preferredQuality, mode) {
+	if (!isUpscaledQuality(preferredQuality, mode)) {
+		console.log(LOG_PREFIX, "Original quality selected, bypassing upscale wait", { tileId, preferredQuality });
+		return { ok: true, reason: "original-quality" };
+	}
+
+	const isVideo = mode === "text-video" || mode === "img-to-vid";
+	const maxWaitTime = isVideo ? 120000 : 35000;
+	const startTime = Date.now();
+
+	console.log(LOG_PREFIX, "Monitoring upscale progress...", { tileId, isVideo, maxWaitTime });
+
+	let upscaleToastSeen = false;
+	const initialTimeout = 3500;
+
+	while (Date.now() - startTime < initialTimeout) {
+		const toasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
+			.filter(isElementVisible);
+
+		const hasUpscaleToast = toasts.some(t => {
+			const txt = (t.textContent || "").toLowerCase();
+			return /upscal|meningkatkan|skala|peningkatan/i.test(txt);
+		});
+
+		if (hasUpscaleToast) {
+			upscaleToastSeen = true;
+			console.log(LOG_PREFIX, "Initial upscaling toast detected");
+			break;
+		}
+
+		const hasFailToast = toasts.some(t => {
+			const txt = (t.textContent || "").toLowerCase();
+			return /fail|gagal|error|wrong|salah|terjadi/i.test(txt);
+		});
+		if (hasFailToast) {
+			console.warn(LOG_PREFIX, "Immediate failure toast detected during initial wait");
+			return { ok: false, reason: "immediate-failure" };
+		}
+
+		await delay(200);
+	}
+
+	if (!upscaleToastSeen) {
+		console.log(LOG_PREFIX, "No upscale toast detected within timeout. Assuming direct download or skipped.", { tileId });
+		return { ok: true, reason: "no-upscale-toast" };
+	}
+
+	const pollInterval = 500;
+	while (Date.now() - startTime < maxWaitTime) {
+		const toasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
+			.filter(isElementVisible);
+
+		const successToast = toasts.find(t => {
+			const txt = (t.textContent || "").toLowerCase();
+			return /complete|selesai|sukses|downloaded|unduh|lengkap/i.test(txt);
+		});
+		if (successToast) {
+			console.log(LOG_PREFIX, "Upscale success toast detected:", successToast.textContent);
+			return { ok: true, reason: "success" };
+		}
+
+		const failToast = toasts.find(t => {
+			const txt = (t.textContent || "").toLowerCase();
+			return /fail|gagal|error|wrong|salah|terjadi/i.test(txt);
+		});
+		if (failToast) {
+			console.warn(LOG_PREFIX, "Upscale failure toast detected:", failToast.textContent);
+			return { ok: false, reason: "failed" };
+		}
+
+		const hasUpscaleToast = toasts.some(t => {
+			const txt = (t.textContent || "").toLowerCase();
+			return /upscal|meningkatkan|skala|peningkatan/i.test(txt);
+		});
+
+		if (!hasUpscaleToast) {
+			await delay(1500);
+			const finalToasts = Array.from(document.querySelectorAll('li[data-sonner-toast], [data-sonner-toast], [class*="toast"]'))
+				.filter(isElementVisible);
+			const hasFailFinal = finalToasts.some(t => {
+				const txt = (t.textContent || "").toLowerCase();
+				return /fail|gagal|error|wrong|salah|terjadi/i.test(txt);
+			});
+			if (hasFailFinal) {
+				return { ok: false, reason: "failed-after-disappear" };
+			}
+			console.log(LOG_PREFIX, "Upscale toast disappeared without error. Assuming success.");
+			return { ok: true, reason: "toast-disappeared" };
+		}
+
+		await delay(pollInterval);
+	}
+
+	console.warn(LOG_PREFIX, "Upscale wait timed out");
+	return { ok: false, reason: "timeout" };
 }
 
 async function triggerRadixSubMenu(downloadItem) {
