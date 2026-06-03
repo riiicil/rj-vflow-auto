@@ -12,14 +12,14 @@
 6. **Documentation init** — `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/session-analysis.md`.
 7. **Git repo init** — First push to `https://github.com/riiicil/rj-vflow-auto.git`.
 
-### Session 2026-06-02 & 2026-06-03 (branch: task/anti-bot-evasion)
+### Session 2026-06-02 & 2026-06-03 (branch: dev)
 
 8. **rrweb session analysis** — Compared manual vs extension sessions using rrweb recorder + custom analyzer scripts (in `scripts/dev-tools/`, gitignored). Root cause of 403 identified.
 9. **CDP session lifecycle refactor** — Changed CDP attach/detach from per-action to once-per-run.
-10. **CDP-based Slate Editor Sync** — Fixed prompt duplication/leakage where Slate.js internal React state diverged from the DOM during prompt clearing or switching. We now:
-    - Attach CDP session at the start of all runs (for all modes: `text-image`, `text-video`, `img-to-vid`, `edit-image`).
-    - Query and manipulate the Slate editor's fiber instance via CDP `Runtime.evaluate` to programmatically select the entire document range, run `deleteFragment()`, and then insert the new prompt text.
-    - Omit standard/paste/execCommand DOM manipulation in favor of Slate-internal actions, which guarantees 100% synchronization.
+10. **CDP-based Slate Editor Sync** — Fixed prompt duplication/leakage where Slate.js internal React state diverged from the DOM during prompt clearing or switching. We now attach CDP session once at start of runs and query and manipulate Slate editor's fiber instance via CDP `Runtime.evaluate`.
+11. **Grid Reordering & Duration Removal**: Removed `#durationGroup` and re-layout sidepanel grid to group Mode/Model, Ratio/Output, and Quality/Download Mode.
+12. **Download Toast Monitoring & Retries (Slow Mode)**: Introduced a double-confirmation toast wait, 3x retries on failure/timeout, and a fallback to direct download URL.
+13. **Pure Random Prompt Option**: Integrated Whisk's `categoriesRandomPrompt` style keywords generator with 3-10 word generation limits, 250 history-based deduplication, and infinite automated generation loops until stopped.
 
 ## Key Context for Next Agent
 

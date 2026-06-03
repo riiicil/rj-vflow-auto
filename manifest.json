@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RJ V-Flow Auto",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Automate Labs Flow generation workflows.",
   "permissions": [
     "storage",

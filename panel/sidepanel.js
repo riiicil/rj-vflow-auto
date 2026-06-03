@@ -471,8 +471,11 @@ function refreshDisabledState() {
 	elements.modelSelect.disabled = running;
 	elements.downloadSelect.disabled = running;
 	elements.downloadModeSelect.disabled = running;
-	if (elements.promptSourceSelect) {
-		elements.promptSourceSelect.disabled = running || !isTextMode;
+	if (elements.promptSourceSelect && elements.promptSourceGroup) {
+		const disabled = running || !isTextMode;
+		elements.promptSourceSelect.disabled = disabled;
+		elements.promptSourceGroup.style.opacity = disabled ? "0.4" : "1";
+		elements.promptSourceGroup.style.filter = disabled ? "grayscale(100%)" : "none";
 	}
 
 	elements.promptTextarea.disabled = running || !isTextMode || isRandom;
