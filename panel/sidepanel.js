@@ -24,6 +24,7 @@ const DEFAULT_STATE = {
 	outputs: "1",
 	model: "",
 	downloadQuality: "max",
+	downloadMode: "fast",
 	promptText: "",
 	imagePromptText: ""
 };
@@ -92,6 +93,7 @@ const elements = {
 	modelGroup: document.getElementById("modelGroup"),
 	downloadSelect: document.getElementById("downloadSelect"),
 	downloadGroup: document.getElementById("downloadGroup"),
+	downloadModeSelect: document.getElementById("downloadModeSelect"),
 	promptSection: document.getElementById("textPromptSection"),
 	promptDropzone: document.getElementById("promptDropzone"),
 	promptTextarea: document.getElementById("promptTextarea"),
@@ -153,9 +155,9 @@ function restorePanelState() {
 }
 
 function savePanelState() {
-	const { mode, ratio, outputs, model, downloadQuality, promptText, imagePromptText } = panelState;
+	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText, imagePromptText } = panelState;
 	chrome.storage.local.set({
-		[STORAGE_KEY]: { mode, ratio, outputs, model, downloadQuality, promptText, imagePromptText }
+		[STORAGE_KEY]: { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText, imagePromptText }
 	});
 }
 
@@ -165,6 +167,7 @@ function applyStateToUI() {
 	elements.outputSelect.value = panelState.outputs;
 	refreshModelOptions();
 	refreshDownloadOptions();
+	elements.downloadModeSelect.value = panelState.downloadMode;
 	elements.promptTextarea.value = panelState.promptText;
 	if (elements.imagePromptTextarea) {
 		elements.imagePromptTextarea.value = panelState.imagePromptText;
@@ -201,6 +204,11 @@ function attachEventListeners() {
 
 	elements.downloadSelect.addEventListener("change", () => {
 		panelState.downloadQuality = elements.downloadSelect.value;
+		savePanelState();
+	});
+
+	elements.downloadModeSelect.addEventListener("change", () => {
+		panelState.downloadMode = elements.downloadModeSelect.value;
 		savePanelState();
 	});
 
@@ -439,6 +447,7 @@ function refreshDisabledState() {
 	elements.outputSelect.disabled = running;
 	elements.modelSelect.disabled = running;
 	elements.downloadSelect.disabled = running;
+	elements.downloadModeSelect.disabled = running;
 
 	elements.promptTextarea.disabled = running || !isTextMode;
 	elements.promptBrowseBtn.disabled = running || !isTextMode;
@@ -797,7 +806,7 @@ async function requestStop() {
 }
 
 async function buildPayload() {
-	const { mode, ratio, outputs, model, downloadQuality, promptText } = panelState;
+	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText } = panelState;
 
 	if (mode === "text-image" || mode === "text-video") {
 		const prompts = sanitizePromptList(promptText);
@@ -808,7 +817,7 @@ async function buildPayload() {
 		return {
 			mode, ratio,
 			outputs: Number.parseInt(outputs, 10) || 1,
-			model, downloadQuality, prompts
+			model, downloadQuality, downloadMode, prompts
 		};
 	}
 
@@ -837,7 +846,7 @@ async function buildPayload() {
 		return {
 			mode, ratio,
 			outputs: Number.parseInt(outputs, 10) || 1,
-			model, downloadQuality, assets
+			model, downloadQuality, downloadMode, assets
 		};
 	}
 
