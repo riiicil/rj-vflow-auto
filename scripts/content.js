@@ -141,7 +141,8 @@ async function runAutomation(payload) {
 
 async function runTextPromptLoop(payload) {
 	const prompts = Array.isArray(payload?.prompts) ? payload.prompts : [];
-	if (!prompts.length) throw new Error("No prompts provided.");
+	const isRandom = payload?.promptSource === "random";
+	if (!isRandom && !prompts.length) throw new Error("No prompts provided.");
 
 	const downloadQuality = payload?.downloadQuality ?? "max";
 	const outputCount = payload?.outputs ?? 1;
@@ -149,9 +150,15 @@ async function runTextPromptLoop(payload) {
 	// CDP is used for both text insertion and button click in all text modes.
 	const useCDP = true;
 
-	for (let index = 0; index < prompts.length; index += 1) {
+	let index = 0;
+	while (true) {
 		checkForStop();
-		sendProgress({ message: `Processing prompt ${index + 1} of ${prompts.length}.`, level: "info" });
+		if (!isRandom && index >= prompts.length) break;
+
+		const currentPrompt = isRandom ? await generateRandomPromptFromExtension() : prompts[index];
+		const displayPromptNum = index + 1;
+		const displayTotalText = isRandom ? "" : ` of ${prompts.length}`;
+		sendProgress({ message: `Processing prompt ${displayPromptNum}${displayTotalText}.`, level: "info" });
 
 		if (index === 0) {
 			await delay(1500);
@@ -168,24 +175,25 @@ async function runTextPromptLoop(payload) {
 		// CDP insert: Ctrl+A selects all, then first-char keyDown+char replaces
 		// the selection, rest inserted via insertText. This mirrors how a user
 		// manually types a new prompt over existing content.
-		await setPromptText(prompts[index] ?? "", useCDP);
+		await setPromptText(currentPrompt ?? "", useCDP);
 		await delay(STEP_DELAY_MS);
 
 		// Verify text landed — retry once with extra delay if editor is still empty
 		const editor = getSlateEditor();
 		const editorTextAfter = editor ? getEditorText(editor) : "";
-		if (editorTextAfter.length === 0 && (prompts[index] ?? "").length > 0) {
+		if (editorTextAfter.length === 0 && (currentPrompt ?? "").length > 0) {
 			console.warn(LOG_PREFIX, "setPromptText: editor still empty after first attempt, retrying...");
 			await delay(800);
-			await setPromptText(prompts[index] ?? "", useCDP);
+			await setPromptText(currentPrompt ?? "", useCDP);
 			await delay(STEP_DELAY_MS);
 		}
 
 		// Guard: if text still not in editor, skip this prompt
 		const editorTextFinal = editor ? getEditorText(editor) : "";
-		if (editorTextFinal.length === 0 && (prompts[index] ?? "").length > 0) {
+		if (editorTextFinal.length === 0 && (currentPrompt ?? "").length > 0) {
 			console.warn(LOG_PREFIX, "setPromptText failed after retry — skipping this prompt");
-			sendProgress({ message: `Prompt ${index + 1} skipped: could not insert text into editor.`, level: "warning" });
+			sendProgress({ message: `Prompt ${displayPromptNum} skipped: could not insert text into editor.`, level: "warning" });
+			index += 1;
 			continue;
 		}
 
@@ -199,39 +207,44 @@ async function runTextPromptLoop(payload) {
 		}
 
 		checkForStop();
-		await triggerGenerate({ prompt: prompts[index] ?? "", payload, outputCount, promptIndex: index, totalPrompts: prompts.length, existingTileIds, useCDP });
-		sendProgress({ message: `Prompt ${index + 1} submitted. Waiting for generation...`, level: "info" });
+		await triggerGenerate({ prompt: currentPrompt ?? "", payload, outputCount, promptIndex: index, totalPrompts: isRandom ? 99999 : prompts.length, existingTileIds, useCDP });
+		sendProgress({ message: `Prompt ${displayPromptNum} submitted. Waiting for generation...`, level: "info" });
 
 		const completedTileIds = await waitForGenerationComplete(existingTileIds, outputCount);
 		checkForStop();
 
 		if (completedTileIds.length > 0) {
-			sendProgress({ message: `Downloading ${completedTileIds.length} result(s) for prompt ${index + 1}...`, level: "info" });
+			sendProgress({ message: `Downloading ${completedTileIds.length} result(s) for prompt ${displayPromptNum}...`, level: "info" });
 			await downloadNewResults(completedTileIds, mode, downloadQuality, payload?.downloadMode ?? "fast");
 		} else {
-			sendProgress({ message: `No successful results for prompt ${index + 1}.`, level: "warning" });
+			sendProgress({ message: `No successful results for prompt ${displayPromptNum}.`, level: "warning" });
 		}
 		checkForStop();
 
-		sendProgress({ message: `Prompt ${index + 1} done. ${index + 1}/${prompts.length} completed.`, level: "success" });
+		sendProgress({ message: `Prompt ${displayPromptNum} done. ${displayPromptNum}${displayTotalText} completed.`, level: "success" });
 
 		await setPromptText("", useCDP);
-		if (index < prompts.length - 1) {
-			const hadFailure = completedTileIds.length < outputCount;
-			const isPeriodicRest = (index + 1) % 10 === 0;
-			if (isPeriodicRest) {
-				sendProgress({ message: `Periodic rest after ${index + 1} prompts...`, level: "info" });
-				await randomDelay(15000, 25000);
-			} else if (hadFailure) {
-				sendProgress({ message: `Resting longer after partial failure...`, level: "info" });
-				await randomDelay(12000, 20000);
-			} else {
-				sendProgress({ message: `Resting before next prompt...`, level: "info" });
-				await randomDelay(3000, 10000);
-			}
-		} else {
+		
+		// Break here if not random and index is last
+		if (!isRandom && index === prompts.length - 1) {
 			await delay(STEP_DELAY_MS);
+			break;
 		}
+		
+		const hadFailure = completedTileIds.length < outputCount;
+		const isPeriodicRest = (index + 1) % 10 === 0;
+		if (isPeriodicRest) {
+			sendProgress({ message: `Periodic rest after ${displayPromptNum} prompts...`, level: "info" });
+			await randomDelay(15000, 25000);
+		} else if (hadFailure) {
+			sendProgress({ message: `Resting longer after partial failure...`, level: "info" });
+			await randomDelay(12000, 20000);
+		} else {
+			sendProgress({ message: `Resting before next prompt...`, level: "info" });
+			await randomDelay(3000, 10000);
+		}
+
+		index += 1;
 	}
 }
 
@@ -2111,6 +2124,174 @@ function waitFor(predicate, options = {}) {
 		};
 		tick();
 	});
+}
+
+const categoriesRandomPrompt = {
+  "Medium": [
+    "110 film", "120mm film", "35mm film", "8mm film", "360° photo", "cyanotype", "daguerreotype", "digital photo", "drone shot", "DSLR photo", "expired film", "GoPro footage", "instant film (Fujifilm Instax)", "instant film (Polaroid)", "large format sheet film", "lomochrome purple film", "lomography film", "mirrorless photo", "pinhole camera capture", "redscale film", "slide film (Ektachrome)", "smartphone photo", "wet plate collodion"
+  ],
+  "Focus Style": [
+    "bokeh", "bokeh glow", "chromatic aberration", "cinematic blur", "circular bokeh", "deep depth of field", "diffraction starburst", "dreamy focus", "film grain focus", "gaussian blur", "halation effect", "glow blur", "high contrast focus", "hexagonal bokeh", "lens flare", "light trail focus", "low contrast focus", "macro focus", "motion blur", "out of focus", "rack focus", "selective focus", "shallow depth of field", "sharp focus", "shaped bokeh", "soft focus", "tilt-shift focus", "vignetting", "zoom blur"
+  ],
+  "Emotional Tone & Atmosphere": [
+    "atmospheric", "bleak", "bright", "brooding", "calm", "chaotic", "contemplative", "desolate", "dramatic", "dreamy", "eerie", "ethereal", "euphoric", "frenetic", "gloomy", "haunting", "heroic", "hopeful", "joyful", "lively", "luminous", "melancholic", "motionless", "muted", "mysterious", "nostalgic", "oppressive", "peaceful", "radiant", "romantic", "serene", "somber", "stillness", "subdued", "suspenseful", "tranquil", "vibrant", "whimsical"
+  ],
+  "Energy & Vibe": [
+    "aggressive", "bold", "dynamic", "electrifying", "energetic", "explosive", "fiery", "high octane", "intense", "mechanical", "organic", "pulsating", "quiet", "static", "subtle", "turbulent"
+  ],
+  "Art Movements": [
+    "abstract expressionist", "art deco", "art nouveau", "baroque", "constructivist", "cubist", "dadaism", "fauvism", "futurism", "impressionistic", "naivism", "neo-expressionism", "op art", "pop art", "postmodern", "renaissance", "rococo", "surrealist", "ukiyo-e"
+  ],
+  "Digital & Tech Styles": [
+    "cel-shaded", "cyberpunk", "digital paint", "digital surrealism", "glitch aesthetic", "glitch art", "glitchcore", "high-fidelity aesthetic", "hyperrealistic", "isometric", "neon aesthetic", "neongoth", "photorealistic", "pixel art render", "3D render", "vaporwave", "voxel"
+  ],
+  "General Aesthetics & Qualities (Visual)": [
+    "abstract", "asymmetrical", "balanced", "biomorphic", "clean", "collage", "conceptual", "contemporary", "crosshatch", "deconstructivist", "detailed", "flat", "flat color", "geometric", "graphic", "handmade", "highbrow", "illustrative", "intricate", "layered", "line art", "lowbrow", "maximalist", "messy", "minimal", "minimal shading", "minimalist", "modern", "muted", "organic", "ornate", "painterly", "precise", "raw", "realistic", "refined", "rough", "schematic", "sketchy", "soft", "stippling", "stylized", "symmetrical", "textured", "thoughtful", "unfinished", "vibrant", "watercolor"
+  ],
+  "Cultural & Thematic Styles": [
+    "artistic movement & theme", "atomic age", "avant-garde", "biocentric art", "bohemian", "brutalist", "charcoal", "cinematic", "cottagecore", "dark academia", "dream aesthetic", "dreamy", "dystopian aesthetic", "e-girl/e-boy aesthetic", "elfcore", "fantasy aesthetic", "folk art", "gothic aesthetic", "graffiti", "grunge", "grunge aesthetic", "indie aesthetic", "kawaii", "kawaii aesthetic", "land art", "light academia", "lo-fi aesthetic", "minimalist aesthetic", "new wave", "normcore", "nostalgic aesthetic", "pastel aesthetic", "preppy aesthetic", "punk aesthetic", "rave aesthetic", "retro", "retro aesthetic", "retrofuturism", "retro-noir", "sci-fi aesthetic", "skater aesthetic", "solarpunk", "space age", "steampunk", "synthwave", "tenebrism", "tiki culture", "tribal art", "urban decay", "utopian aesthetic", "vintage", "vintage aesthetic", "whimsical"
+  ],
+  "Light Sources & Types": [
+    "ambient lighting", "artificial light", "candlelight", "direct light", "firelight", "flash photography", "LED panel", "moonlight", "natural light", "natural lighting", "natural window light", "neon light", "neon lighting", "practical lighting", "practical lights", "reflector use", "soft sunlight", "spotlighting", "strobe lighting", "studio lighting", "sunrise/sunset", "UV lighting", "window light"
+  ],
+  "Lighting Qualities & Techniques": [
+    "backlight", "backlighting", "bounced light", "chiaroscuro", "cinematic lighting", "cool shadow", "dappled light", "diffuse lighting", "diffused light", "dim ambient lighting", "dramatic lighting", "fill light", "flat lighting", "gelled lighting", "golden hour", "hard lighting", "hard light", "harsh light", "high key", "high-speed sync", "infrared lighting", "iridescent lighting", "key light", "lens flare", "light diffusion", "light leak effect", "low key", "low light", "midday sun", "monochrome lighting", "moonlight reflection", "motivated lighting", "off-camera flash", "on-camera flash", "open shade", "overcast lighting", "pastel lighting", "phosphorescent lighting", "rim light", "rim lighting", "shadow play", "shadowy lighting", "side light", "side lighting", "soft light", "soft lighting", "soft focus glow", "three-point lighting", "underwater lighting", "warm glow"
+  ],
+  "Lighting Visual Effects": [
+    "bioluminescent glow", "color bloom", "color distortion", "color pulsation", "color splash", "diffusion filter", "electric hue", "firelight flicker", "golden hour filter", "gradient fade", "gradient masking", "gradient overlay", "halation glow", "holographic effect", "neon bleed", "neon glow", "prismatic flare", "retro neon", "sunset gradient", "UV glow"
+  ],
+  "Color Relationships & Theories": [
+    "achromatic tones", "analogous", "analogous cool", "analogous warm", "analog tones", "color harmony", "color theory-based", "complementary colors", "complementary tones", "split-complementary", "split-complementary tones", "tetradic", "tetradic tones", "triadic", "triadic tones", "warm-cool contrast"
+  ],
+  "Color Qualities & Saturation": [
+    "desaturated", "full saturation", "high contrast", "hyper-saturated", "low saturation", "metallic tones", "monochromatic", "monochrome", "natural tones", "neutral monochrome", "neutral tones", "overexposed tones", "saturated", "sepia", "sepia tones", "shadow tones", "soft focus tones", "subdued", "underexposed tones", "vibrant", "washed out"
+  ],
+  "Specific Color Palettes & Tones": [
+    "blue and orange", "candy palette", "cinematic palette", "cinematic tones", "cool palette", "cool tones", "cyberpunk palette", "duotone", "duotone palette", "earthy palette", "earthy tones", "faded tones", "gothic palette", "gradient palette", "gradient tones", "hand-painted palette", "hand-painted tones", "HDR tones", "high contrast palette", "high contrast tones", "hot tones", "isomorphic tones", "low saturation palette", "metallic palette", "neon palette", "neon tones", "pastel palette", "pastel tones", "pink and black", "red and green", "retro palette", "retro tones", "retro-futurism palette", "split-toned palette", "stylized tones", "tritone", "tritone palette", "vibrant palette", "vibrant tones", "vintage film tones", "vintage palette", "warm palette", "warm tones", "washed-out palette", "yellow and purple"
+  ],
+  "Color Grading & Techniques": [
+    "cinematic color grading", "cinematic LUTs", "color blocking", "color clash", "color clipping", "color correction", "color grading", "color grading LUTs", "color grading presets", "digital color grading", "digital palette", "split-toning"
+  ],
+  "Fiction Genres": [
+    "action", "adventure", "alien invasion", "alternate history", "animated", "biographical", "body horror", "comedy", "cosmic horror", "crime", "cyber-noir", "cyberpunk", "drama", "dystopian", "eco-fiction", "epic", "espionage", "family", "fantasy", "first contact", "folklore", "gothic fiction", "hard sci-fi", "heist", "historical fiction", "horror", "magical realism", "musical", "mystery", "mythological", "narrative", "noir", "philosophical", "political", "post-apocalyptic", "psychological", "religious", "romance", "satire", "scifi", "slice of life", "solarpunk", "space opera", "steampunk", "supernatural", "survival", "thriller", "time travel", "urban fantasy", "utopian", "war", "western"
+  ],
+  "Photography & Documentary Genres": [
+    "aerial", "architectural", "architectural documentary", "boudoir", "candid", "candid street", "cinematic", "commercial", "concert", "conceptual", "documentary", "documentary-style", "editorial", "editorial beauty", "editorial fashion", "environmental portrait", "event", "experimental", "fashion", "fashion campaign", "fashion editorial", "fashion show", "fine art", "forensic", "glamour", "guerrilla photography", "landscape", "landscape documentary", "lifestyle", "lifestyle documentary", "macro", "nature", "nature documentary", "newborn", "outdoor portrait", "paparazzi style", "photo essay", "photojournalism", "photography genre", "portrait", "product", "product photography", "reportage", "runway", "sports", "still life", "street", "street photography", "street portrait", "studio portrait", "surveillance", "surveillance footage", "travel", "travel documentary", "underwater", "underwater photography", "urban exploration", "war photography", "wedding", "wildlife", "wildlife documentary"
+  ],
+  "Visual Techniques": [
+    "AI-generated photo", "AI-rendered analog simulation", "analog", "analog film", "animation", "black-and-white", "chroma key", "collage from scanned negatives", "composite image", "CRT screen photo", "datamoshed frame", "depth-mapped photo", "digital black & white", "digital collage", "digital film", "digital infrared", "digital painting", "drone", "film emulation filter", "film noir", "generative art", "glitched film frame", "green screen", "hand-painted photo", "infrared", "light painting", "lo-fi video", "long exposure", "matte painting", "mixed media", "monochrome", "motion graphics", "night photography", "overlay footage", "photo of photo", "pixel art render", "polaroid", "retro", "retro filter", "scanography", "security cam still", "silent film", "slow motion", "split-screen", "stop motion", "thermal imaging", "time-lapse", "vintage", "visual techniques & effects", "VHS aesthetic", "VHS video still", "webcam capture", "x-ray image", "zoom blur"
+  ]
+};
+
+async function generateRandomPromptFromExtension() {
+  const MIN_PROMPT_PARTS = 3;
+  const MAX_PROMPT_PARTS = 10;
+  const RECENT_PROMPT_VALUES_HISTORY_KEY = 'vflow_recent_prompt_values';
+  const RECENT_PROMPT_VALUES_HISTORY_SIZE = 250;
+
+  let recentHistory = [];
+  try {
+    const storageData = await new Promise(resolve => chrome.storage.local.get([RECENT_PROMPT_VALUES_HISTORY_KEY], resolve));
+    if (chrome.runtime.lastError) {
+      console.warn('[RJ V-Flow] Error loading prompt history:', chrome.runtime.lastError.message);
+    } else if (storageData && storageData[RECENT_PROMPT_VALUES_HISTORY_KEY]) {
+      recentHistory = storageData[RECENT_PROMPT_VALUES_HISTORY_KEY];
+    }
+  } catch (e) {
+    console.warn('[RJ V-Flow] Exception loading prompt history:', e);
+    recentHistory = [];
+  }
+
+  const allCategoryKeysMaster = Object.keys(categoriesRandomPrompt);
+  if (allCategoryKeysMaster.length === 0) {
+    console.warn("[RJ V-Flow] No categories found to generate random prompt.");
+    return "Error: Empty prompt categories";
+  }
+
+  let allCategoryKeysForCycle = [...allCategoryKeysMaster];
+  const numberOfCategoriesToPick = Math.floor(Math.random() * (MAX_PROMPT_PARTS - MIN_PROMPT_PARTS + 1)) + MIN_PROMPT_PARTS;
+
+  const finalPromptParts = [];
+  const usedInThisCycleValues = new Set();
+
+  for (let i = 0; i < numberOfCategoriesToPick && allCategoryKeysForCycle.length > 0 && finalPromptParts.length < MAX_PROMPT_PARTS; i++) {
+    const categoryIndex = Math.floor(Math.random() * allCategoryKeysForCycle.length);
+    const categoryKey = allCategoryKeysForCycle.splice(categoryIndex, 1)[0];
+
+    const valuesInCategory = categoriesRandomPrompt[categoryKey];
+    if (!valuesInCategory || valuesInCategory.length === 0) {
+      continue;
+    }
+
+    let availableValuesForCategory = [...valuesInCategory];
+    let chosenValue = null;
+    let attempts = 0;
+    const maxAttemptsPerCategory = Math.min(availableValuesForCategory.length, 5);
+
+    while (attempts < maxAttemptsPerCategory && chosenValue === null && availableValuesForCategory.length > 0) {
+      const valueIndex = Math.floor(Math.random() * availableValuesForCategory.length);
+      const potentialValue = availableValuesForCategory.splice(valueIndex, 1)[0];
+
+      if (!recentHistory.includes(potentialValue) && !usedInThisCycleValues.has(potentialValue)) {
+        chosenValue = potentialValue;
+      }
+      attempts++;
+    }
+
+    if (chosenValue === null) {
+      let fallbackCandidates = valuesInCategory.filter(v => !usedInThisCycleValues.has(v));
+      if (fallbackCandidates.length > 0) {
+        chosenValue = fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)];
+      } else {
+        chosenValue = valuesInCategory[Math.floor(Math.random() * valuesInCategory.length)];
+      }
+    }
+
+    if (chosenValue) {
+      if (!finalPromptParts.includes(chosenValue)) {
+        finalPromptParts.push(chosenValue);
+      }
+      usedInThisCycleValues.add(chosenValue);
+    }
+  }
+
+  if (finalPromptParts.length === 0 && allCategoryKeysMaster.length > 0) {
+    const emergencyCategoryKey = allCategoryKeysMaster[Math.floor(Math.random() * allCategoryKeysMaster.length)];
+    const emergencyValues = categoriesRandomPrompt[emergencyCategoryKey];
+    if (emergencyValues && emergencyValues.length > 0) {
+      finalPromptParts.push(emergencyValues[Math.floor(Math.random() * emergencyValues.length)]);
+    } else {
+      return "Default Random Prompt";
+    }
+  }
+
+  let currentStorageHistory = [];
+  try {
+    const storageData = await new Promise(resolve => chrome.storage.local.get([RECENT_PROMPT_VALUES_HISTORY_KEY], resolve));
+    if (chrome.runtime.lastError) {
+      console.warn('[RJ V-Flow] Error loading history before save:', chrome.runtime.lastError.message);
+    } else if (storageData && storageData[RECENT_PROMPT_VALUES_HISTORY_KEY]) {
+      currentStorageHistory = storageData[RECENT_PROMPT_VALUES_HISTORY_KEY];
+    }
+  } catch (e) { /* ignore */ }
+
+  finalPromptParts.forEach(part => {
+    const index = currentStorageHistory.indexOf(part);
+    if (index > -1) {
+      currentStorageHistory.splice(index, 1);
+    }
+    currentStorageHistory.push(part);
+  });
+
+  const updatedHistory = currentStorageHistory.slice(-RECENT_PROMPT_VALUES_HISTORY_SIZE);
+
+  chrome.storage.local.set({ [RECENT_PROMPT_VALUES_HISTORY_KEY]: updatedHistory }, () => {
+    if (chrome.runtime.lastError) {
+      console.warn('[RJ V-Flow] Error saving prompt history:', chrome.runtime.lastError.message);
+    }
+  });
+
+  return finalPromptParts.join(' ');
 }
 
 
