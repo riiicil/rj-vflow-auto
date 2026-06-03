@@ -4,7 +4,7 @@
 
 ## Version
 
-**2.1.5** (branch: `task/anti-bot-evasion`, pending merge to dev)
+**2.1.6** (branch: `dev`)
 
 ## What Works ✅
 
@@ -76,3 +76,6 @@ The extension relies on **Chrome DevTools Protocol (CDP)** via `chrome.debugger`
 - **rrweb analysis** (2026-06-02): Root cause of 403/unusual detection identified — CDP per-action attach interrupts reCAPTCHA token refresh ✅
 - **CDP attach-once refactor** (2026-06-02): CDP session attached once per run, detached in finally — allows reCAPTCHA to refresh between generate calls ✅
 - **CDP-based Slate Editor Sync** (2026-06-03): Resolved prompt duplication/leakage by dynamically constructing document selection and clearing/inserting directly in Slate's model via CDP for all extension modes. ✅
+- **Side Panel Grid Layout Reorder** (2026-06-03): Removed duration select, reordered controls grid, and nested Quality and Download Mode together. ✅
+- **Toast Monitor & Retries** (2026-06-03): Implemented upscale toast monitoring in Slow download mode with 3x retry loop and fallback to original quality. ✅
+- **Pure Random Prompt Option** (2026-06-03): Added prompt source selection to choose manual prompt list or extension-generated randomized prompts (3-10 style keywords with deduplication history of 250 items). ✅

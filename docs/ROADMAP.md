@@ -12,17 +12,17 @@
 - [x] `docs/session-analysis.md` — full debug session log
 - [x] Git repository initialized and pushed
 
-## Phase 1 — Stability & Verification 🔄
+## Phase 1 — Stability & Verification ✅
 
 Verify all modes work correctly after the CDP migration:
 
-- [ ] `text-image` mode: multi-prompt, all models, all ratios
-- [ ] `text-video` mode: multi-prompt, all models, landscape/portrait
-- [ ] `img-to-vid` mode: single and multi-image asset queue
-- [ ] `edit-image` mode: asset + prompt
-- [ ] Multi-output (`outputs > 1`) for image mode
-- [ ] Download quality selectors for all modes
-- [ ] Stop button mid-run for all modes
+- [x] `text-image` mode: multi-prompt, all models, all ratios
+- [x] `text-video` mode: multi-prompt, all models, landscape/portrait
+- [x] `img-to-vid` mode: single and multi-image asset queue
+- [x] `edit-image` mode: asset + prompt
+- [x] Multi-output (`outputs > 1`) for image mode
+- [x] Download quality selectors for all modes
+- [x] Stop button mid-run for all modes
 
 ## Phase 2 — UX Improvements (Potential)
 
