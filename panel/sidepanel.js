@@ -25,6 +25,7 @@ const DEFAULT_STATE = {
 	model: "",
 	downloadQuality: "max",
 	downloadMode: "fast",
+	promptSource: "manual",
 	promptText: "",
 	imagePromptText: ""
 };
@@ -94,6 +95,8 @@ const elements = {
 	downloadSelect: document.getElementById("downloadSelect"),
 	downloadGroup: document.getElementById("downloadGroup"),
 	downloadModeSelect: document.getElementById("downloadModeSelect"),
+	promptSourceSelect: document.getElementById("promptSourceSelect"),
+	promptSourceGroup: document.getElementById("promptSourceGroup"),
 	promptSection: document.getElementById("textPromptSection"),
 	promptDropzone: document.getElementById("promptDropzone"),
 	promptTextarea: document.getElementById("promptTextarea"),
@@ -155,9 +158,9 @@ function restorePanelState() {
 }
 
 function savePanelState() {
-	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText, imagePromptText } = panelState;
+	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptSource, promptText, imagePromptText } = panelState;
 	chrome.storage.local.set({
-		[STORAGE_KEY]: { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText, imagePromptText }
+		[STORAGE_KEY]: { mode, ratio, outputs, model, downloadQuality, downloadMode, promptSource, promptText, imagePromptText }
 	});
 }
 
@@ -168,6 +171,9 @@ function applyStateToUI() {
 	refreshModelOptions();
 	refreshDownloadOptions();
 	elements.downloadModeSelect.value = panelState.downloadMode;
+	if (elements.promptSourceSelect) {
+		elements.promptSourceSelect.value = panelState.promptSource;
+	}
 	elements.promptTextarea.value = panelState.promptText;
 	if (elements.imagePromptTextarea) {
 		elements.imagePromptTextarea.value = panelState.imagePromptText;
@@ -211,6 +217,14 @@ function attachEventListeners() {
 		panelState.downloadMode = elements.downloadModeSelect.value;
 		savePanelState();
 	});
+
+	if (elements.promptSourceSelect) {
+		elements.promptSourceSelect.addEventListener("change", () => {
+			panelState.promptSource = elements.promptSourceSelect.value;
+			refreshDisabledState();
+			savePanelState();
+		});
+	}
 
 	elements.promptTextarea.addEventListener("input", () => {
 		panelState.promptText = elements.promptTextarea.value;
@@ -337,6 +351,14 @@ function refreshModeSections() {
 	const isTextMode = mode === "text-image" || mode === "text-video";
 	const isAssetMode = mode === "img-to-vid" || mode === "edit-image";
 
+	if (isAssetMode && panelState.promptSource !== "manual") {
+		panelState.promptSource = "manual";
+		if (elements.promptSourceSelect) {
+			elements.promptSourceSelect.value = "manual";
+		}
+		savePanelState();
+	}
+
 	elements.promptSection.classList.toggle("d-none", !isTextMode);
 
 	if (elements.assetPromptSection) {
@@ -441,6 +463,7 @@ function refreshDisabledState() {
 
 	const isTextMode = panelState.mode === "text-image" || panelState.mode === "text-video";
 	const isAssetMode = panelState.mode === "img-to-vid" || panelState.mode === "edit-image";
+	const isRandom = panelState.promptSource === "random";
 
 	elements.modeSelect.disabled = running;
 	elements.ratioSelect.disabled = running;
@@ -448,10 +471,13 @@ function refreshDisabledState() {
 	elements.modelSelect.disabled = running;
 	elements.downloadSelect.disabled = running;
 	elements.downloadModeSelect.disabled = running;
+	if (elements.promptSourceSelect) {
+		elements.promptSourceSelect.disabled = running || !isTextMode;
+	}
 
-	elements.promptTextarea.disabled = running || !isTextMode;
-	elements.promptBrowseBtn.disabled = running || !isTextMode;
-	elements.promptFileInput.disabled = running;
+	elements.promptTextarea.disabled = running || !isTextMode || isRandom;
+	elements.promptBrowseBtn.disabled = running || !isTextMode || isRandom;
+	elements.promptFileInput.disabled = running || isRandom;
 
 	if (elements.imagePromptTextarea) {
 		elements.imagePromptTextarea.disabled = running || !isAssetMode;
@@ -472,7 +498,7 @@ function refreshDisabledState() {
 	elements.startButton.disabled = running;
 	elements.stopButton.disabled = !running || stopPending;
 
-	elements.promptDropzone.classList.toggle("disabled", running || !isTextMode);
+	elements.promptDropzone.classList.toggle("disabled", running || !isTextMode || isRandom);
 
 	if (elements.imageDropzone) {
 		elements.imageDropzone.classList.toggle("disabled", running || !isAssetMode);
@@ -806,18 +832,19 @@ async function requestStop() {
 }
 
 async function buildPayload() {
-	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptText } = panelState;
+	const { mode, ratio, outputs, model, downloadQuality, downloadMode, promptSource, promptText } = panelState;
 
 	if (mode === "text-image" || mode === "text-video") {
-		const prompts = sanitizePromptList(promptText);
-		if (!prompts.length) {
+		const isRandom = promptSource === "random";
+		const prompts = isRandom ? [] : sanitizePromptList(promptText);
+		if (!isRandom && !prompts.length) {
 			showStatus("Please provide at least one prompt.", "warning");
 			return null;
 		}
 		return {
 			mode, ratio,
 			outputs: Number.parseInt(outputs, 10) || 1,
-			model, downloadQuality, downloadMode, prompts
+			model, downloadQuality, downloadMode, promptSource, prompts
 		};
 	}
 
