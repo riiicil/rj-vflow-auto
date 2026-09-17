@@ -11,11 +11,11 @@ gantt
     title RJ V-Flow Auto v3.0 Development Roadmap
     dateFormat  YYYY-MM-DD
     section Phase 1
-    Cleanup & Governance Foundation       :active, 2026-09-17, 1d
+    Cleanup & Governance Foundation       :done, 2026-09-17, 1d
     section Phase 2
-    Core Automation Engine & Services     :2026-09-18, 3d
+    Core Automation Engine & Services     :done, 2026-09-17, 3d
     section Phase 3
-    Dual-Mode UI Implementation           :2026-09-21, 3d
+    Dual-Mode UI Implementation           :active, 2026-09-21, 3d
     section Phase 4
     E2E Integration & Stress Testing      :2026-09-24, 2d
     section Phase 5
@@ -26,31 +26,36 @@ gantt
 
 ## Phased Execution Breakdown
 
-### Phase 1: Cleanup & Governance Foundation `[IN_PROGRESS]`
+### Phase 1: Cleanup & Governance Foundation `[COMPLETE]`
 - **Target Branch**: `task/cleanup-and-governance` $\to$ `dev`
 - [x] **Sub-phase 1.1**: Git Archiving, `.gitignore` Hardening, and Docs Initiation `[COMPLETE]`
   - Commit: `8f3e5d1 chore(git): isolate and push legacy branch and harden gitignore`
 - [x] **Sub-phase 1.2**: Purge Root Zip Archives, Legacy Version Folders, and Obsolete UI Scripts `[COMPLETE]`
   - Commit: `4c07274 chore(cleanup): purge root zip archives, legacy version folders, and obsolete UI scripts`
-- [ ] **Sub-phase 1.3**: Establish Complete Documentation Suite Adhering to `DOCS_STYLE` and Port `GOOGLE_FLOW_DOM` `[IN_PROGRESS]`
-  - Commit: `docs(governance): establish complete documentation suite adhering to DOCS_STYLE and port GOOGLE_FLOW_DOM`
-- [ ] **Sub-phase 1.4**: Author Root `AGENTS.md`, `DESIGN.md`, Clean MV3 Manifest, and `src/` Scaffold `[PLANNED]`
-  - Commit: `chore(foundation): author root AGENTS.md, DESIGN.md tokens, clean MV3 manifest, and src scaffold`
+- [x] **Sub-phase 1.3**: Establish Complete Documentation Suite Adhering to `DOCS_STYLE` and Port `GOOGLE_FLOW_DOM` `[COMPLETE]`
+  - Commit: `e980390 docs(governance): establish complete documentation suite adhering to DOCS_STYLE and port GOOGLE_FLOW_DOM`
+- [x] **Sub-phase 1.4**: Author Root `AGENTS.md`, `DESIGN.md`, Clean MV3 Manifest, and `src/` Scaffold `[COMPLETE]`
+  - Commit: `eff9539 chore(foundation): author root AGENTS.md, DESIGN.md tokens, and clean MV3 manifest`
 
 ---
 
-### Phase 2: Core Automation Engine & Services `[PLANNED]`
+### Phase 2: Core Automation Engine & Services `[COMPLETE]`
 - **Target Branch**: `task/core-automation-engine` $\to$ `dev`
-- [ ] **Sub-phase 2.1**: Core DOM Utility Library & Storage Engine `[PLANNED]`
-  - Implement `src/engine/FlowDOM.js` and `src/engine/FlowStorage.js` with schema versioning.
-- [ ] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[PLANNED]`
+- [x] **Sub-phase 2.1**: Core DOM Utility Library & Storage Engine `[COMPLETE]`
+  - Commit: `7251251 feat(core): implement FlowDOM selector engine and FlowStorage service`
+  - Implement `src/core/FlowDOM.js` and `src/core/FlowStorage.js` with schema versioning.
+- [x] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[COMPLETE]`
+  - Commit: `42698d8 feat(services): implement FlowSettingsService for model, ratio, and agent suppression`
   - Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and agent mode disabling.
-- [ ] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[PLANNED]`
+- [x] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[COMPLETE]`
+  - Commit: `270cee5 feat(services): implement FlowIngredientService and FlowPromptService`
   - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
-- [ ] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[PLANNED]`
+- [x] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[COMPLETE]`
+  - Commit: `e6335d3 feat(services): implement FlowWatcherService for top-batch monitoring and failure detection`
   - Implement `src/services/FlowWatcherService.js` with top-batch virtual scroll monitoring and `isCardGenerationSuccess(card)`.
-- [ ] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[PLANNED]`
-  - Implement `src/services/FlowDownloadService.js` and `src/engine/QueueManager.js` state machine.
+- [x] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[COMPLETE]`
+  - Commit: `feat(core): implement FlowDownloadService and QueueManager orchestrator`
+  - Implement `src/services/FlowDownloadService.js` and `src/core/QueueManager.js` state machine.
 
 ---
 
