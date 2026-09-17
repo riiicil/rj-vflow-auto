@@ -42,9 +42,10 @@ gantt
 ### Phase 2: Core Automation Engine & Services `[IN_PROGRESS]`
 - **Target Branch**: `task/core-automation-engine` $\to$ `dev`
 - [x] **Sub-phase 2.1**: Core DOM Utility Library & Storage Engine `[COMPLETE]`
-  - Commit: `feat(core): implement FlowDOM selector engine and FlowStorage service`
+  - Commit: `7251251 feat(core): implement FlowDOM selector engine and FlowStorage service`
   - Implement `src/core/FlowDOM.js` and `src/core/FlowStorage.js` with schema versioning.
-- [ ] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[PLANNED]`
+- [x] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[COMPLETE]`
+  - Commit: `feat(services): implement FlowSettingsService for model, ratio, and agent suppression`
   - Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and agent mode disabling.
 - [ ] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[PLANNED]`
   - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
