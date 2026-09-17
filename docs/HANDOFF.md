@@ -1,71 +1,66 @@
-# Handoff Notes — RJ V-Flow Auto
+# Agent Handoff Guide — RJ V-Flow Auto (Next-Gen v3.0)
 
-> Updated: 2026-06-03. For next agent session continuity.
+> **Purpose**: Essential operational context, in-flight state, platform gotchas, and immediate instructions for incoming AI agents resuming work.
 
-## What Was Just Done
+---
 
-1. **CDP integration** — Added `chrome.debugger` handler in `background.js` with three actions: `insertText`, `click`, `pressEnter`. This was the core fix for the generate button not working.
-2. **`setPromptText` rewrite** — CDP `insertText` (click editor → Ctrl+A → `Input.insertText`) is now primary. `execCommand` and paste simulation are fallbacks.
-3. **`triggerGenerate` rewrite** — CDP `click` is now primary. CDP `pressEnter` is fallback. All DOM-based `dispatchEvent()` simulation removed.
-4. **Queued tile false-positive fix** — `waitForGenerationComplete` now double-confirms completion before declaring done.
-5. **Log cleanup** — `getTileStatus` now uses `_stateCache` to suppress repeated identical tile layer logs.
-6. **Documentation init** — `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/session-analysis.md`.
-7. **Git repo init** — First push to `https://github.com/riiicil/rj-vflow-auto.git`.
+## 1. Immediate Operational State
 
-### Session 2026-06-02 & 2026-06-03 (branch: dev)
+- **Current Milestone**: Phase 1 (Cleanup & Governance Foundation) — [COMPLETE] / Ready for Phase 2
+- **Active Branch**: `task/cleanup-and-governance`
+- **Latest Commit**: Pending Sub-phase 1.4 commit (`chore(foundation): author root AGENTS.md, DESIGN.md tokens, and clean MV3 manifest`)
+- **Working Tree**: Clean
+- **Build / Test State**: Verified healthy, clean Manifest V3 ready, zero legacy clutter
 
-8. **rrweb session analysis** — Compared manual vs extension sessions using rrweb recorder + custom analyzer scripts (in `scripts/dev-tools/`, gitignored). Root cause of 403 identified.
-9. **CDP session lifecycle refactor** — Changed CDP attach/detach from per-action to once-per-run.
-10. **CDP-based Slate Editor Sync** — Fixed prompt duplication/leakage where Slate.js internal React state diverged from the DOM during prompt clearing or switching. We now attach CDP session once at start of runs and query and manipulate Slate editor's fiber instance via CDP `Runtime.evaluate`.
-11. **Grid Reordering & Duration Removal**: Removed `#durationGroup` and re-layout sidepanel grid to group Mode/Model, Ratio/Output, and Quality/Download Mode.
-12. **Download Toast Monitoring & Retries (Slow Mode)**: Introduced a double-confirmation toast wait, 3x retries on failure/timeout, and a fallback to direct download URL.
-13. **Pure Random Prompt Option**: Integrated Whisk's `categoriesRandomPrompt` style keywords generator with 3-10 word generation limits, 250 history-based deduplication, and infinite automated generation loops until stopped.
+---
 
-## Key Context for Next Agent
+## 2. Active In-Flight Context
 
-### Why CDP is required
-- Flow uses Slate.js which checks `event.isTrusted`
-- `dispatchEvent()` from content scripts always produces `isTrusted: false`
-- CDP events from `chrome.debugger` are `isTrusted: true` at the browser level
-- **Do not attempt to revert to DOM-based event simulation — it does not work**
+Phase 1 (Cleanup & Governance Foundation) is now **100% complete**:
+1. All legacy v2.x code and commit history is permanently preserved on remote `origin/legacy`.
+2. All root zip archives, legacy version folders, and obsolete UI/CDP scripts have been purged.
+3. The complete documentation suite adhering to `DOCS_STYLE.md` is active in `docs/`.
+4. Permanent institutional knowledge of Google Flow's DOM selectors is ported to `docs/references/GOOGLE_FLOW_DOM.md`.
+5. Root project foundation files (`AGENTS.md`, `DESIGN.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `icons/`) are established.
+6. A clean, zero-CDP Manifest V3 has been established at `src/manifest.json` with modular directory scaffolding under `src/`.
 
-### Why CDP attach-once (the 2026-06-02 change)
-- Flow uses **reCAPTCHA Enterprise** (invisible) to validate every `batchGenerateImages` request
-- reCAPTCHA fires a background network request (`/recaptcha/enterprise/clr`) to refresh its token between generate calls
-- When CDP was attached/detached per-action, Chrome's debugger mode was interrupting these reCAPTCHA requests (status 0 = blocked) — causing token expiry → 403 on subsequent generates
-- Evidence: rrweb recordings showed 8× 403 in extension session vs 0 in manual session; all 403s occurred after reCAPTCHA tokens expired (~3 successful batches in, ~80s into session)
-- Fix: attach CDP once at automation start, detach at end — reCAPTCHA requests can complete normally between CDP actions
+---
 
-### File to understand first
-- `scripts/content.js` — main automation logic (~1960 lines)
-  - `runAutomation()` — CDP attach/detach lifecycle lives here
-  - `setPromptText()` — CDP text insertion
-  - `triggerGenerate()` — CDP button click
-  - `waitForGenerationComplete()` — tile polling with double-confirm
-  - `getTileStatus()` — reads `--blur-amount` and `opacity` from style
-  - `findGenerateButton()` — scoring-based button detection (target score: 110)
-  - `configureSettings()` — settings modal interaction
-  - `downloadNewResults()` — context menu download flow
+## 3. Actionable Next Steps for Incoming Agent
 
-### The CDP debugger banner
-Chrome shows `"RJ V-Flow Auto started debugging this browser"` during each generate action. With the attach-once change, the banner now **stays visible for the entire automation run** (not just per-action). This is expected and cannot be suppressed from extension code. To hide it, launch Chrome with `--silent-debugger-extension-api`.
+1. **Phase 1 Merge to `dev`** (Pending Human User Instruction):
+   - When instructed by human user:
+     ```bash
+     git checkout dev
+     git merge --no-ff task/cleanup-and-governance
+     ```
+2. **Phase 2 (Core Automation Engine & Services) Initialization**:
+   - Create task branch:
+     ```bash
+     git checkout -b task/core-automation-engine dev
+     ```
+   - **Sub-phase 2.1 Execution**:
+     - Implement `src/core/FlowDOM.js`: Centralized language-resilient selector query engine (Material Symbols ligatures, Angular custom tags, internal CSS classes).
+     - Implement `src/core/FlowStorage.js`: Storage engine (`chrome.storage.local`) with debounced auto-save, schema versioning, and auto-healing.
+     - Update `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and add Session Entry 5 to `docs/agent-logs/2026-09-17.md`.
+     - Commit as `feat(core): implement FlowDOM selector engine and FlowStorage service`.
 
-## Open Issues / Potential Work
+---
 
-| Issue | Priority | Notes |
-|---|---|---|
-| Multi-output (`outputs > 1`) not extensively tested post-CDP | Medium | Tile detection logic handles multiple new tiles, but verify |
-| Settings trigger sometimes matches twice (log shows 2x `Settings trigger matched`) | Low | Cosmetic — settings are still applied correctly |
-| Model names may drift if Flow updates their UI labels | Medium | Model matching is text-based — if Flow renames models, `configureSettings` will fail |
-| Download quality selector for video (`findDownloadMenuItem`) | Low | Was reported as potentially picking wrong menu item in early testing; appeared resolved but monitor |
-| Chrome debugger banner now stays visible entire run | Low | Expected side-effect of attach-once. Only solvable via Chrome flag outside extension. |
+## 4. Critical Gotchas & Architectural Traps
 
-## Testing Checklist for Next Session
+- **Zero English-Label Dependency**: Never query elements using localized English `aria-label` text (e.g. `[aria-label="Start generation"]`, `[aria-label="Tile grid settings"]`). Always use Material Symbols ligatures (`settings_2`, `more_vert`, `download`, `arrow_forward`, `swap_horiz`, `cancel`), custom tags (`flow-*`), or internal CSS classes (`.settings-trigger-button`, `.agent-mode-chip`, `.generate-icon-button`).
+- **Zero-CDP Mandate**: Never introduce `chrome.debugger` or CDP synthetic events. All text injection must use `document.execCommand('insertText')` + native `InputEvent` dispatch on `flow-rich-text-editor.prompt-input div.ProseMirror`.
+- **In-Card Failure Detection**: Google Flow does not display toasts for content moderation blocks or quota limits. Asset tiles remain permanently blurred with warning badges. Card success must be validated via `isCardGenerationSuccess(card)`.
+- **Virtual Scroll Safety**: Angular CDK unmounts older cards. Always monitor the newest batch at top index 0 (`flow-grid-tile-container > :first-child`).
 
-Before any changes, verify:
-- [ ] `text-image` mode: multi-prompt execution clears prior prompt perfectly and enters new prompt correctly (Slate internal state verified).
-- [ ] `text-video` mode: multi-prompt execution works with CDP.
-- [ ] `img-to-vid` mode: prompt clear and generate button click via CDP works.
-- [ ] `edit-image` mode: prompt clear and generate button click via CDP works.
-- [ ] Stop button mid-run detaches CDP cleanly (check service worker console).
-- [ ] Tab close during run: verify `cdpSessions` is cleaned up via `onDetach` listener.
+---
+
+## 5. Recent Session Handoff Log
+
+| Session | Date | Branch | Commit | Summary | Next Focus |
+| :---: | :---: | :--- | :--- | :--- | :--- |
+| 04 | 2026-09-17 | `task/cleanup-and-governance` | Pending | Author root AGENTS.md, DESIGN.md, clean manifest, and src scaffold (Phase 1 Complete) | Phase 2 Sub-phase 2.1: FlowDOM & FlowStorage |
+| 03 | 2026-09-17 | `task/cleanup-and-governance` | `e980390` | Establish complete governance docs suite and port GOOGLE_FLOW_DOM reference | Sub-phase 1.4: Author AGENTS.md, DESIGN.md, clean manifest, and src scaffold |
+| 02 | 2026-09-17 | `task/cleanup-and-governance` | `4c07274` | Purge root zip archives, legacy version folders, and obsolete UI scripts | Sub-phase 1.3: Mirror and author full governance docs suite |
+| 01 | 2026-09-17 | `task/cleanup-and-governance` | `8f3e5d1` | Isolate and push legacy branch, harden gitignore, initialize docs suite | Sub-phase 1.2: Purge root zips and legacy folders |
