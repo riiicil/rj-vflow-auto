@@ -3,12 +3,24 @@
  * 
  * Manages open Shadow DOM encapsulation (#flow-auto-hud-root),
  * fluid drag physics with boundary clamping, position persistence,
- * and minimize/restore transitions.
+ * two-column studio layout orchestration, and queue building.
  * 
  * Adheres strictly to ADR-002, ADR-003, and ADR-007.
  */
 
-import { getConfig, saveConfig, onChanged } from '../core/FlowStorage.js';
+import {
+  getConfig,
+  saveConfig,
+  getQueue,
+  enqueueItem,
+  enqueueBatch,
+  removeQueueItem,
+  clearCompletedQueue,
+  clearAllQueue,
+  onChanged
+} from '../core/FlowStorage.js';
+
+import { renderStudioLayout, renderQueueItem } from './FlowHUDTemplates.js';
 
 export class FlowHUDHost {
   constructor() {
@@ -33,6 +45,11 @@ export class FlowHUDHost {
     this.currentLeft = 24;
     this.currentTop = 24;
     this.saveDebounceTimer = null;
+
+    // Media Dropzone Ingestion Cache
+    this.stagedI2VMedia = null;
+    this.stagedF2VStart = null;
+    this.stagedF2VEnd = null;
   }
 
   /**
@@ -74,17 +91,21 @@ export class FlowHUDHost {
     overlayLink.href = chrome.runtime.getURL('overlay/overlay.css');
     this.shadow.appendChild(overlayLink);
 
-    // 4. Build HUD markup
+    // 4. Build HUD markup with Two-Column Studio Layout
     this.buildMarkup();
 
-    // 5. Setup Drag Physics & Listeners
+    // 5. Setup Drag Physics, Window Controls, and Workspace Events
     this.setupDragPhysics();
     this.setupControls();
+    this.setupStudioEvents();
 
     // 6. Apply initial clamped position
     this.applyPosition(this.currentLeft, this.currentTop);
 
-    // 7. Subscribe to storage updates for live ticker
+    // 7. Initial queue list and parameter sync
+    await this.syncUIFromStorage();
+
+    // 8. Subscribe to storage updates for live ticker & queue updates
     onChanged(cfg => this.handleStorageUpdate(cfg));
   }
 
@@ -125,11 +146,7 @@ export class FlowHUDHost {
         </header>
 
         <div class="hud-body" id="hudStudioContent">
-          <!-- Placeholder: Sub-phase 3.3 will inject Two-Column Studio Layout here -->
-          <div class="hud-placeholder-content">
-            <p>Studio Queue & Parameters Workspace</p>
-            <span style="font-size: 11px; color: var(--rj-text-ash);">Phase 3 Sub-phase 3.2 Host Active</span>
-          </div>
+          ${renderStudioLayout()}
         </div>
       </div>
 
@@ -169,8 +186,7 @@ export class FlowHUDHost {
    */
   setupDragPhysics() {
     const handleDragStart = (e) => {
-      // Ignore if clicking a button
-      if (e.target.closest('button')) return;
+      if (e.target.closest('button, input, select, textarea')) return;
 
       this.isDragging = true;
       this.dragStartX = e.clientX;
@@ -199,7 +215,6 @@ export class FlowHUDHost {
       this.isDragging = false;
       window.removeEventListener('mousemove', onDragMove);
 
-      // Persist position (debounced)
       clearTimeout(this.saveDebounceTimer);
       this.saveDebounceTimer = setTimeout(() => {
         saveConfig({
@@ -225,10 +240,10 @@ export class FlowHUDHost {
    */
   applyPosition(x, y) {
     const activeEl = this.isMinimized ? this.pillEl : this.windowEl;
-    const rect = activeEl ? activeEl.getBoundingClientRect() : { width: 720, height: 480 };
+    const rect = activeEl ? activeEl.getBoundingClientRect() : { width: 740, height: 500 };
 
-    const width = rect.width || (this.isMinimized ? 160 : 720);
-    const height = rect.height || (this.isMinimized ? 34 : 480);
+    const width = rect.width || (this.isMinimized ? 160 : 740);
+    const height = rect.height || (this.isMinimized ? 34 : 500);
 
     const maxX = Math.max(12, window.innerWidth - width - 12);
     const maxY = Math.max(12, window.innerHeight - height - 12);
@@ -240,29 +255,517 @@ export class FlowHUDHost {
     this.container.style.top = `${this.currentTop}px`;
   }
 
-  /**
-   * Sets up minimize, restore, and close buttons.
-   */
   setupControls() {
     const btnMin = this.shadow.getElementById('btnMinimizeHud');
-    if (btnMin) {
-      btnMin.addEventListener('click', () => this.minimize());
-    }
+    if (btnMin) btnMin.addEventListener('click', () => this.minimize());
 
     const btnRestore = this.shadow.getElementById('btnRestoreHud');
-    if (btnRestore) {
-      btnRestore.addEventListener('click', () => this.restore());
-    }
+    if (btnRestore) btnRestore.addEventListener('click', () => this.restore());
 
     const btnClose = this.shadow.getElementById('btnCloseHud');
-    if (btnClose) {
-      btnClose.addEventListener('click', () => this.hide());
+    if (btnClose) btnClose.addEventListener('click', () => this.hide());
+  }
+
+  /**
+   * Wires interactive workspace events (tabs, dropzones, queue building).
+   */
+  setupStudioEvents() {
+    // 1. Navigation Tab Switching
+    const tabs = this.shadow.querySelectorAll('.hud-nav-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const tabKey = tab.dataset.tab;
+        const panes = this.shadow.querySelectorAll('.hud-tab-pane');
+        panes.forEach(p => p.classList.remove('active'));
+
+        if (tabKey === 'text-batch') this.shadow.getElementById('paneTextBatch')?.classList.add('active');
+        if (tabKey === 'i2v') this.shadow.getElementById('paneI2V')?.classList.add('active');
+        if (tabKey === 'f2v') this.shadow.getElementById('paneF2V')?.classList.add('active');
+        if (tabKey === 'queue-list') this.shadow.getElementById('paneQueueList')?.classList.add('active');
+      });
+    });
+
+    // Clear Text Batch Button
+    const btnClearTextBatch = this.shadow.getElementById('btnClearTextBatch');
+    if (btnClearTextBatch) {
+      btnClearTextBatch.addEventListener('click', () => {
+        const textarea = this.shadow.getElementById('txtBatchPrompts');
+        if (textarea) textarea.value = '';
+      });
+    }
+
+    // 2. Media Mode Switching (Video vs Image)
+    this.setupSegmentGroup('segMediaMode', (val) => {
+      const isVideo = val === 'text-to-video';
+
+      // Duration is for Omni Video
+      const grpDuration = this.shadow.getElementById('grpDuration');
+      if (grpDuration) grpDuration.style.display = isVideo ? 'flex' : 'none';
+
+      // Multipliers are for Image Mode
+      const grpMultiplier = this.shadow.getElementById('grpMultiplier');
+      if (grpMultiplier) grpMultiplier.style.display = isVideo ? 'none' : 'flex';
+
+      // Model options grouping
+      const grpVideoModels = this.shadow.getElementById('grpVideoModels');
+      const grpImageModels = this.shadow.getElementById('grpImageModels');
+      if (grpVideoModels) grpVideoModels.style.display = isVideo ? 'block' : 'none';
+      if (grpImageModels) grpImageModels.style.display = isVideo ? 'none' : 'block';
+
+      // Select default model if previous selection is invalid for the new mode
+      const selModel = this.shadow.getElementById('selModelFamily');
+      if (selModel) {
+        if (isVideo && selModel.value.startsWith('Nano Banana')) {
+          selModel.value = 'Omni 1.1 Flash';
+          saveConfig({ model: 'Omni 1.1 Flash' }).catch(() => {});
+        } else if (!isVideo && !selModel.value.startsWith('Nano Banana')) {
+          selModel.value = 'Nano Banana 2';
+          saveConfig({ model: 'Nano Banana 2' }).catch(() => {});
+        }
+      }
+
+      // Resolution options grouping
+      const grpVideoRes = this.shadow.getElementById('grpVideoRes');
+      const grpImageRes = this.shadow.getElementById('grpImageRes');
+      if (grpVideoRes) grpVideoRes.style.display = isVideo ? 'block' : 'none';
+      if (grpImageRes) grpImageRes.style.display = isVideo ? 'none' : 'block';
+
+      // Select default resolution if mode changed
+      const selRes = this.shadow.getElementById('selResolution');
+      if (selRes) {
+        if (isVideo && (selRes.value === '1K' || selRes.value === '2K')) {
+          selRes.value = '1080p';
+          saveConfig({ videoResolution: '1080p' }).catch(() => {});
+        } else if (!isVideo && (selRes.value === '720p' || selRes.value === '1080p')) {
+          selRes.value = '2K';
+          saveConfig({ imageResolution: '2K' }).catch(() => {});
+        }
+      }
+
+      // Aspect Ratio: Video has 16:9 and 9:16 ONLY. Image has 4:3 and 1:1 additionally.
+      const ratioImgOnly = this.shadow.querySelectorAll('.ratio-img-only');
+      ratioImgOnly.forEach(el => {
+        el.style.display = isVideo ? 'none' : 'flex';
+      });
+
+      // If switching to video and ratio was 4:3 or 1:1, fallback to 16:9
+      if (isVideo) {
+        const segAspect = this.shadow.getElementById('segAspectRatio');
+        const activeAspectBtn = segAspect?.querySelector('.hud-segment-btn.active');
+        if (activeAspectBtn && (activeAspectBtn.dataset.val === '4:3' || activeAspectBtn.dataset.val === '1:1')) {
+          segAspect.querySelectorAll('.hud-segment-btn').forEach(b => b.classList.remove('active'));
+          segAspect.querySelector('[data-val="16:9"]')?.classList.add('active');
+          saveConfig({ aspectRatio: '16:9' }).catch(() => {});
+        }
+      }
+
+      saveConfig({ mode: val }).catch(() => {});
+    });
+
+    this.setupSegmentGroup('segDuration', (val) => saveConfig({ duration: val }).catch(() => {}));
+    this.setupSegmentGroup('segAspectRatio', (val) => saveConfig({ aspectRatio: val }).catch(() => {}));
+    this.setupSegmentGroup('segOutputs', (val) => saveConfig({ outputCount: Number(val) }).catch(() => {}));
+
+    // 3. Dropdown Selects
+    const selModel = this.shadow.getElementById('selModelFamily');
+    if (selModel) {
+      selModel.addEventListener('change', (e) => saveConfig({ model: e.target.value }).catch(() => {}));
+    }
+
+    const selResolution = this.shadow.getElementById('selResolution');
+    if (selResolution) {
+      selResolution.addEventListener('change', (e) => {
+        const val = e.target.value;
+        saveConfig({ videoResolution: val, imageResolution: val }).catch(() => {});
+      });
+    }
+
+    // 4. File Dropzones (I2V and F2V)
+    this.setupDropzone('dropzoneI2V', 'fileI2V', 'dropzoneI2VEmpty', 'dropzoneI2VPreview', 'imgI2VPreview', (dataUrl) => {
+      this.stagedI2VMedia = dataUrl;
+    });
+
+    const btnRemoveI2V = this.shadow.getElementById('btnRemoveI2V');
+    if (btnRemoveI2V) {
+      btnRemoveI2V.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.stagedI2VMedia = null;
+        this.shadow.getElementById('dropzoneI2VEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneI2VPreview').style.display = 'none';
+        const fileInput = this.shadow.getElementById('fileI2V');
+        if (fileInput) fileInput.value = '';
+      });
+    }
+
+    this.setupDropzone('dropzoneF2VStart', 'fileF2VStart', 'dropzoneF2VStartEmpty', 'dropzoneF2VStartPreview', 'imgF2VStartPreview', (dataUrl) => {
+      this.stagedF2VStart = dataUrl;
+    });
+
+    const btnRemoveF2VStart = this.shadow.getElementById('btnRemoveF2VStart');
+    if (btnRemoveF2VStart) {
+      btnRemoveF2VStart.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.stagedF2VStart = null;
+        this.shadow.getElementById('dropzoneF2VStartEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneF2VStartPreview').style.display = 'none';
+        const fileInput = this.shadow.getElementById('fileF2VStart');
+        if (fileInput) fileInput.value = '';
+      });
+    }
+
+    this.setupDropzone('dropzoneF2VEnd', 'fileF2VEnd', 'dropzoneF2VEndEmpty', 'dropzoneF2VEndPreview', 'imgF2VEndPreview', (dataUrl) => {
+      this.stagedF2VEnd = dataUrl;
+    });
+
+    const btnRemoveF2VEnd = this.shadow.getElementById('btnRemoveF2VEnd');
+    if (btnRemoveF2VEnd) {
+      btnRemoveF2VEnd.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.stagedF2VEnd = null;
+        this.shadow.getElementById('dropzoneF2VEndEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneF2VEndPreview').style.display = 'none';
+        const fileInput = this.shadow.getElementById('fileF2VEnd');
+        if (fileInput) fileInput.value = '';
+      });
+    }
+
+    // F2V Frames Swap Button
+    const btnSwapF2V = this.shadow.getElementById('btnSwapF2V');
+    if (btnSwapF2V) {
+      btnSwapF2V.addEventListener('click', () => {
+        const temp = this.stagedF2VStart;
+        this.stagedF2VStart = this.stagedF2VEnd;
+        this.stagedF2VEnd = temp;
+
+        const startImg = this.shadow.getElementById('imgF2VStartPreview');
+        const startEmpty = this.shadow.getElementById('dropzoneF2VStartEmpty');
+        const startPrev = this.shadow.getElementById('dropzoneF2VStartPreview');
+        if (this.stagedF2VStart) {
+          if (startImg) startImg.src = this.stagedF2VStart;
+          if (startEmpty) startEmpty.style.display = 'none';
+          if (startPrev) startPrev.style.display = 'flex';
+        } else {
+          if (startImg) startImg.src = '';
+          if (startEmpty) startEmpty.style.display = 'flex';
+          if (startPrev) startPrev.style.display = 'none';
+        }
+
+        const endImg = this.shadow.getElementById('imgF2VEndPreview');
+        const endEmpty = this.shadow.getElementById('dropzoneF2VEndEmpty');
+        const endPrev = this.shadow.getElementById('dropzoneF2VEndPreview');
+        if (this.stagedF2VEnd) {
+          if (endImg) endImg.src = this.stagedF2VEnd;
+          if (endEmpty) endEmpty.style.display = 'none';
+          if (endPrev) endPrev.style.display = 'flex';
+        } else {
+          if (endImg) endImg.src = '';
+          if (endEmpty) endEmpty.style.display = 'flex';
+          if (endPrev) endPrev.style.display = 'none';
+        }
+      });
+    }
+
+    // 5. Add to Queue Action Buttons
+    const btnAddTextBatch = this.shadow.getElementById('btnAddTextBatch');
+    if (btnAddTextBatch) {
+      btnAddTextBatch.addEventListener('click', async () => {
+        const textarea = this.shadow.getElementById('txtBatchPrompts');
+        const text = textarea ? textarea.value.trim() : '';
+        if (!text) return;
+
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        const cfg = await getConfig();
+        const isVideo = cfg.mode !== 'text-to-image';
+        const items = lines.map(prompt => ({
+          prompt,
+          mode: cfg.mode || 'text-to-video',
+          model: cfg.model || 'Omni 1.1 Flash',
+          aspectRatio: isVideo && (cfg.aspectRatio === '4:3' || cfg.aspectRatio === '1:1') ? '16:9' : (cfg.aspectRatio || '16:9'),
+          duration: cfg.duration || '6s',
+          outputs: cfg.outputCount || 1,
+          resolution: isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K'),
+          autoDownload: true
+        }));
+
+        await enqueueBatch(items);
+        textarea.value = '';
+        await this.syncQueueList();
+      });
+    }
+
+    const btnAddI2V = this.shadow.getElementById('btnAddI2V');
+    if (btnAddI2V) {
+      btnAddI2V.addEventListener('click', async () => {
+        const txtPrompt = this.shadow.getElementById('txtI2VPrompt');
+        const prompt = txtPrompt ? txtPrompt.value.trim() : '';
+        if (!this.stagedI2VMedia && !prompt) return;
+
+        const cfg = await getConfig();
+        await enqueueItem({
+          prompt,
+          mode: 'image-to-video',
+          model: cfg.model || 'Omni 1.1 Flash',
+          aspectRatio: cfg.aspectRatio === '9:16' ? '9:16' : '16:9',
+          duration: cfg.duration || '6s',
+          outputs: 1,
+          resolution: cfg.videoResolution || '1080p',
+          autoDownload: true,
+          ingredients: this.stagedI2VMedia ? [{ dataUrl: this.stagedI2VMedia, name: 'reference.png' }] : []
+        });
+
+        if (txtPrompt) txtPrompt.value = '';
+        this.stagedI2VMedia = null;
+        this.shadow.getElementById('dropzoneI2VEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneI2VPreview').style.display = 'none';
+        const fileInput = this.shadow.getElementById('fileI2V');
+        if (fileInput) fileInput.value = '';
+        await this.syncQueueList();
+      });
+    }
+
+    const btnAddF2V = this.shadow.getElementById('btnAddF2V');
+    if (btnAddF2V) {
+      btnAddF2V.addEventListener('click', async () => {
+        const txtPrompt = this.shadow.getElementById('txtF2VPrompt');
+        const prompt = txtPrompt ? txtPrompt.value.trim() : '';
+        if (!this.stagedF2VStart && !this.stagedF2VEnd && !prompt) return;
+
+        const cfg = await getConfig();
+        await enqueueItem({
+          prompt,
+          mode: 'frames-to-video',
+          model: cfg.model || 'Omni 1.1 Flash',
+          aspectRatio: cfg.aspectRatio === '9:16' ? '9:16' : '16:9',
+          duration: cfg.duration || '6s',
+          outputs: 1,
+          resolution: cfg.videoResolution || '1080p',
+          autoDownload: true,
+          frames: {
+            start: this.stagedF2VStart,
+            end: this.stagedF2VEnd
+          }
+        });
+
+        if (txtPrompt) txtPrompt.value = '';
+        this.stagedF2VStart = null;
+        this.stagedF2VEnd = null;
+        this.shadow.getElementById('dropzoneF2VStartEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneF2VStartPreview').style.display = 'none';
+        this.shadow.getElementById('dropzoneF2VEndEmpty').style.display = 'flex';
+        this.shadow.getElementById('dropzoneF2VEndPreview').style.display = 'none';
+        const fileStart = this.shadow.getElementById('fileF2VStart');
+        if (fileStart) fileStart.value = '';
+        const fileEnd = this.shadow.getElementById('fileF2VEnd');
+        if (fileEnd) fileEnd.value = '';
+        await this.syncQueueList();
+      });
+    }
+
+    // 6. Queue List Clear Actions
+    const btnClearCompleted = this.shadow.getElementById('btnClearCompletedQueue');
+    if (btnClearCompleted) {
+      btnClearCompleted.addEventListener('click', async () => {
+        await clearCompletedQueue();
+        await this.syncQueueList();
+      });
+    }
+
+    const btnClearAll = this.shadow.getElementById('btnClearAllQueue');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', async () => {
+        await clearAllQueue();
+        await this.syncQueueList();
+      });
     }
   }
 
   /**
-   * Minimizes the HUD to the compact floating pill.
+   * Helper to bind segmented button group.
    */
+  setupSegmentGroup(groupId, onChange) {
+    const group = this.shadow.getElementById(groupId);
+    if (!group) return;
+
+    const buttons = group.querySelectorAll('.hud-segment-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (typeof onChange === 'function') {
+          onChange(btn.dataset.val);
+        }
+      });
+    });
+  }
+
+  /**
+   * Helper to bind dropzone file picker and drag events.
+   */
+  setupDropzone(zoneId, inputId, emptyId, previewId, imgId, onDataUrl) {
+    const zone = this.shadow.getElementById(zoneId);
+    const input = this.shadow.getElementById(inputId);
+    const empty = this.shadow.getElementById(emptyId);
+    const preview = this.shadow.getElementById(previewId);
+    const img = this.shadow.getElementById(imgId);
+
+    if (!zone || !input) return;
+
+    const handleFile = (file) => {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        if (img) img.src = dataUrl;
+        if (empty) empty.style.display = 'none';
+        if (preview) preview.style.display = 'flex';
+        if (typeof onDataUrl === 'function') onDataUrl(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    };
+
+    zone.addEventListener('click', () => input.click());
+    input.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  /**
+   * Synchronizes UI inputs from stored config.
+   */
+  async syncUIFromStorage() {
+    const cfg = await getConfig();
+
+    // Set media mode segment
+    if (cfg.mode) {
+      const segMedia = this.shadow.getElementById('segMediaMode');
+      if (segMedia) {
+        segMedia.querySelectorAll('.hud-segment-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.val === cfg.mode);
+        });
+      }
+
+      const isVideo = cfg.mode !== 'text-to-image';
+      const grpDuration = this.shadow.getElementById('grpDuration');
+      if (grpDuration) grpDuration.style.display = isVideo ? 'flex' : 'none';
+
+      const grpMultiplier = this.shadow.getElementById('grpMultiplier');
+      if (grpMultiplier) grpMultiplier.style.display = isVideo ? 'none' : 'flex';
+
+      const grpVideoModels = this.shadow.getElementById('grpVideoModels');
+      const grpImageModels = this.shadow.getElementById('grpImageModels');
+      if (grpVideoModels) grpVideoModels.style.display = isVideo ? 'block' : 'none';
+      if (grpImageModels) grpImageModels.style.display = isVideo ? 'none' : 'block';
+
+      const grpVideoRes = this.shadow.getElementById('grpVideoRes');
+      const grpImageRes = this.shadow.getElementById('grpImageRes');
+      if (grpVideoRes) grpVideoRes.style.display = isVideo ? 'block' : 'none';
+      if (grpImageRes) grpImageRes.style.display = isVideo ? 'none' : 'block';
+
+      const ratioImgOnly = this.shadow.querySelectorAll('.ratio-img-only');
+      ratioImgOnly.forEach(el => {
+        el.style.display = isVideo ? 'none' : 'flex';
+      });
+    }
+
+    // Set model dropdown
+    const selModel = this.shadow.getElementById('selModelFamily');
+    if (selModel && cfg.model) selModel.value = cfg.model;
+
+    // Set duration segment
+    if (cfg.duration) {
+      const segDur = this.shadow.getElementById('segDuration');
+      if (segDur) {
+        segDur.querySelectorAll('.hud-segment-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.val === cfg.duration);
+        });
+      }
+    }
+
+    // Set aspect ratio segment
+    if (cfg.aspectRatio) {
+      const segRatio = this.shadow.getElementById('segAspectRatio');
+      if (segRatio) {
+        segRatio.querySelectorAll('.hud-segment-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.val === cfg.aspectRatio);
+        });
+      }
+    }
+
+    // Set outputs segment
+    if (cfg.outputCount) {
+      const segOut = this.shadow.getElementById('segOutputs');
+      if (segOut) {
+        segOut.querySelectorAll('.hud-segment-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.val === String(cfg.outputCount));
+        });
+      }
+    }
+
+    // Set resolution dropdown
+    const selRes = this.shadow.getElementById('selResolution');
+    if (selRes) {
+      const isVideo = cfg.mode !== 'text-to-image';
+      const targetRes = isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K');
+      selRes.value = targetRes;
+    }
+
+    await this.syncQueueList();
+  }
+
+  /**
+   * Refreshes queue list cards and counters.
+   */
+  async syncQueueList() {
+    const queue = await getQueue();
+    const container = this.shadow.getElementById('hudQueueListContainer');
+    const badge = this.shadow.getElementById('hudQueueCountBadge');
+    const summaryText = this.shadow.getElementById('hudQueueSummaryText');
+
+    if (badge) badge.textContent = String(queue.length);
+    if (summaryText) summaryText.textContent = `Queue: ${queue.length} items`;
+
+    if (!container) return;
+
+    if (queue.length === 0) {
+      container.innerHTML = '<div class="queue-empty-msg">No items in queue. Add prompts above!</div>';
+      return;
+    }
+
+    container.innerHTML = queue.map(it => renderQueueItem(it)).join('');
+
+    // Attach card removal listeners
+    container.querySelectorAll('.queue-card-remove-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        await removeQueueItem(id);
+        await this.syncQueueList();
+      });
+    });
+  }
+
   minimize() {
     this.isMinimized = true;
     this.container.classList.add('is-minimized');
@@ -273,9 +776,6 @@ export class FlowHUDHost {
     }).catch(() => {});
   }
 
-  /**
-   * Restores the full Studio window.
-   */
   restore() {
     this.isMinimized = false;
     this.container.classList.remove('is-minimized');
@@ -286,9 +786,6 @@ export class FlowHUDHost {
     }).catch(() => {});
   }
 
-  /**
-   * Toggles HUD visibility between visible and hidden.
-   */
   toggle() {
     if (this.isVisible) {
       this.hide();
@@ -308,44 +805,30 @@ export class FlowHUDHost {
     this.container.classList.add('is-hidden');
   }
 
-  /**
-   * Updates floating pill live status ticker.
-   */
   updateTicker(text, statusType = 'idle') {
-    if (this.tickerEl) {
-      this.tickerEl.textContent = text;
-    }
-
+    if (this.tickerEl) this.tickerEl.textContent = text;
     if (this.statusDot) {
       this.statusDot.className = 'pill-status-dot';
-      if (statusType === 'running') {
-        this.statusDot.classList.add('dot-running');
-      } else if (statusType === 'paused') {
-        this.statusDot.classList.add('dot-paused');
-      } else {
-        this.statusDot.classList.add('dot-idle');
-      }
+      if (statusType === 'running') this.statusDot.classList.add('dot-running');
+      else if (statusType === 'stopped') this.statusDot.classList.add('dot-stopped');
+      else this.statusDot.classList.add('dot-idle');
     }
   }
 
-  /**
-   * Synchronizes ticker when storage updates.
-   */
   handleStorageUpdate(cfg) {
     if (!cfg) return;
 
     const isRunning = cfg.activeBatch && cfg.activeBatch.isRunning;
-    const isPaused = cfg.activeBatch && cfg.activeBatch.isPaused;
 
-    if (isPaused) {
-      this.updateTicker('Paused', 'paused');
-    } else if (isRunning) {
+    if (isRunning) {
       const activeIdx = cfg.activeBatch.completedCount || 0;
       const total = cfg.activeBatch.totalCount || 1;
       this.updateTicker(`Running #${activeIdx + 1}/${total}`, 'running');
     } else {
       this.updateTicker('Idle', 'idle');
     }
+
+    this.syncQueueList().catch(() => {});
   }
 }
 

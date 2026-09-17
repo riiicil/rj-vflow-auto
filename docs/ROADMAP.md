@@ -67,10 +67,11 @@ gantt
 - [x] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[COMPLETE]`
   - Commit: `feat(overlay): implement Shadow DOM HUD host and draggable floating pill`
   - Implement `#flow-auto-hud-root` open Shadow DOM, fluid drag physics, boundary clamping, and minimize-to-pill transition.
-- [ ] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[PLANNED]`
-  - Implement dynamic Left Column (States A, B, C, D) and Right Column (Parameters sidebar) adhering to Raycast Dark Precision design tokens.
+- [x] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[COMPLETE]`
+  - Commit: `feat(overlay): build dynamic two-column studio HUD and template generators`
+  - Implement `FlowHUDTemplates.js`, two-column workspace tabs, media dropzones, and parameters sidebar in `FlowHUDHost.js`.
 - [ ] **Sub-phase 3.4**: Reactive Storage Synchronization & Automation Controls `[PLANNED]`
-  - Connect Start, Stop, and Pause controls with live status ticker and auto-save state recovery.
+  - Connect Start and Stop controls with live status ticker and auto-save state recovery.
 
 ---
 

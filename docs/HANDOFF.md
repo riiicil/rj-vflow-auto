@@ -8,9 +8,9 @@
 
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending Sub-phase 3.2 commit (`feat(overlay): implement Shadow DOM HUD host and draggable floating pill`)
-- **Working Tree**: Active working branch (Sub-phase 3.2 complete)
-- **Build / Test State**: Verified healthy, `FlowHUDHost.js`, `content_main.js`, `service_worker.js`, and `popup.js` passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
+- **Latest Commit**: Pending Sub-phase 3.3 commit (`feat(overlay): build dynamic two-column studio HUD and template generators`)
+- **Working Tree**: Active working branch (Sub-phase 3.3 complete)
+- **Build / Test State**: Verified healthy, `FlowHUDTemplates.js`, `FlowHUDHost.js`, `content_main.js`, `service_worker.js`, and `popup.js` passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
 
 ---
 
@@ -24,21 +24,24 @@ Phase 3 (Dual-Mode UI Implementation) is now in flight:
    - `src/popup/popup.html`: Minimalist toolbar popup markup featuring brand header (`logo_rj.png`, version badge `v3.0.0`), live connection status card, action controls (`Open Studio HUD` / `Open Google Flow`), and 3-column storage telemetry bar (`Engine`, `Pending`, `Done`).
    - `src/popup/popup.css`: Compact 320px styling with Raycast Dark aesthetics, glowing status dots, and subtle borders.
    - `src/popup/popup.js`: Inspects active tab URL (`https://flow.google.com/*`), reactive storage telemetry via `FlowStorage.onChanged()`, and safe content script message dispatch (`TOGGLE_HUD`).
-2. **Sub-phase 3.2 Complete**:
+2. **Sub-phase 3.2 Complete (`7750ffe`)**:
    - `src/overlay/overlay.css`: Encapsulated Raycast Dark styles for Studio HUD window (720x480px, #07080a canvas, #242728 hairline border, 12px radius) and Floating Pill (34px height, grip handle dots, live ticker, status indicator, restore button).
    - `src/overlay/FlowHUDHost.js`: Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid draggable physics with viewport boundary clamping, position persistence in `FlowStorage`, minimize/restore transitions, and reactive live status ticker.
    - `src/content/content_main.js`: Content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
    - `src/background/service_worker.js`: Manifest V3 background service worker with lifecycle event listener.
+3. **Sub-phase 3.3 Complete**:
+   - `src/overlay/FlowHUDTemplates.js`: Pure inline Lucide SVG icons (`ICONS`), `renderStudioLayout()` generating full Two-Column Studio Layout markup (workspace tabs, batch textareas, reference dropzones, parameter sidebar, start/stop buttons), and `renderQueueItem()` generating queue card markup.
+   - `src/overlay/overlay.css`: Comprehensive styling for Two-Column Studio Layout (740x500px), workspace navigation tabs, batch prompt textarea, media dropzones, queue card list with status pills, parameters sidebar, and start/stop buttons.
+   - `src/overlay/FlowHUDHost.js`: Mounted dynamic two-column studio markup, wired navigation tabs, dynamic mode-switching (restricting video aspect ratios strictly to 16:9 and 9:16 only), file dropzones with FileReader Base64 conversion, frame swap action, queue item additions to `FlowStorage`, and queue card removal.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Phase 3 Sub-phase 3.3 (Two-Column Studio Layout & Queue Builder)**:
-   - Implement dynamic Left Column (States A, B, C, D queue builder) inside `src/overlay/FlowStudioHUD.js`.
-   - Implement Right Column (collapsible parameters sidebar: model family, aspect ratio, duration, resolution, auto-download, speed settings).
-2. **Phase 3 Sub-phase 3.4 (Reactive Storage Synchronization & Automation Controls)**:
-   - Wire `QueueManager` controls (Start, Pause, Resume, Stop) to HUD interface buttons with real-time status ticker.
+1. **Phase 3 Sub-phase 3.4 (Reactive Storage Synchronization & Automation Controls)**:
+   - Wire Start and Stop buttons to `queueManager.start()` and `queueManager.stop()`.
+   - Connect live progress callbacks to update card status pills and telemetry in real time.
+   - Finalize bidirectional reactive storage synchronization and close Phase 3.
 
 ---
 
@@ -56,7 +59,8 @@ Phase 3 (Dual-Mode UI Implementation) is now in flight:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 11 | 2026-09-17 | `task/dual-mode-ui` | Pending | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |
+| 12 | 2026-09-17 | `task/dual-mode-ui` | Pending | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
+| 11 | 2026-09-17 | `task/dual-mode-ui` | `7750ffe` | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |
 | 10 | 2026-09-17 | `task/dual-mode-ui` | `ce3a4cb` | Implement minimalist toolbar popup launcher and connection detector (Sub-phase 3.1 Complete) | Phase 3 Sub-phase 3.2: Shadow DOM Studio HUD Host & Draggable Floating Pill |
 | 09 | 2026-09-17 | `task/core-automation-engine` | `e0d33fa` | Implement FlowDownloadService and QueueManager orchestrator (Phase 2 Complete, merged dev `c14ca68`) | Phase 3 Sub-phase 3.1: Minimalist Toolbar Popup Launcher |
 | 08 | 2026-09-17 | `task/core-automation-engine` | `e6335d3` | Implement FlowWatcherService for top-batch monitoring and failure detection (Sub-phase 2.4 Complete) | Phase 2 Sub-phase 2.5: FlowDownloadService & QueueManager |
