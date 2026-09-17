@@ -117,9 +117,37 @@
   color: var(--rj-accent-red, #ff6161);
 }
 
-.rj-hud-btn-icon svg {
+/* Universal SVG Icon Sizing & Visibility across Studio HUD */
+.rj-icon,
+svg.rj-icon,
+.rj-btn svg,
+.rj-btn-icon svg,
+.row-delete-btn svg,
+.row-remove-thumb-btn svg,
+.row-swap-frames-btn svg,
+.slot-icon svg,
+.pill-expand-btn svg {
   width: 14px;
   height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.empty-icon svg,
+.rj-icon-lg {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  stroke: var(--rj-text-ash, #6a6b6c);
 }
 
 /* ==========================================================================
@@ -147,9 +175,9 @@
 
 /* Queue Action Toolbar */
 .hud-queue-toolbar {
-  height: 36px;
-  min-height: 36px;
-  background-color: var(--rj-bg-surface, #0d0d0d);
+  height: 38px;
+  min-height: 38px;
+  background-color: #0b0c0e;
   border-bottom: 1px solid var(--rj-border-hairline, #242728);
   display: flex;
   align-items: center;
@@ -163,6 +191,26 @@
   gap: 6px;
 }
 
+.toolbar-left .rj-btn-secondary {
+  background-color: #141719;
+  border: 1px solid #282b2e;
+  color: #c0c4c7;
+}
+
+.toolbar-left .rj-btn-secondary:hover {
+  background-color: #1c2023;
+  border-color: #3a3e42;
+  color: #ffffff;
+}
+
+.toolbar-left .rj-btn-secondary svg {
+  stroke: #8a99a8;
+}
+
+.toolbar-left .rj-btn-secondary:hover svg {
+  stroke: #57c1ff;
+}
+
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -170,13 +218,16 @@
 
 .hud-btn-clear {
   background: transparent !important;
-  color: var(--rj-text-ash, #6a6b6c) !important;
-  border: none !important;
+  color: #787f85 !important;
+  border: 1px solid transparent !important;
 }
 
 .hud-btn-clear:hover {
-  color: var(--rj-accent-red, #ff6161) !important;
+  background-color: rgba(255, 97, 97, 0.12) !important;
+  border-color: rgba(255, 97, 97, 0.25) !important;
+  color: #ff6161 !important;
 }
+
 
 /* Rows & Dropzone Content Area */
 .hud-queue-content {
@@ -556,6 +607,25 @@
   align-items: center;
   gap: 8px;
 }
+
+/* Single Start/Stop Reactive Action Button */
+#btnStartQueue {
+  min-width: 76px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#btnStartQueue.rj-btn-stop,
+#btnStartQueue.rj-btn-danger {
+  background-color: var(--rj-accent-red, #ff6161) !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+#btnStartQueue.rj-btn-stop:hover,
+#btnStartQueue.rj-btn-danger:hover {
+  background-color: #ff7575 !important;
+}
+
 
 /* ==========================================================================
    Floating Draggable Pill (Collapsed Running State)

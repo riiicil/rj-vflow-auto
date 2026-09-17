@@ -67,9 +67,11 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 15 | 2026-09-17 | `task/dual-mode-ui` | Pending | Align popup and overlay HUD with blueprint, add LoggerService, fix in-card generation detection | Merge task/dual-mode-ui to dev & begin Phase 4 |
-| 14 | 2026-09-17 | `task/dual-mode-ui` | Pending | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Align popup with blueprint |
+| 16 | 2026-09-17 | `task/dual-mode-ui` | Pending | Enforce exact blueprint popup, unify start-stop button, and fix icon visibility | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 15 | 2026-09-17 | `task/dual-mode-ui` | `768870f` | Align popup and overlay HUD with blueprint, add LoggerService, fix in-card generation detection | Enforce blueprint feedback |
+| 14 | 2026-09-17 | `task/dual-mode-ui` | `06f1cbd` | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Align popup with blueprint |
 | 13 | 2026-09-17 | `task/dual-mode-ui` | `bbd613a` | Connect reactive storage synchronization and automation controls (Phase 3 Complete) | Realign Studio HUD layout to vflow-note wireframe |
+
 | 12 | 2026-09-17 | `task/dual-mode-ui` | `f808156` | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
 | 11 | 2026-09-17 | `task/dual-mode-ui` | `7750ffe` | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |
 | 10 | 2026-09-17 | `task/dual-mode-ui` | `ce3a4cb` | Implement minimalist toolbar popup launcher and connection detector (Sub-phase 3.1 Complete) | Phase 3 Sub-phase 3.2: Shadow DOM Studio HUD Host & Draggable Floating Pill |

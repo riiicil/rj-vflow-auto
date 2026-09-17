@@ -335,38 +335,37 @@ export class FlowHUDHost {
     }
 
     const btnStart = this.shadow.getElementById('btnStartQueue');
-    const btnStop = this.shadow.getElementById('btnStopQueue');
 
     if (btnStart) {
-      btnStart.addEventListener('click', async () => {
-        if (this.queueItems.length === 0) {
-          this.addQueueRow();
-          return;
-        }
+      btnStart.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const currentState = queueManager.getState();
 
-        // Persist before starting
-        await this.saveCurrentQueue();
+        if (currentState === QUEUE_STATES.RUNNING) {
+          btnStart.disabled = true;
+          try {
+            await queueManager.stop();
+          } catch (err) {
+            console.error('[FlowHUDHost] Failed to stop queue', err);
+          } finally {
+            btnStart.disabled = false;
+          }
+        } else {
+          if (this.queueItems.length === 0) {
+            this.addQueueRow();
+            return;
+          }
 
-        btnStart.disabled = true;
-        if (btnStop) btnStop.disabled = false;
+          // Persist before starting
+          await this.saveCurrentQueue();
 
-        try {
-          await queueManager.start();
-        } catch (err) {
-          console.error('[FlowHUDHost] Failed to start queue', err);
-          btnStart.disabled = false;
-          if (btnStop) btnStop.disabled = true;
-        }
-      });
-    }
-
-    if (btnStop) {
-      btnStop.addEventListener('click', async () => {
-        btnStop.disabled = true;
-        try {
-          await queueManager.stop();
-        } catch (err) {
-          console.error('[FlowHUDHost] Failed to stop queue', err);
+          btnStart.disabled = true;
+          try {
+            await queueManager.start();
+          } catch (err) {
+            console.error('[FlowHUDHost] Failed to start queue', err);
+            btnStart.disabled = false;
+          }
         }
       });
     }
@@ -374,24 +373,39 @@ export class FlowHUDHost {
     // 5. Subscribe to QueueManager State Changes & Progress
     queueManager.onStateChange((state) => {
       const bStart = this.shadow.getElementById('btnStartQueue');
-      const bStop = this.shadow.getElementById('btnStopQueue');
 
       if (state === QUEUE_STATES.RUNNING) {
-        if (bStart) bStart.disabled = true;
-        if (bStop) bStop.disabled = false;
+        if (bStart) {
+          bStart.classList.remove('rj-btn-accent');
+          bStart.classList.add('rj-btn-danger', 'rj-btn-stop');
+          bStart.innerHTML = `${ICONS.STOP} <span id="btnStartQueueText">Stop</span>`;
+          bStart.title = 'Stop running generation';
+          bStart.disabled = false;
+        }
         this.updateTicker('Running', 'running');
       } else if (state === QUEUE_STATES.STOPPED) {
-        if (bStart) bStart.disabled = false;
-        if (bStop) bStop.disabled = true;
+        if (bStart) {
+          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+          bStart.classList.add('rj-btn-accent');
+          bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
+          bStart.title = 'Start batch generation';
+          bStart.disabled = false;
+        }
         this.updateTicker('Stopped', 'stopped');
         this.syncQueueFromStorage().catch(() => {});
       } else {
-        if (bStart) bStart.disabled = false;
-        if (bStop) bStop.disabled = true;
+        if (bStart) {
+          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+          bStart.classList.add('rj-btn-accent');
+          bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
+          bStart.title = 'Start batch generation';
+          bStart.disabled = false;
+        }
         this.updateTicker('Idle', 'idle');
         this.syncQueueFromStorage().catch(() => {});
       }
     });
+
 
     queueManager.onProgress((payload) => {
       if (!payload || !payload.itemId) return;
@@ -917,7 +931,10 @@ export class FlowHUDHost {
 
     const buttons = group.querySelectorAll('.rj-segment-btn');
     buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.classList.contains('active')) return;
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         if (typeof onChange === 'function') {
@@ -983,18 +1000,26 @@ export class FlowHUDHost {
 
     const isRunning = cfg.activeBatch && cfg.activeBatch.isRunning;
     const btnStart = this.shadow.getElementById('btnStartQueue');
-    const btnStop = this.shadow.getElementById('btnStopQueue');
 
-    if (isRunning) {
-      if (btnStart) btnStart.disabled = true;
-      if (btnStop) btnStop.disabled = false;
-      this.updateTicker('Running', 'running');
-    } else if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
-      if (btnStart) btnStart.disabled = false;
-      if (btnStop) btnStop.disabled = true;
-      this.updateTicker('Idle', 'idle');
+    if (btnStart) {
+      if (isRunning) {
+        btnStart.classList.remove('rj-btn-accent');
+        btnStart.classList.add('rj-btn-danger', 'rj-btn-stop');
+        btnStart.innerHTML = `${ICONS.STOP} <span id="btnStartQueueText">Stop</span>`;
+        btnStart.title = 'Stop running generation';
+        btnStart.disabled = false;
+        this.updateTicker('Running', 'running');
+      } else if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
+        btnStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+        btnStart.classList.add('rj-btn-accent');
+        btnStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
+        btnStart.title = 'Start batch generation';
+        btnStart.disabled = false;
+        this.updateTicker('Idle', 'idle');
+      }
     }
   }
 }
 
 export const flowHUDHost = new FlowHUDHost();
+

@@ -8,19 +8,19 @@
  */
 
 export const ICONS = {
-  PLAY: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
-  STOP: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>`,
-  PLUS: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-  TRASH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
-  UPLOAD: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`,
-  IMAGE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
-  CLIPBOARD: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
-  EXPAND: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
-  MINIMIZE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-  CLOSE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-  SWAP: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="8 21 3 21 3 16"></polyline><line x1="3" y1="21" x2="20" y2="4"></line></svg>`,
-  FILE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`,
-  SAVE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`
+  PLAY: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
+  STOP: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>`,
+  PLUS: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+  TRASH: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+  UPLOAD: `<svg class="rj-icon-lg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`,
+  IMAGE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+  CLIPBOARD: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
+  EXPAND: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
+  MINIMIZE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+  CLOSE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+  SWAP: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="8 21 3 21 3 16"></polyline><line x1="3" y1="21" x2="20" y2="4"></line></svg>`,
+  FILE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`,
+  SAVE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`
 };
 
 /**
@@ -55,22 +55,23 @@ export function renderStudioLayout() {
           <!-- Top Action Toolbar -->
           <div class="hud-queue-toolbar">
             <div class="toolbar-left">
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnAddQueueRow" title="Add new row">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnAddQueueRow" type="button" title="Add new row">
                 ${ICONS.PLUS}
                 <span>Add Row</span>
               </button>
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnPasteClipboard" title="Paste prompts from clipboard">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnPasteClipboard" type="button" title="Paste prompts from clipboard">
                 ${ICONS.CLIPBOARD}
                 <span>Paste</span>
               </button>
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnImportFile" title="Import TXT or CSV">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnImportFile" type="button" title="Import TXT or CSV">
                 ${ICONS.FILE}
                 <span>Import CSV</span>
               </button>
               <input type="file" id="fileImportQueue" accept=".csv,.txt" style="display: none;">
             </div>
             <div class="toolbar-right">
-              <button class="rj-btn rj-btn-sm hud-btn-clear" id="btnClearAllQueue" title="Clear all queue items">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm hud-btn-clear" id="btnClearAllQueue" type="button" title="Clear all queue items">
+                ${ICONS.TRASH}
                 <span>Clear All</span>
               </button>
             </div>
@@ -126,10 +127,10 @@ export function renderStudioLayout() {
                 <span class="rj-field-hint">Omni only</span>
               </label>
               <div class="rj-segment-group" id="segDuration">
-                <button class="rj-segment-btn" data-val="4s">4s</button>
-                <button class="rj-segment-btn active" data-val="6s">6s</button>
-                <button class="rj-segment-btn" data-val="8s">8s</button>
-                <button class="rj-segment-btn" data-val="10s">10s</button>
+                <button class="rj-segment-btn" type="button" data-val="4s">4s</button>
+                <button class="rj-segment-btn active" type="button" data-val="6s">6s</button>
+                <button class="rj-segment-btn" type="button" data-val="8s">8s</button>
+                <button class="rj-segment-btn" type="button" data-val="10s">10s</button>
               </div>
             </div>
 
@@ -139,10 +140,10 @@ export function renderStudioLayout() {
                 <span>Aspect Ratio</span>
               </label>
               <div class="rj-segment-group" id="segAspectRatio">
-                <button class="rj-segment-btn active" data-val="16:9">16:9</button>
-                <button class="rj-segment-btn" data-val="9:16">9:16</button>
-                <button class="rj-segment-btn ratio-img-only" data-val="4:3" style="display: none;">4:3</button>
-                <button class="rj-segment-btn ratio-img-only" data-val="1:1" style="display: none;">1:1</button>
+                <button class="rj-segment-btn active" type="button" data-val="16:9">16:9</button>
+                <button class="rj-segment-btn" type="button" data-val="9:16">9:16</button>
+                <button class="rj-segment-btn ratio-img-only" type="button" data-val="4:3" style="display: none;">4:3</button>
+                <button class="rj-segment-btn ratio-img-only" type="button" data-val="1:1" style="display: none;">1:1</button>
               </div>
             </div>
 
@@ -153,10 +154,10 @@ export function renderStudioLayout() {
                 <span class="rj-field-hint">Image mode</span>
               </label>
               <div class="rj-segment-group" id="segOutputs">
-                <button class="rj-segment-btn active" data-val="1">x1</button>
-                <button class="rj-segment-btn" data-val="2">x2</button>
-                <button class="rj-segment-btn" data-val="3">x3</button>
-                <button class="rj-segment-btn" data-val="4">x4</button>
+                <button class="rj-segment-btn active" type="button" data-val="1">x1</button>
+                <button class="rj-segment-btn" type="button" data-val="2">x2</button>
+                <button class="rj-segment-btn" type="button" data-val="3">x3</button>
+                <button class="rj-segment-btn" type="button" data-val="4">x4</button>
               </div>
             </div>
 
@@ -188,17 +189,13 @@ export function renderStudioLayout() {
           <span class="hud-stats-badge" id="hudQueueSummaryText">0 prompts queued | Est: ~0s</span>
         </div>
         <div class="hud-footer-right">
-          <button class="rj-btn rj-btn-secondary" id="btnSaveQueue" title="Save current queue & parameters draft">
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnSaveQueue" type="button" title="Save current queue & parameters draft">
             ${ICONS.SAVE}
-            <span>Save Queue</span>
+            <span>Save</span>
           </button>
-          <button class="rj-btn rj-btn-accent" id="btnStartQueue" title="Start batch generation">
+          <button class="rj-btn rj-btn-accent rj-btn-sm" id="btnStartQueue" type="button" title="Start batch generation">
             ${ICONS.PLAY}
-            <span>Start</span>
-          </button>
-          <button class="rj-btn rj-btn-danger" id="btnStopQueue" title="Stop running generation" disabled>
-            ${ICONS.STOP}
-            <span>Stop</span>
+            <span id="btnStartQueueText">Start</span>
           </button>
         </div>
       </footer>
@@ -211,7 +208,7 @@ export function renderStudioLayout() {
         <span class="pill-status-dot dot-idle" id="pillStatusDot"></span>
         <span class="pill-ticker" id="pillTickerText">Idle</span>
       </div>
-      <button class="rj-btn-icon pill-expand-btn" id="btnExpandHud" title="Expand to Studio HUD">
+      <button class="rj-btn-icon pill-expand-btn" id="btnExpandHud" type="button" title="Expand to Studio HUD">
         ${ICONS.EXPAND}
       </button>
     </div>
@@ -234,11 +231,11 @@ export function renderEmptyDropzone() {
       <div class="hud-empty-quick-actions">
         <span class="quick-label">Quick Actions:</span>
         <div class="quick-buttons">
-          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickAddEmptyRow">
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickAddEmptyRow" type="button">
             ${ICONS.PLUS}
             <span>Add Empty Row</span>
           </button>
-          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickPasteClipboard">
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickPasteClipboard" type="button">
             ${ICONS.CLIPBOARD}
             <span>Paste from Clipboard</span>
           </button>
@@ -267,7 +264,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
         <input type="file" class="row-file-input" accept="image/*" style="display: none;">
         ${imgSrc ? `
           <img src="${imgSrc}" class="row-thumb-img" alt="Ref">
-          <button class="row-remove-thumb-btn" title="Remove image" data-idx="${index}" data-slot="single">${ICONS.CLOSE}</button>
+          <button class="row-remove-thumb-btn" type="button" title="Remove image" data-idx="${index}" data-slot="single">${ICONS.CLOSE}</button>
         ` : `
           <div class="row-slot-placeholder">
             <span class="slot-icon">${ICONS.IMAGE}</span>
@@ -286,7 +283,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
           <input type="file" class="row-file-input" accept="image/*" style="display: none;">
           ${startSrc ? `
             <img src="${startSrc}" class="row-thumb-img" alt="Start">
-            <button class="row-remove-thumb-btn" title="Remove frame" data-idx="${index}" data-slot="start">${ICONS.CLOSE}</button>
+            <button class="row-remove-thumb-btn" type="button" title="Remove frame" data-idx="${index}" data-slot="start">${ICONS.CLOSE}</button>
           ` : `
             <div class="row-slot-placeholder">
               <span class="slot-text">Start</span>
@@ -295,7 +292,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
         </div>
 
         <!-- Swap -->
-        <button class="row-swap-frames-btn" data-idx="${index}" title="Swap Start & End Frames">
+        <button class="row-swap-frames-btn" type="button" data-idx="${index}" title="Swap Start & End Frames">
           ${ICONS.SWAP}
         </button>
 
@@ -304,7 +301,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
           <input type="file" class="row-file-input" accept="image/*" style="display: none;">
           ${endSrc ? `
             <img src="${endSrc}" class="row-thumb-img" alt="End">
-            <button class="row-remove-thumb-btn" title="Remove frame" data-idx="${index}" data-slot="end">${ICONS.CLOSE}</button>
+            <button class="row-remove-thumb-btn" type="button" title="Remove frame" data-idx="${index}" data-slot="end">${ICONS.CLOSE}</button>
           ` : `
             <div class="row-slot-placeholder">
               <span class="slot-text">End</span>
@@ -330,7 +327,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
         ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
         ${item.error ? `<div class="row-error-hint">${item.error}</div>` : ''}
       </div>
-      <button class="rj-btn-icon rj-btn-danger row-delete-btn" data-idx="${index}" title="Delete row">
+      <button class="rj-btn-icon rj-btn-danger row-delete-btn" data-idx="${index}" type="button" title="Delete row">
         ${ICONS.TRASH}
       </button>
     </div>

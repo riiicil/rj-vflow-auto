@@ -296,11 +296,11 @@
 /* Segmented Button Groups */
 .rj-segment-group {
   display: flex;
-  background-color: var(--rj-bg-input);
-  border: 1px solid var(--rj-border-hairline);
+  background-color: #0b0c0e;
+  border: 1px solid #1f2224;
   border-radius: var(--rj-radius-md);
-  padding: 2px;
-  gap: 2px;
+  padding: 3px;
+  gap: 3px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -308,32 +308,36 @@
 .rj-segment-btn {
   flex: 1;
   background: transparent;
-  border: none;
-  color: var(--rj-text-muted);
+  border: 1px solid transparent; /* Constant border to eliminate click glitch and layout reflow */
+  color: #787f85; /* Clearly inactive / dimmed */
   font-size: 11px;
   font-weight: 500;
   font-family: inherit;
-  padding: 5px 6px;
+  padding: 5px 8px;
+  height: 28px;
+  box-sizing: border-box;
   border-radius: var(--rj-radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  user-select: none;
+  outline: none;
 }
 
-.rj-segment-btn:hover {
-  color: var(--rj-text-primary);
-  background-color: rgba(255, 255, 255, 0.04);
+.rj-segment-btn:hover:not(.active):not(:disabled) {
+  color: #c0c4c7;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .rj-segment-btn.active {
-  background-color: var(--rj-bg-card);
-  color: var(--rj-text-primary);
+  background-color: #141719;
+  color: #57c1ff;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--rj-border-hairline);
+  border: 1px solid rgba(7, 145, 131, 0.6);
+  box-shadow: 0 0 0 1px rgba(7, 145, 131, 0.2), 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .rj-segment-btn.disabled,
@@ -342,6 +346,26 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* Base Icon Dimensions */
+.rj-icon,
+svg.rj-icon,
+.rj-btn svg,
+.rj-btn-icon svg {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 
 /* Buttons */
 .rj-btn {
