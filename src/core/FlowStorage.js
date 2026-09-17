@@ -13,8 +13,22 @@ export const MEDIA_MODES = {
   TEXT_TO_VIDEO: 'text-to-video',
   TEXT_TO_IMAGE: 'text-to-image',
   IMAGE_TO_VIDEO: 'image-to-video',
-  FRAMES_TO_VIDEO: 'frames-to-video'
+  FRAMES_TO_VIDEO: 'frames-to-video',
+  EDIT_IMAGE: 'edit-image'
 };
+
+export const VIDEO_MODELS = [
+  'Omni 1.1 Flash',
+  'Veo 3.1 - Fast',
+  'Veo 3.1 - Lite',
+  'Veo 3.1 - Quality'
+];
+
+export const IMAGE_MODELS = [
+  'Nano Banana Pro',
+  'Nano Banana 2',
+  'Nano Banana 2 Lite'
+];
 
 export const MODELS = {
   OMNI_FLASH: 'Omni 1.1 Flash',

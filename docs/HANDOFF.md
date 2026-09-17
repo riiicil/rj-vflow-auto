@@ -6,11 +6,11 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
+- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation & Realignment) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending Sub-phase 3.4 commit (`feat(overlay): connect reactive storage synchronization and automation controls`)
-- **Working Tree**: Active working branch (Phase 3 complete)
-- **Build / Test State**: Verified healthy, all 14 JS modules (`content_loader.js`, `FlowHUDHost.js`, `QueueManager.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
+- **Latest Commit**: Pending Session 15 commit (`feat(ui): align popup and overlay HUD with blueprint, add logger, and fix generation detection`)
+- **Working Tree**: Active working branch (Phase 3 complete & verified)
+- **Build / Test State**: Verified healthy, all 15 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
 
 ---
 
@@ -31,13 +31,13 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
    - `src/background/service_worker.js`: Manifest V3 background service worker with lifecycle event listener.
 3. **Sub-phase 3.3 & 3.4 Complete (`f808156`, `bbd613a`)**:
    - Implemented Shadow DOM HUD host, dynamic module loader (`content_loader.js`), and QueueManager automation controls.
-4. **Blueprint Realignment & RJ AIO Metadata Parity Complete**:
-   - `src/styles/variables.css`: Realigned `--rj-accent-cyan` to signature `#079183` and `--rj-accent-cyan-soft` to `rgba(7, 145, 131, 0.18)`.
-   - `src/styles/components.css`: Ported complete Raycast Dark Precision component suite (form controls, inputs, buttons, segmented groups, active/inactive disabled states) from RJ AIO Metadata.
-   - `src/overlay/CustomSelect.js`: Implemented Shadow DOM adapted accessible custom dropdown select component with smart viewport placement.
-   - `src/overlay/FlowHUDTemplates.js`: Realigned layout 100% to `bahan/vflow-note.md` wireframe (lines 429-631) featuring Left Column Queue Builder (State A empty dropzone, State B text prompt rows, State C 1-ingredient rows with image thumbnail slot, State D 2-frames rows), Right Column Parameters Sidebar with CustomSelect, shared footer (`Save Queue`, `Start`, `Stop`), and floating draggable pill.
-   - `src/overlay/overlay.css`: Complete styling for two-column studio HUD (820x520px), media dropzone slots, auto-resizing prompt inputs, and action buttons.
-   - `src/overlay/FlowHUDHost.js`: Injected stylesheets, row-based queue management, drag-and-drop ingestion, CSV/TXT import, clipboard paste, CustomSelect enhancement, and QueueManager reactive execution.
+4. **Blueprint Realignment, Logger Engine, & DOM Fix Complete (Session 15)**:
+   - `src/services/LoggerService.js`: Created unified, colorized console logger matching RJ AIO Metadata (`[RJ V-Flow Auto]` prefix).
+   - `src/core/FlowDOM.js` & `src/services/FlowWatcherService.js`: Fixed false generation failure bug caused by `.hover-overlay-has-progress-bar` misidentification; added `flow-pending-tile` and `img.image` support.
+   - `src/core/FlowStorage.js` & `src/overlay/FlowHUDHost.js`: Partitioned AI models strictly by mode (Video = Veo & Omni; Image = Nano Banana; Duration = Omni Flash only).
+   - `src/overlay/CustomSelect.js`: Added smart filtering for hidden options and hidden optgroups (`style.display === 'none'`).
+   - `src/overlay/FlowHUDTemplates.js` & `src/overlay/overlay.css`: Header updated to `V-Flow` (removed `Studio` chip), window controls styled (`.rj-hud-btn-icon`), elevated footer background (`#101111`).
+   - `src/popup/`: 380px layout with brand header, quick `Open HUD` action, State 1 (Unmatched warning) vs State 2 (Matched status), and 3-box telemetry grid.
 
 ---
 
@@ -55,9 +55,11 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
 
 - **Zero English-Label Dependency**: Never query elements using localized English `aria-label` text (e.g. `[aria-label="Start generation"]`, `[aria-label="Tile grid settings"]`). Always use Material Symbols ligatures (`settings_2`, `more_vert`, `download`, `arrow_forward`, `swap_horiz`, `cancel`), custom tags (`flow-*`), or internal CSS classes (`.settings-trigger-button`, `.agent-mode-chip`, `.generate-icon-button`).
 - **Zero-CDP Mandate**: Never introduce `chrome.debugger` or CDP synthetic events. All text injection must use `document.execCommand('insertText')` + native `InputEvent` dispatch on `flow-rich-text-editor.prompt-input div.ProseMirror`.
+- **Permanent Progress Bar Container Gotcha**: `<flow-video-tile>` always has an element with class `.hover-overlay-has-progress-bar` in the DOM as its hover container even when idle or finished! NEVER use `.hover-overlay-has-progress-bar` as an indicator of an active progress bar; check `.progress-bar`, `div.progress-bar-fill`, or `<flow-pending-tile>`.
 - **In-Card Failure Detection**: Google Flow does not display toasts for content moderation blocks or quota limits. Asset tiles remain permanently blurred with warning badges. Card success must be validated via `isCardGenerationSuccess(card)`.
+- **Image Tile Tag Differences**: Video tiles use `img.thumbnail` while image generation tiles (`flow-image-tile`) use `img.image`. `CARD_MEDIA` selector must include both.
 - **Virtual Scroll Safety**: Angular CDK unmounts older cards. Always monitor the newest batch at top index 0 (`flow-grid-tile-container > :first-child`).
-- **Shadow DOM Isolation (ADR-003)**: Overlay HUD components MUST render inside open Shadow DOM `#flow-auto-hud-root` to guarantee zero CSS bleed into or out of Google Flow's Angular Material stylesheet.
+- **Shadow DOM Style Scope Trap**: CSS custom properties declared exclusively on `:root` do not pierce open Shadow DOM boundaries. Always declare tokens on `:root, :host`.
 
 ---
 
@@ -65,7 +67,8 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 14 | 2026-09-17 | `task/dual-mode-ui` | Pending | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 15 | 2026-09-17 | `task/dual-mode-ui` | Pending | Align popup and overlay HUD with blueprint, add LoggerService, fix in-card generation detection | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 14 | 2026-09-17 | `task/dual-mode-ui` | Pending | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Align popup with blueprint |
 | 13 | 2026-09-17 | `task/dual-mode-ui` | `bbd613a` | Connect reactive storage synchronization and automation controls (Phase 3 Complete) | Realign Studio HUD layout to vflow-note wireframe |
 | 12 | 2026-09-17 | `task/dual-mode-ui` | `f808156` | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
 | 11 | 2026-09-17 | `task/dual-mode-ui` | `7750ffe` | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |

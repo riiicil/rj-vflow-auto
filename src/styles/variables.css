@@ -3,7 +3,8 @@
  * Reference: DESIGN.md & ADR-007
  */
 
-:root {
+:root,
+:host {
   /* Surfaces */
   --rj-bg-canvas: #07080a;
   --rj-bg-surface: #0d0d0d;

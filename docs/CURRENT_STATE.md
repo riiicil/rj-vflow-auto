@@ -65,23 +65,24 @@
   - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
   - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services.
 - **Specialized Automation Services (`src/services/`):**
+  - `src/services/LoggerService.js` — Unified colorized console logging engine with `[RJ V-Flow Auto]` prefix and methods (`banner`, `item`, `step`, `info`, `success`, `warn`, `error`) matching RJ AIO Metadata standard.
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, and creative agent mode suppression.
   - `src/services/FlowIngredientService.js` — Reference media clipboard ingestion, upload consent auto-agreement, frame slot triggers, and ingredient chip clearing.
   - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
-  - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), and asset metadata extraction.
+  - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), pending state detection (`flow-pending-tile`), and asset metadata extraction.
   - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
 - **Design System Tokens (`src/styles/`):**
-  - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`).
-  - `src/styles/components.css` — Raycast Dark Precision component styling (field groups, inputs, buttons, custom selects, segmented groups, active/inactive states) ported from RJ AIO Metadata.
+  - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`) pierced through `:root, :host`.
+  - `src/styles/components.css` — Raycast Dark Precision component styling (cards, status badges, platform warnings, field groups, inputs, buttons, custom selects, segmented groups, active/inactive states) ported from RJ AIO Metadata.
 - **Minimalist Toolbar Popup Launcher (`src/popup/`):**
-  - `src/popup/popup.html` — Minimalist popup layout with brand header, connection status card, action buttons, and telemetry bar.
-  - `src/popup/popup.css` — Compact 320px styling adhering to Raycast Dark Precision design tokens.
+  - `src/popup/popup.html` — Minimalist popup layout (380px) with brand header (`logo_rj.png`, `V-Flow`, `v3.0.0`, `Open HUD` button), State 1 (Unmatched warning + `Open Google Flow` link) vs State 2 (Matched status + `Open Studio HUD`), and 3-box telemetry grid.
+  - `src/popup/popup.css` — 380px styling adhering to Raycast Dark Precision design tokens and sticky header/footer.
   - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher with `content_loader.js` fallback injection.
 - **In-Page Studio Overlay HUD (`src/overlay/`):**
-  - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation.
-  - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons and Studio HUD wireframe layout templates (State A empty dropzone, State B text rows, State C 1-ingredient rows, State D 2-frames rows, parameters sidebar, shared footer, floating pill) aligned 100% with `bahan/vflow-note.md`.
-  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px) and collapsible floating pill (36px).
-  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, row-based queue management, CustomSelect enhancement, and QueueManager reactive execution wiring (`Start Batch`, `Stop Batch`), live card progress updating, and stale batch state recovery.
+  - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation with hidden option/optgroup filtering.
+  - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons and Studio HUD wireframe layout templates (State A empty dropzone, State B text rows, State C 1-ingredient rows, State D 2-frames rows, parameters sidebar, shared footer, floating pill) aligned 100% with `bahan/vflow-note.md` and cleaned window header (`V-Flow` title, `.rj-hud-btn-icon`).
+  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px), window controls, elevated footer (`#101111`), and collapsible floating pill (36px).
+  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, row-based queue management, strict model mode partitioning (Video vs Image), CustomSelect enhancement, and QueueManager reactive execution wiring (`Start Batch`, `Stop Batch`), live card progress updating, and stale batch state recovery.
 - **Content & Background Workers (`src/content/`, `src/background/`):**
   - `src/content/content_loader.js` — Manifest V3 content script ES module dynamic bootstrap loader.
   - `src/content/content_main.js` — Primary ES module content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.

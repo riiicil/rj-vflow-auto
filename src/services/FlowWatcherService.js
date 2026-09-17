@@ -14,6 +14,7 @@ import {
   waitForCondition,
   isCardGenerationSuccess
 } from '../core/FlowDOM.js';
+import { logger } from './LoggerService.js';
 
 export class FlowWatcherService {
   /**
@@ -31,7 +32,7 @@ export class FlowWatcherService {
    */
   getBatchTileElements(batchContainer) {
     if (!batchContainer) return [];
-    return queryAll('flow-video-tile, flow-image-tile', batchContainer);
+    return queryAll('flow-video-tile, flow-image-tile, flow-pending-tile', batchContainer);
   }
 
   /**
@@ -42,7 +43,11 @@ export class FlowWatcherService {
       return { status: 'unknown', isRendering: false, isSuccess: false, isFailed: true };
     }
 
-    const isRendering = Boolean(tileElement.querySelector(SELECTORS.PROGRESS_BAR));
+    const isPending = (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') ||
+      Boolean(tileElement.querySelector('flow-pending-tile'));
+    const isProgressActive = Boolean(tileElement.querySelector('.progress-bar, .progress-bar-fill'));
+    const isRendering = isPending || isProgressActive;
+
     const isSuccess = isCardGenerationSuccess(tileElement);
 
     const hasErrorBadge = Boolean(tileElement.querySelector(SELECTORS.CARD_ERROR));
@@ -167,6 +172,11 @@ export class FlowWatcherService {
 
         if (isDone) {
           clearInterval(timer);
+          if (completedCount > 0) {
+            logger.success(`Batch generated successfully (${completedCount}/${total} tiles ready)`);
+          } else {
+            logger.warn(`Batch completed with 0 successful tiles (${failedCount} failed)`);
+          }
           resolve({
             success: completedCount > 0,
             batchContainer,
@@ -185,8 +195,10 @@ export class FlowWatcherService {
    * and tracks lifecycle until full completion.
    */
   async waitForGeneration(previousTopBatch = null, expectedCount = 1, onProgress = null, timeout = 180000) {
+    logger.step('watcher', 'Awaiting new generation batch in gallery...');
     // 1. Wait for Google Flow to mount the new batch container at top index 0
     const newBatch = await this.waitForNewBatchSpawn(previousTopBatch, 15000);
+    logger.step('watcher', 'New batch detected, monitoring generation progress...');
 
     // 2. Poll until all tiles in the batch resolve (success or failure)
     const result = await this.watchBatchProgress(newBatch, onProgress, { timeout });

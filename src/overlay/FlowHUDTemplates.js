@@ -37,13 +37,12 @@ export function renderStudioLayout() {
         <div class="hud-brand" id="hudDragHandle">
           <img src="${logoUrl}" alt="RJ" class="hud-brand-logo">
           <span class="hud-title">V-Flow</span>
-          <span class="hud-version-tag">Studio</span>
         </div>
         <div class="hud-window-controls">
-          <button class="rj-btn-icon" id="btnMinimizeHud" title="Minimize to Floating Pill">
+          <button class="rj-hud-btn-icon" id="btnMinimizeHud" title="Minimize to Floating Pill" type="button" aria-label="Minimize">
             ${ICONS.MINIMIZE}
           </button>
-          <button class="rj-btn-icon rj-btn-danger" id="btnCloseHud" title="Close Overlay">
+          <button class="rj-hud-btn-icon rj-close" id="btnCloseHud" title="Close Studio" type="button" aria-label="Close">
             ${ICONS.CLOSE}
           </button>
         </div>

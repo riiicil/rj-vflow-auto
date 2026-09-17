@@ -109,6 +109,10 @@ export class CustomSelect {
     const selectedIndex = selectEl.selectedIndex;
 
     Array.from(selectEl.options).forEach((opt, idx) => {
+      // Respect hidden options or options in hidden optgroups
+      if (opt.hidden || opt.style.display === 'none') return;
+      if (opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' && opt.parentElement.style.display === 'none') return;
+
       const optEl = document.createElement('div');
       optEl.className = 'rj-select-option';
       optEl.title = opt.text;

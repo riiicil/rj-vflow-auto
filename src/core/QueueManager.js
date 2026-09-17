@@ -21,6 +21,7 @@ import { flowIngredientService } from '../services/FlowIngredientService.js';
 import { flowPromptService } from '../services/FlowPromptService.js';
 import { flowWatcherService } from '../services/FlowWatcherService.js';
 import { flowDownloadService } from '../services/FlowDownloadService.js';
+import { logger } from '../services/LoggerService.js';
 
 export const QUEUE_STATES = {
   IDLE: 'idle',
@@ -104,6 +105,7 @@ export class QueueManager {
   async start() {
     if (this.state === QUEUE_STATES.RUNNING) return;
 
+    logger.banner('Queue automation batch started');
     this.setState(QUEUE_STATES.RUNNING);
     await saveConfig({
       activeBatch: {
@@ -115,7 +117,7 @@ export class QueueManager {
 
     if (!this.isLoopActive) {
       this.runLoop().catch(err => {
-        console.error('[QueueManager] Unexpected loop failure', err);
+        logger.error('Unexpected loop failure', err);
         this.setState(QUEUE_STATES.IDLE);
       });
     }
@@ -127,6 +129,7 @@ export class QueueManager {
   async pause() {
     if (this.state !== QUEUE_STATES.RUNNING) return;
 
+    logger.info('Queue automation paused');
     this.setState(QUEUE_STATES.PAUSED);
     await saveConfig({
       activeBatch: { isRunning: true, isPaused: true }
@@ -139,6 +142,7 @@ export class QueueManager {
   async resume() {
     if (this.state !== QUEUE_STATES.PAUSED) return;
 
+    logger.info('Queue automation resumed');
     this.setState(QUEUE_STATES.RUNNING);
     await saveConfig({
       activeBatch: { isRunning: true, isPaused: false }
@@ -146,7 +150,7 @@ export class QueueManager {
 
     if (!this.isLoopActive) {
       this.runLoop().catch(err => {
-        console.error('[QueueManager] Resume loop error', err);
+        logger.error('Resume loop error', err);
         this.setState(QUEUE_STATES.IDLE);
       });
     }
@@ -156,6 +160,7 @@ export class QueueManager {
    * Stops queue execution immediately.
    */
   async stop() {
+    logger.warn('Queue automation stopped by user');
     this.setState(QUEUE_STATES.STOPPED);
     this.activeItemId = null;
     await saveConfig({
@@ -176,9 +181,11 @@ export class QueueManager {
     try {
       while (this.state === QUEUE_STATES.RUNNING) {
         const queue = await getQueue();
-        const nextItem = queue.find(it => it.status === QUEUE_STATUS.PENDING);
+        const pendingItems = queue.filter(it => it.status === QUEUE_STATUS.PENDING);
+        const nextItem = pendingItems[0];
 
         if (!nextItem) {
+          logger.success('All queue items processed. Automation idle.');
           // No more pending items, transition to IDLE
           this.setState(QUEUE_STATES.IDLE);
           await saveConfig({
@@ -186,6 +193,10 @@ export class QueueManager {
           });
           break;
         }
+
+        const totalItems = queue.length;
+        const currentIdx = queue.findIndex(it => it.id === nextItem.id) + 1;
+        logger.item(currentIdx, totalItems, nextItem.prompt);
 
         this.activeItemId = nextItem.id;
         await saveConfig({
@@ -198,6 +209,7 @@ export class QueueManager {
         const cfg = await getConfig();
         const cooldownMs = (cfg.settings && cfg.settings.cooldownMs) || 2500;
         if (this.state === QUEUE_STATES.RUNNING && cooldownMs > 0) {
+          logger.step('cooldown', `${cooldownMs}ms`);
           await new Promise(r => setTimeout(r, cooldownMs));
         }
       }
@@ -217,6 +229,7 @@ export class QueueManager {
       // 1. Stage: INJECTING — Apply settings & parameters
       await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, percent: 10 });
+      logger.step('parameters', `${item.mode || 'video'} | ${item.model || 'default'} | ratio: ${item.aspectRatio || '16:9'}`);
 
       await flowSettingsService.applySettings({
         mode: item.mode,
@@ -228,11 +241,13 @@ export class QueueManager {
 
       // 2. Prepare Reference Ingredients / Frames
       if (item.ingredients && item.ingredients.length > 0) {
+        logger.step('ingredients', `${item.ingredients.length} media file(s)`);
         await flowIngredientService.clearIngredients();
         for (const ing of item.ingredients) {
           await flowIngredientService.injectMediaToFlow(ing.dataUrl || ing, ing.name || 'ingredient.png');
         }
       } else if (item.frames && (item.frames.start || item.frames.end)) {
+        logger.step('frames', 'Injecting start & end frames');
         await flowIngredientService.clearIngredients();
         if (item.frames.start) {
           await flowIngredientService.setFrameSlot('start', item.frames.start);
@@ -246,6 +261,7 @@ export class QueueManager {
       const previousTopBatch = flowWatcherService.getTopBatchContainer();
 
       // 4. Submit prompt via native ProseMirror injection
+      logger.step('prompt injection', item.prompt);
       await flowPromptService.submitPrompt(item.prompt);
 
       // 5. Stage: GENERATING — Watch batch resolution
@@ -274,7 +290,8 @@ export class QueueManager {
         await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
         this.notifyProgress({ itemId, status: QUEUE_STATUS.DOWNLOADING, percent: 85 });
 
-        const targetRes = item.resolution || (item.mode.includes('image') ? cfg.imageResolution : cfg.videoResolution);
+        const targetRes = item.resolution || (item.mode && item.mode.includes('image') ? cfg.imageResolution : cfg.videoResolution);
+        logger.step('download', `Downloading ${watchResult.tiles.length} asset(s) at ${targetRes}`);
         await flowDownloadService.downloadBatchTiles(watchResult.tiles, {
           targetResolution: targetRes,
           delayBetweenMs: 800
@@ -283,6 +300,7 @@ export class QueueManager {
 
       // 7. Stage: COMPLETED or FAILED
       if (watchResult.success) {
+        logger.success(`Item ${itemId} generated & processed successfully!`);
         await updateQueueItem(itemId, {
           status: QUEUE_STATUS.COMPLETED,
           completedAt: Date.now()
@@ -293,7 +311,7 @@ export class QueueManager {
       }
 
     } catch (err) {
-      console.error(`[QueueManager] Item ${itemId} failed:`, err);
+      logger.error(`Item ${itemId} failed: ${err.message || String(err)}`);
       await updateQueueItem(itemId, {
         status: QUEUE_STATUS.FAILED,
         error: err.message || String(err),

@@ -42,9 +42,9 @@ export const SELECTORS = {
   // Gallery & Cards
   GRID_CONTAINER: 'flow-grid-tile-container',
   TOP_BATCH_CONTAINER: 'flow-grid-tile-container > flow-tile-container:first-child',
-  CARD_MEDIA: 'img.thumbnail, video',
-  PROGRESS_BAR: '.progress-bar, .hover-overlay-has-progress-bar',
-  CARD_ERROR: '.error-container, .failed-indicator, [class*="error"], [class*="failed"]',
+  CARD_MEDIA: 'img.thumbnail, img.image, img, video',
+  PROGRESS_BAR: '.progress-bar, .progress-bar-fill, flow-pending-tile',
+  CARD_ERROR: '.error-container, .failed-indicator, .error-badge, .error-message',
   HOTBAR_CONTAINER: 'flow-hotbar-container div.hotbar-inner',
 
   // Download Menu
@@ -235,8 +235,14 @@ export function waitForCondition(predicate, { timeout = 10000, interval = 200 } 
 export function isCardGenerationSuccess(tileElement) {
   if (!tileElement) return false;
 
-  // 1. Progress bar must be absent
-  if (tileElement.querySelector(SELECTORS.PROGRESS_BAR)) {
+  // 1. Pending tile indicator or active progress bar must be absent
+  if (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') {
+    return false;
+  }
+  if (tileElement.querySelector('flow-pending-tile')) {
+    return false;
+  }
+  if (tileElement.querySelector('.progress-bar, .progress-bar-fill')) {
     return false;
   }
 

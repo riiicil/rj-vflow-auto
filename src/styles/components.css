@@ -467,3 +467,92 @@
   width: 14px;
   height: 14px;
 }
+
+/* Cards & Sections */
+.rj-card {
+  background-color: var(--rj-bg-surface);
+  border: 1px solid var(--rj-border-hairline);
+  border-radius: var(--rj-radius-lg);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.rj-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--rj-text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rj-card-title-split {
+  justify-content: space-between;
+}
+
+.rj-title-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Status Indicators & Helpers */
+.rj-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--rj-radius-pill);
+  border: 1px solid transparent;
+  vertical-align: middle;
+}
+
+.rj-status-badge .rj-icon {
+  display: block;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.rj-status-matched {
+  background-color: var(--rj-accent-green-soft);
+  color: var(--rj-accent-green);
+  border-color: rgba(89, 212, 153, 0.3);
+}
+
+.rj-status-unmatched {
+  background-color: var(--rj-accent-red-soft);
+  color: var(--rj-accent-red);
+  border-color: rgba(255, 97, 97, 0.3);
+}
+
+.rj-platform-warning {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background-color: rgba(255, 97, 97, 0.08);
+  border: 1px solid rgba(255, 97, 97, 0.2);
+  border-radius: var(--rj-radius-md);
+  font-size: 11px;
+  color: #ff8585;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rj-platform-link {
+  color: var(--rj-accent-cyan);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.rj-platform-link:hover {
+  color: #57c1ff;
+}
+

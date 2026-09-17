@@ -779,9 +779,6 @@ export class FlowHUDHost {
   syncModeUI(mode) {
     const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
 
-    const grpDuration = this.shadow.getElementById('grpDuration');
-    if (grpDuration) grpDuration.style.display = isVideo ? 'flex' : 'none';
-
     const grpMultiplier = this.shadow.getElementById('grpMultiplier');
     if (grpMultiplier) grpMultiplier.style.display = isVideo ? 'none' : 'flex';
 
@@ -789,6 +786,14 @@ export class FlowHUDHost {
     const grpImageModels = this.shadow.getElementById('grpImageModels');
     if (grpVideoModels) grpVideoModels.style.display = isVideo ? 'block' : 'none';
     if (grpImageModels) grpImageModels.style.display = isVideo ? 'none' : 'block';
+
+    // In Image to Video, Veo 3.1 - Quality does not support single-image conditioning
+    const optVeoQuality = this.shadow.querySelector('#grpVideoModels option[value="Veo 3.1 - Quality"]');
+    if (optVeoQuality) {
+      const isI2V = mode === 'image-to-video';
+      optVeoQuality.hidden = isI2V;
+      optVeoQuality.style.display = isI2V ? 'none' : 'block';
+    }
 
     const grpVideoRes = this.shadow.getElementById('grpVideoRes');
     const grpImageRes = this.shadow.getElementById('grpImageRes');
@@ -811,7 +816,7 @@ export class FlowHUDHost {
       }
     }
 
-    // Refresh CustomSelects
+    // Refresh Model Selector
     const selModel = this.shadow.getElementById('selModelFamily');
     if (selModel) {
       if (isVideo && selModel.value.includes('Banana')) {
@@ -820,9 +825,15 @@ export class FlowHUDHost {
       } else if (!isVideo && !selModel.value.includes('Banana')) {
         selModel.value = 'Nano Banana Pro';
         saveConfig({ model: 'Nano Banana Pro' }).catch(() => {});
+      } else if (mode === 'image-to-video' && selModel.value === 'Veo 3.1 - Quality') {
+        selModel.value = 'Omni 1.1 Flash';
+        saveConfig({ model: 'Omni 1.1 Flash' }).catch(() => {});
       }
       CustomSelect.refresh(selModel);
     }
+
+    // Duration is strictly for Omni 1.1 Flash in video mode
+    this.syncModelUI(selModel?.value || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro'));
 
     const selRes = this.shadow.getElementById('selResolution');
     if (selRes) {
@@ -832,13 +843,14 @@ export class FlowHUDHost {
   }
 
   /**
-   * Synchronizes duration visibility when Model changes.
+   * Synchronizes duration visibility when Model changes (strictly Omni 1.1 Flash only).
    */
   syncModelUI(model) {
+    const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
     const isOmni = model === 'Omni 1.1 Flash';
     const grpDuration = this.shadow.getElementById('grpDuration');
     if (grpDuration) {
-      grpDuration.style.display = isOmni ? 'flex' : 'none';
+      grpDuration.style.display = (isVideo && isOmni) ? 'flex' : 'none';
     }
   }
 
