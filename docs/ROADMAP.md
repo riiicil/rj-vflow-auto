@@ -45,9 +45,10 @@ gantt
   - Commit: `7251251 feat(core): implement FlowDOM selector engine and FlowStorage service`
   - Implement `src/core/FlowDOM.js` and `src/core/FlowStorage.js` with schema versioning.
 - [x] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[COMPLETE]`
-  - Commit: `feat(services): implement FlowSettingsService for model, ratio, and agent suppression`
+  - Commit: `42698d8 feat(services): implement FlowSettingsService for model, ratio, and agent suppression`
   - Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and agent mode disabling.
-- [ ] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[PLANNED]`
+- [x] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[COMPLETE]`
+  - Commit: `feat(services): implement FlowIngredientService and FlowPromptService`
   - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
 - [ ] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[PLANNED]`
   - Implement `src/services/FlowWatcherService.js` with top-batch virtual scroll monitoring and `isCardGenerationSuccess(card)`.

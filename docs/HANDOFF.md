@@ -8,9 +8,9 @@
 
 - **Current Milestone**: Phase 2 (Core Automation Engine & Services) — [IN_PROGRESS]
 - **Active Branch**: `task/core-automation-engine`
-- **Latest Commit**: Pending Sub-phase 2.2 commit (`feat(services): implement FlowSettingsService for model, ratio, and agent suppression`)
+- **Latest Commit**: Pending Sub-phase 2.3 commit (`feat(services): implement FlowIngredientService and FlowPromptService`)
 - **Working Tree**: Active working branch in progress
-- **Build / Test State**: Verified healthy, `FlowDOM.js`, `FlowStorage.js`, and `FlowSettingsService.js` passing syntax validation (`node --check`)
+- **Build / Test State**: Verified healthy, all 5 core engine and service modules passing syntax validation (`node --check`)
 
 ---
 
@@ -19,17 +19,18 @@
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
 Phase 2 (Core Automation Engine & Services) is progressing:
 1. **Sub-phase 2.1 Complete (`7251251`)**: `FlowDOM.js` (language-resilient selector engine, ligature queries, and `isCardGenerationSuccess` validator) and `FlowStorage.js` (Schema v3 persistence, 50ms debounced auto-save, and queue CRUD helpers).
-2. **Sub-phase 2.2 Complete**: `src/services/FlowSettingsService.js` implemented with fast-path state evaluation (`isSettingsMatching`), model dropdown selection (`selectModel`), media mode toggling (`selectMediaMode`), aspect ratio (`selectAspectRatio`), duration (`selectDuration`), output multiplier (`selectOutputCount`), and creative agent mode suppression (`ensureAgentModeOff`).
+2. **Sub-phase 2.2 Complete (`42698d8`)**: `FlowSettingsService.js` (settings popover automation, fast-path bypass, model selection, duration/multiplier/aspect-ratio toggles, and mandatory agent mode suppression).
+3. **Sub-phase 2.3 Complete**: `src/services/FlowIngredientService.js` (native clipboard paste ingestion, upload consent auto-agreement, frame slot triggers, ingredient clearing) and `src/services/FlowPromptService.js` (100% Zero-CDP ProseMirror paragraph injection, prompt clearing, and generate button trigger).
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Sub-phase 2.3 Execution**:
-   - Implement `src/services/FlowIngredientService.js`: Asset clipboard ingestion, multi-asset handling, upload consent auto-confirmation, and start/end frame slot association.
-   - Implement `src/services/FlowPromptService.js`: Zero-CDP ProseMirror paragraph event injection via `document.execCommand('insertText')` + native `InputEvent` dispatch and generate button trigger.
-2. **Sub-phase 2.4 Preparation**:
-   - `FlowWatcherService.js` (top-batch index 0 virtual scroll safe monitoring and `isCardGenerationSuccess` validator).
+1. **Sub-phase 2.4 Execution**:
+   - Implement `src/services/FlowWatcherService.js`: Monitor top-batch index 0 (`flow-grid-tile-container > :first-child`), track generation progress, and validate in-card generation health via `isCardGenerationSuccess(card)` without toast dependencies.
+2. **Sub-phase 2.5 Preparation**:
+   - `FlowDownloadService.js` (resolution menu trigger, format options, browser download dispatch).
+   - `QueueManager.js` (state machine orchestrating batch processing, retry policies, and cooldown periods).
 
 ---
 
@@ -46,7 +47,8 @@ Phase 2 (Core Automation Engine & Services) is progressing:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 06 | 2026-09-17 | `task/core-automation-engine` | Pending | Implement FlowSettingsService for model, ratio, and agent suppression (Sub-phase 2.2 Complete) | Phase 2 Sub-phase 2.3: FlowIngredientService & FlowPromptService |
+| 07 | 2026-09-17 | `task/core-automation-engine` | Pending | Implement FlowIngredientService and FlowPromptService (Sub-phase 2.3 Complete) | Phase 2 Sub-phase 2.4: FlowWatcherService |
+| 06 | 2026-09-17 | `task/core-automation-engine` | `42698d8` | Implement FlowSettingsService for model, ratio, and agent suppression (Sub-phase 2.2 Complete) | Phase 2 Sub-phase 2.3: FlowIngredientService & FlowPromptService |
 | 05 | 2026-09-17 | `task/core-automation-engine` | `7251251` | Implement FlowDOM selector engine and FlowStorage service (Sub-phase 2.1 Complete) | Phase 2 Sub-phase 2.2: FlowSettingsService |
 | 04 | 2026-09-17 | `task/cleanup-and-governance` | `eff9539` | Author root AGENTS.md, DESIGN.md, clean manifest, and src scaffold (Phase 1 Complete) | Merge to dev & start Phase 2 Sub-phase 2.1 |
 | 03 | 2026-09-17 | `task/cleanup-and-governance` | `e980390` | Establish complete governance docs suite and port GOOGLE_FLOW_DOM reference | Sub-phase 1.4: Author AGENTS.md, DESIGN.md, clean manifest, and src scaffold |
