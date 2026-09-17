@@ -6,30 +6,34 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 2 (Core Automation Engine & Services) — [IN_PROGRESS]
+- **Current Milestone**: Phase 2 (Core Automation Engine & Services) — [COMPLETE] / Ready for Phase 3
 - **Active Branch**: `task/core-automation-engine`
-- **Latest Commit**: Pending Sub-phase 2.4 commit (`feat(services): implement FlowWatcherService for top-batch monitoring and failure detection`)
-- **Working Tree**: Active working branch in progress
-- **Build / Test State**: Verified healthy, all 6 core engine and service modules passing syntax validation (`node --check`)
+- **Latest Commit**: Pending Sub-phase 2.5 commit (`feat(core): implement FlowDownloadService and QueueManager orchestrator`)
+- **Working Tree**: Active working branch (Phase 2 complete)
+- **Build / Test State**: Verified healthy, all 8 core engine and service modules passing syntax validation (`node --check`)
 
 ---
 
 ## 2. Active In-Flight Context
 
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
-Phase 2 (Core Automation Engine & Services) is progressing:
+Phase 2 (Core Automation Engine & Services) is 100% complete across all 5 sub-phases:
 1. **Sub-phase 2.1 Complete (`7251251`)**: `FlowDOM.js` (language-resilient selector engine, ligature queries, and `isCardGenerationSuccess` validator) and `FlowStorage.js` (Schema v3 persistence, 50ms debounced auto-save, and queue CRUD helpers).
 2. **Sub-phase 2.2 Complete (`42698d8`)**: `FlowSettingsService.js` (settings popover automation, fast-path bypass, model selection, duration/multiplier/aspect-ratio toggles, and mandatory agent mode suppression).
 3. **Sub-phase 2.3 Complete (`270cee5`)**: `FlowIngredientService.js` (native clipboard paste ingestion, upload consent auto-agreement, frame slot triggers, ingredient clearing) and `FlowPromptService.js` (100% Zero-CDP ProseMirror paragraph injection, prompt clearing, and generate button trigger).
-4. **Sub-phase 2.4 Complete**: `src/services/FlowWatcherService.js` implemented with ADR-008 virtual scroll top-batch containment (`flow-grid-tile-container > :first-child`), progress polling, and ADR-006 in-card failure detection (`isCardGenerationSuccess`).
+4. **Sub-phase 2.4 Complete (`e6335d3`)**: `src/services/FlowWatcherService.js` (ADR-008 virtual scroll top-batch containment, batch progress tracking, and ADR-006 in-card failure detection).
+5. **Sub-phase 2.5 Complete**: `src/services/FlowDownloadService.js` (card context menu upscaled downloads `more_vert` -> `download` -> `1080p`/`4K` and direct fallback) and `src/core/QueueManager.js` (master batch automation orchestrator state machine `IDLE` -> `RUNNING` -> `PAUSED` -> `STOPPED`).
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Sub-phase 2.5 Execution**:
-   - Implement `src/services/FlowDownloadService.js`: Automate context menu `more_vert` -> `download` -> target resolution `1080p`/`4K` and coordinate with Chrome downloads API.
-   - Implement `src/core/QueueManager.js`: State machine orchestrating batch processing, model settings application, prompt injection, watcher polling, downloads, and retry policies.
+1. **Merge Phase 2 to Dev Branch (When Authorized)**:
+   - Synchronize and merge `task/core-automation-engine` into `dev` via `git checkout dev && git merge --no-ff task/core-automation-engine`.
+2. **Initiate Phase 3 (Dual-Mode UI Implementation)**:
+   - Branch from updated `dev` to `task/dual-mode-ui`.
+   - **Sub-phase 3.1**: Implement Minimalist Toolbar Popup Launcher (`src/popup/popup.html`, `popup.css`, `popup.js`) with active connection status indicator, open-studio action, and quick stats.
+   - **Sub-phase 3.2**: Implement Shadow DOM Studio Overlay HUD host (`#flow-auto-hud-root`), draggable floating pill, and windowing mechanics.
 
 ---
 
@@ -46,7 +50,8 @@ Phase 2 (Core Automation Engine & Services) is progressing:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 08 | 2026-09-17 | `task/core-automation-engine` | Pending | Implement FlowWatcherService for top-batch monitoring and failure detection (Sub-phase 2.4 Complete) | Phase 2 Sub-phase 2.5: FlowDownloadService & QueueManager |
+| 09 | 2026-09-17 | `task/core-automation-engine` | Pending | Implement FlowDownloadService and QueueManager orchestrator (Phase 2 Complete) | Phase 3 Sub-phase 3.1: Minimalist Toolbar Popup Launcher |
+| 08 | 2026-09-17 | `task/core-automation-engine` | `e6335d3` | Implement FlowWatcherService for top-batch monitoring and failure detection (Sub-phase 2.4 Complete) | Phase 2 Sub-phase 2.5: FlowDownloadService & QueueManager |
 | 07 | 2026-09-17 | `task/core-automation-engine` | `270cee5` | Implement FlowIngredientService and FlowPromptService (Sub-phase 2.3 Complete) | Phase 2 Sub-phase 2.4: FlowWatcherService |
 | 06 | 2026-09-17 | `task/core-automation-engine` | `42698d8` | Implement FlowSettingsService for model, ratio, and agent suppression (Sub-phase 2.2 Complete) | Phase 2 Sub-phase 2.3: FlowIngredientService & FlowPromptService |
 | 05 | 2026-09-17 | `task/core-automation-engine` | `7251251` | Implement FlowDOM selector engine and FlowStorage service (Sub-phase 2.1 Complete) | Phase 2 Sub-phase 2.2: FlowSettingsService |

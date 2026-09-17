@@ -13,9 +13,9 @@ gantt
     section Phase 1
     Cleanup & Governance Foundation       :done, 2026-09-17, 1d
     section Phase 2
-    Core Automation Engine & Services     :active, 2026-09-17, 3d
+    Core Automation Engine & Services     :done, 2026-09-17, 3d
     section Phase 3
-    Dual-Mode UI Implementation           :2026-09-21, 3d
+    Dual-Mode UI Implementation           :active, 2026-09-21, 3d
     section Phase 4
     E2E Integration & Stress Testing      :2026-09-24, 2d
     section Phase 5
@@ -39,7 +39,7 @@ gantt
 
 ---
 
-### Phase 2: Core Automation Engine & Services `[IN_PROGRESS]`
+### Phase 2: Core Automation Engine & Services `[COMPLETE]`
 - **Target Branch**: `task/core-automation-engine` $\to$ `dev`
 - [x] **Sub-phase 2.1**: Core DOM Utility Library & Storage Engine `[COMPLETE]`
   - Commit: `7251251 feat(core): implement FlowDOM selector engine and FlowStorage service`
@@ -51,9 +51,10 @@ gantt
   - Commit: `270cee5 feat(services): implement FlowIngredientService and FlowPromptService`
   - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
 - [x] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[COMPLETE]`
-  - Commit: `feat(services): implement FlowWatcherService for top-batch monitoring and failure detection`
+  - Commit: `e6335d3 feat(services): implement FlowWatcherService for top-batch monitoring and failure detection`
   - Implement `src/services/FlowWatcherService.js` with top-batch virtual scroll monitoring and `isCardGenerationSuccess(card)`.
-- [ ] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[PLANNED]`
+- [x] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[COMPLETE]`
+  - Commit: `feat(core): implement FlowDownloadService and QueueManager orchestrator`
   - Implement `src/services/FlowDownloadService.js` and `src/core/QueueManager.js` state machine.
 
 ---

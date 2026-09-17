@@ -2,14 +2,14 @@
 
 *Last Updated: 2026-09-17*<br>
 *Active Branch: `task/core-automation-engine`*<br>
-*Current Milestone: Phase 2 (Core Automation Engine & Services) — [IN_PROGRESS]*
+*Current Milestone: Phase 2 (Core Automation Engine & Services) — [COMPLETE]*
 
 ---
 
 ## 1. Current Phase Progress
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
-- **Phase 2 — Core Automation Engine & Services**: [IN_PROGRESS] (Sub-phases 2.1 through 2.4 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, and FlowWatcherService.js implemented; Sub-phase 2.5 pending)
+- **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified)
 - **Phase 3 — Dual-Mode UI Implementation**: [PLANNED]
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
@@ -62,11 +62,13 @@
 - **Core Automation Engine (`src/core/`):**
   - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, MutationObserver waiters, and in-card validator (`isCardGenerationSuccess`).
   - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
+  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services.
 - **Specialized Automation Services (`src/services/`):**
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, and creative agent mode suppression.
   - `src/services/FlowIngredientService.js` — Reference media clipboard ingestion, upload consent auto-agreement, frame slot triggers, and ingredient chip clearing.
   - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
   - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), and asset metadata extraction.
+  - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
 - **Modular Extension Scaffold (`src/`):**
   - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
   - `src/assets/icons/` — Bundled extension icons.
@@ -80,7 +82,7 @@
   - `docs/references/GOOGLE_FLOW_DOM.md` — Ported language-resilient selector specification and native event routines.
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
-  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 8).
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 9).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
@@ -89,9 +91,13 @@
 
 ## 5. What Does NOT Exist Yet
 
-- **Phase 2 — Core Automation Engine & Services:**
-  - `src/services/FlowDownloadService.js` & `src/core/QueueManager.js` (Sub-phase 2.5).
-- **Phase 3–5:** Dual-Mode UI HUD, E2E stress testing, and production packaging pipeline.
+- **Phase 3 — Dual-Mode UI Implementation:**
+  - `src/popup/` — Minimalist Toolbar Popup Launcher (`popup.html`, `popup.css`, `popup.js`).
+  - `src/overlay/` — Shadow DOM Studio HUD Host (`#flow-auto-hud-root`), draggable floating pill, and two-column studio HUD layout.
+- **Phase 4 — End-to-End Integration & Multi-Language Stress Testing:**
+  - Comprehensive automated batch test harnesses, moderation error recovery, and non-English locale verification.
+- **Phase 5 — Production Packaging Pipeline & Release:**
+  - AST obfuscation bundler (`esbuild` + `javascript-obfuscator`), zip packaging, and store deployment artifacts.
 
 ---
 
@@ -100,10 +106,13 @@
 - `src/manifest.json` verified valid Manifest V3 JSON.
 - `src/core/FlowDOM.js` verified valid syntax via `node --check`.
 - `src/core/FlowStorage.js` verified valid syntax via `node --check`.
+- `src/core/QueueManager.js` verified valid syntax via `node --check`.
 - `src/services/FlowSettingsService.js` verified valid syntax via `node --check`.
 - `src/services/FlowIngredientService.js` verified valid syntax via `node --check`.
 - `src/services/FlowPromptService.js` verified valid syntax via `node --check`.
 - `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
+- `src/services/FlowDownloadService.js` verified valid syntax via `node --check`.
+- All 8 core automation engine and service modules verified syntax-valid (0 errors).
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
 - Working tree active on branch `task/core-automation-engine`.
@@ -112,4 +121,4 @@
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 2 Sub-phase 2.5**: Implement `src/services/FlowDownloadService.js` and `src/core/QueueManager.js` to complete Phase 2 automation services.
+- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.1**: Implement Minimalist Toolbar Popup Launcher (`src/popup/popup.html`, `popup.css`, `popup.js`).
