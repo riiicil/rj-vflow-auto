@@ -1,16 +1,16 @@
 # Current Project State — RJ V-Flow Auto Extension
 
 *Last Updated: 2026-09-17*<br>
-*Active Branch: `task/core-automation-engine`*<br>
-*Current Milestone: Phase 2 (Core Automation Engine & Services) — [COMPLETE]*
+*Active Branch: `task/dual-mode-ui`*<br>
+*Current Milestone: Phase 3 (Dual-Mode UI Implementation) — [IN_PROGRESS]*
 
 ---
 
 ## 1. Current Phase Progress
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
-- **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified)
-- **Phase 3 — Dual-Mode UI Implementation**: [PLANNED]
+- **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phase 3.1 complete: `variables.css`, `popup.html`, `popup.css`, and `popup.js` implemented; Sub-phases 3.2 through 3.4 pending)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -24,7 +24,8 @@
 | `dev` | Integration | Active development integration branch |
 | `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
 | `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
-| `task/core-automation-engine` | Active | Phase 2: Core Automation Engine & Services (Active working branch) |
+| `task/core-automation-engine` | Merged | Phase 2: Core Automation Engine & Services (Merged into dev `c14ca68`) |
+| `task/dual-mode-ui` | Active | Phase 3: Dual-Mode UI Implementation (Active working branch) |
 
 ---
 
@@ -69,6 +70,12 @@
   - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
   - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), and asset metadata extraction.
   - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
+- **Design System Tokens (`src/styles/`):**
+  - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline border `#242728`, accent cyan `#57c1ff`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`, and shadows).
+- **Minimalist Toolbar Popup Launcher (`src/popup/`):**
+  - `src/popup/popup.html` — Minimalist popup layout with brand header, connection status card, action buttons, and telemetry bar.
+  - `src/popup/popup.css` — Compact 320px styling adhering to Raycast Dark Precision design tokens.
+  - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher.
 - **Modular Extension Scaffold (`src/`):**
   - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
   - `src/assets/icons/` — Bundled extension icons.
@@ -92,8 +99,7 @@
 ## 5. What Does NOT Exist Yet
 
 - **Phase 3 — Dual-Mode UI Implementation:**
-  - `src/popup/` — Minimalist Toolbar Popup Launcher (`popup.html`, `popup.css`, `popup.js`).
-  - `src/overlay/` — Shadow DOM Studio HUD Host (`#flow-auto-hud-root`), draggable floating pill, and two-column studio HUD layout.
+  - `src/overlay/` — Shadow DOM Studio HUD Host (`#flow-auto-hud-root`), draggable floating pill, and two-column studio HUD layout (Sub-phases 3.2 through 3.4).
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing:**
   - Comprehensive automated batch test harnesses, moderation error recovery, and non-English locale verification.
 - **Phase 5 — Production Packaging Pipeline & Release:**
@@ -113,12 +119,16 @@
 - `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
 - `src/services/FlowDownloadService.js` verified valid syntax via `node --check`.
 - All 8 core automation engine and service modules verified syntax-valid (0 errors).
+- `src/styles/variables.css` verified valid CSS tokens.
+- `src/popup/popup.html` and `src/popup/popup.css` verified.
+- `src/popup/popup.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
-- Working tree active on branch `task/core-automation-engine`.
+- Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.1**: Implement Minimalist Toolbar Popup Launcher (`src/popup/popup.html`, `popup.css`, `popup.js`).
+- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.2**: Implement `src/overlay/` Studio HUD Host & Draggable Floating Pill in Shadow DOM.
+

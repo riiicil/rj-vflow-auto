@@ -59,10 +59,11 @@ gantt
 
 ---
 
-### Phase 3: Dual-Mode UI Implementation `[PLANNED]`
+### Phase 3: Dual-Mode UI Implementation `[IN_PROGRESS]`
 - **Target Branch**: `task/dual-mode-ui` $\to$ `dev`
-- [ ] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[PLANNED]`
-  - Implement `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
+- [x] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[COMPLETE]`
+  - Commit: `feat(popup): implement minimalist toolbar popup launcher and connection detector`
+  - Implement `src/styles/variables.css`, `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
 - [ ] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[PLANNED]`
   - Implement `#flow-auto-hud-root` open Shadow DOM, fluid drag physics, boundary clamping, and minimize-to-pill transition.
 - [ ] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[PLANNED]`

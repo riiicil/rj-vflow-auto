@@ -1,0 +1,249 @@
+/**
+ * popup.css — Minimalist Toolbar Popup Styling
+ * Adheres strictly to Raycast Dark Precision (DESIGN.md)
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  background-color: var(--rj-bg-canvas);
+  color: var(--rj-text-body);
+  font-family: var(--rj-font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+  overflow: hidden;
+}
+
+.popup-container {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 12px;
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rj-border-hairline);
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--rj-radius-sm);
+  object-fit: contain;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  color: var(--rj-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.brand-subtitle {
+  color: var(--rj-text-ash);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.version-badge {
+  background-color: var(--rj-bg-surface);
+  border: 1px solid var(--rj-border-hairline);
+  color: var(--rj-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--rj-radius-pill);
+}
+
+/* Body Content */
+.popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Status Card */
+.status-card {
+  background-color: var(--rj-bg-surface);
+  border: 1px solid var(--rj-border-hairline);
+  border-radius: var(--rj-radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.status-indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--rj-text-ash);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rj-text-primary);
+}
+
+.status-desc {
+  font-size: 11px;
+  color: var(--rj-text-muted);
+  line-height: 1.3;
+}
+
+/* Status States */
+.status-card.status-connected {
+  border-color: rgba(89, 212, 153, 0.3);
+  background-color: rgba(89, 212, 153, 0.05);
+}
+
+.status-card.status-connected .status-dot {
+  background-color: var(--rj-accent-green);
+  box-shadow: 0 0 8px rgba(89, 212, 153, 0.6);
+}
+
+.status-card.status-disconnected {
+  border-color: rgba(255, 97, 97, 0.3);
+  background-color: rgba(255, 97, 97, 0.05);
+}
+
+.status-card.status-disconnected .status-dot {
+  background-color: var(--rj-accent-red);
+  box-shadow: 0 0 8px rgba(255, 97, 97, 0.6);
+}
+
+.status-card.status-checking .status-dot {
+  background-color: var(--rj-accent-yellow);
+  box-shadow: 0 0 8px rgba(255, 197, 51, 0.6);
+}
+
+/* Action Buttons */
+.action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rj-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--rj-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.rj-btn-primary {
+  background-color: var(--rj-accent-cyan);
+  color: #000000;
+  font-weight: 600;
+}
+
+.rj-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.rj-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rj-btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+.rj-btn-secondary {
+  background-color: var(--rj-bg-surface);
+  border-color: var(--rj-border-hairline);
+  color: var(--rj-text-primary);
+}
+
+.rj-btn-secondary:hover {
+  background-color: var(--rj-bg-elevated);
+  border-color: var(--rj-border-soft);
+  color: #ffffff;
+}
+
+/* Telemetry Bar */
+.telemetry-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--rj-bg-surface);
+  border: 1px solid var(--rj-border-hairline);
+  border-radius: var(--rj-radius-md);
+  padding: 6px 12px;
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.telemetry-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--rj-text-ash);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.telemetry-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rj-text-primary);
+}
+
+.telemetry-divider {
+  width: 1px;
+  height: 12px;
+  background-color: var(--rj-border-hairline);
+}
