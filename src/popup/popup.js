@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           await chrome.scripting.executeScript({
             target: { tabId: activeTab.id },
-            files: ['content/content_main.js']
+            files: ['content/content_loader.js']
           });
           setTimeout(async () => {
             await chrome.tabs.sendMessage(activeTab.id, { type: 'TOGGLE_HUD' });

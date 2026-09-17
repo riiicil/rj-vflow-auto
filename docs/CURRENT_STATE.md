@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1, 3.2, and 3.3 complete: `variables.css`, `popup/`, `overlay.css`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_main.js`, and `service_worker.js` active; Sub-phase 3.4 pending)
+- **Phase 3 — Dual-Mode UI Implementation**: [COMPLETE] (Sub-phases 3.1 through 3.4 complete: `variables.css`, `popup/`, `overlay.css`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, and `service_worker.js` fully active; QueueManager execution wired with live progress telemetry)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -25,7 +25,7 @@
 | `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
 | `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
 | `task/core-automation-engine` | Merged | Phase 2: Core Automation Engine & Services (Merged into dev `c14ca68`) |
-| `task/dual-mode-ui` | Active | Phase 3: Dual-Mode UI Implementation (Active working branch) |
+| `task/dual-mode-ui` | Active | Phase 3: Dual-Mode UI Implementation (Active working branch, Phase 3 complete) |
 
 ---
 
@@ -75,16 +75,17 @@
 - **Minimalist Toolbar Popup Launcher (`src/popup/`):**
   - `src/popup/popup.html` — Minimalist popup layout with brand header, connection status card, action buttons, and telemetry bar.
   - `src/popup/popup.css` — Compact 320px styling adhering to Raycast Dark Precision design tokens.
-  - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher.
+  - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher with `content_loader.js` fallback injection.
 - **In-Page Studio Overlay HUD (`src/overlay/`):**
   - `src/overlay/overlay.css` — Comprehensive Shadow DOM styling for Two-Column Studio HUD window, workspace tabs, media dropzones, queue card list, and parameters sidebar adhering to Raycast Dark tokens.
   - `src/overlay/FlowHUDTemplates.js` — Lucide SVG icons and modular HTML templates for Two-Column Studio Layout and Queue Card rendering.
-  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, position persistence, dynamic mode switching, dropzones, queue list rendering, and live ticker.
+  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, position persistence, dynamic mode switching, dropzones, queue list rendering, execution controls (`Start Batch`, `Stop Batch`), live card progress updating, and stale batch state recovery.
 - **Content & Background Workers (`src/content/`, `src/background/`):**
-  - `src/content/content_main.js` — Content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
+  - `src/content/content_loader.js` — Manifest V3 content script ES module dynamic bootstrap loader.
+  - `src/content/content_main.js` — Primary ES module content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
   - `src/background/service_worker.js` — Clean Manifest V3 background service worker with lifecycle event listener.
 - **Modular Extension Scaffold (`src/`):**
-  - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
+  - `src/manifest.json` — Clean Chromium Manifest V3 with `content_loader.js` entrypoint, `content/*` web-accessible resource, and zero CDP requirements.
   - `src/assets/icons/` — Bundled extension icons.
   - Scaffolded modular directories: `src/background/`, `src/content/`, `src/core/`, `src/services/`, `src/overlay/`, `src/popup/`, `src/styles/`.
 - **Governance & Documentation Suite (`docs/`):**
@@ -96,7 +97,7 @@
   - `docs/references/GOOGLE_FLOW_DOM.md` — Ported language-resilient selector specification and native event routines.
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
-  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 11).
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 12).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
@@ -105,8 +106,6 @@
 
 ## 5. What Does NOT Exist Yet
 
-- **Phase 3 — Dual-Mode UI Implementation:**
-  - `src/overlay/` — Reactive automation controls (`QueueManager` Start/Stop execution wiring) and live batch telemetry (Sub-phase 3.4).
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing:**
   - Comprehensive automated batch test harnesses, moderation error recovery, and non-English locale verification.
 - **Phase 5 — Production Packaging Pipeline & Release:**
@@ -132,6 +131,7 @@
 - `src/overlay/overlay.css` verified valid CSS tokens.
 - `src/overlay/FlowHUDTemplates.js` verified valid syntax via `node --check`.
 - `src/overlay/FlowHUDHost.js` verified valid syntax via `node --check`.
+- `src/content/content_loader.js` verified valid syntax via `node --check`.
 - `src/content/content_main.js` verified valid syntax via `node --check`.
 - `src/background/service_worker.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
@@ -142,5 +142,5 @@
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.4**: Wire Start/Stop buttons to `QueueManager`, finalize bidirectional reactive storage synchronization, and close Phase 3.
+- Prepare merge of `task/dual-mode-ui` into `dev`, then proceed to **Phase 4 (End-to-End Integration & Multi-Language Stress Testing)**.
 

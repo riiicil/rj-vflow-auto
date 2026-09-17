@@ -6,11 +6,11 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [IN_PROGRESS]
+- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending Sub-phase 3.3 commit (`feat(overlay): build dynamic two-column studio HUD and template generators`)
-- **Working Tree**: Active working branch (Sub-phase 3.3 complete)
-- **Build / Test State**: Verified healthy, `FlowHUDTemplates.js`, `FlowHUDHost.js`, `content_main.js`, `service_worker.js`, and `popup.js` passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
+- **Latest Commit**: Pending Sub-phase 3.4 commit (`feat(overlay): connect reactive storage synchronization and automation controls`)
+- **Working Tree**: Active working branch (Phase 3 complete)
+- **Build / Test State**: Verified healthy, all 14 JS modules (`content_loader.js`, `FlowHUDHost.js`, `QueueManager.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), all design tokens and popup/overlay files verified
 
 ---
 
@@ -18,7 +18,7 @@
 
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
-Phase 3 (Dual-Mode UI Implementation) is now in flight:
+Phase 3 (Dual-Mode UI Implementation) is now complete:
 1. **Sub-phase 3.1 Complete (`ce3a4cb`)**:
    - `src/styles/variables.css`: Defined Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline border `#242728`, accent cyan `#57c1ff`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`, and shadows).
    - `src/popup/popup.html`: Minimalist toolbar popup markup featuring brand header (`logo_rj.png`, version badge `v3.0.0`), live connection status card, action controls (`Open Studio HUD` / `Open Google Flow`), and 3-column storage telemetry bar (`Engine`, `Pending`, `Done`).
@@ -29,19 +29,26 @@ Phase 3 (Dual-Mode UI Implementation) is now in flight:
    - `src/overlay/FlowHUDHost.js`: Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid draggable physics with viewport boundary clamping, position persistence in `FlowStorage`, minimize/restore transitions, and reactive live status ticker.
    - `src/content/content_main.js`: Content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
    - `src/background/service_worker.js`: Manifest V3 background service worker with lifecycle event listener.
-3. **Sub-phase 3.3 Complete**:
+3. **Sub-phase 3.3 Complete (`f808156`)**:
    - `src/overlay/FlowHUDTemplates.js`: Pure inline Lucide SVG icons (`ICONS`), `renderStudioLayout()` generating full Two-Column Studio Layout markup (workspace tabs, batch textareas, reference dropzones, parameter sidebar, start/stop buttons), and `renderQueueItem()` generating queue card markup.
    - `src/overlay/overlay.css`: Comprehensive styling for Two-Column Studio Layout (740x500px), workspace navigation tabs, batch prompt textarea, media dropzones, queue card list with status pills, parameters sidebar, and start/stop buttons.
    - `src/overlay/FlowHUDHost.js`: Mounted dynamic two-column studio markup, wired navigation tabs, dynamic mode-switching (restricting video aspect ratios strictly to 16:9 and 9:16 only), file dropzones with FileReader Base64 conversion, frame swap action, queue item additions to `FlowStorage`, and queue card removal.
+4. **Sub-phase 3.4 Complete**:
+   - `src/content/content_loader.js`: Manifest V3 content script ES module dynamic bootstrap loader.
+   - `src/manifest.json`: Configured `content/content_loader.js` entrypoint and exposed `content/*` in `web_accessible_resources`.
+   - `src/popup/popup.js`: Updated fallback script injection target to `content/content_loader.js`.
+   - `src/overlay/overlay.css`: Added status badge and card border styles for `status-injecting` and `status-downloading`.
+   - `src/overlay/FlowHUDHost.js`: Wired `Start Batch` and `Stop Batch` execution controls to `QueueManager`, dynamic live progress and card badge updates (`INJECTING (10%)`, `GENERATING (45%)`, `DOWNLOADING (85%)`, `COMPLETED`, `FAILED`), and defensive stale batch state recovery on init.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Phase 3 Sub-phase 3.4 (Reactive Storage Synchronization & Automation Controls)**:
-   - Wire Start and Stop buttons to `queueManager.start()` and `queueManager.stop()`.
-   - Connect live progress callbacks to update card status pills and telemetry in real time.
-   - Finalize bidirectional reactive storage synchronization and close Phase 3.
+1. **Merge `task/dual-mode-ui` into `dev`**:
+   - `git checkout dev && git merge --no-ff task/dual-mode-ui`
+2. **Phase 4 (End-to-End Integration & Multi-Language Stress Testing)**:
+   - Create task branch `task/e2e-integration-testing`.
+   - Implement Phase 4 Sub-phase 4.1 (`Text-to-Image & Text-to-Video Batch Validation`).
 
 ---
 
@@ -59,7 +66,8 @@ Phase 3 (Dual-Mode UI Implementation) is now in flight:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 12 | 2026-09-17 | `task/dual-mode-ui` | Pending | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
+| 13 | 2026-09-17 | `task/dual-mode-ui` | Pending | Connect reactive storage synchronization and automation controls (Phase 3 Complete) | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 12 | 2026-09-17 | `task/dual-mode-ui` | `f808156` | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
 | 11 | 2026-09-17 | `task/dual-mode-ui` | `7750ffe` | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |
 | 10 | 2026-09-17 | `task/dual-mode-ui` | `ce3a4cb` | Implement minimalist toolbar popup launcher and connection detector (Sub-phase 3.1 Complete) | Phase 3 Sub-phase 3.2: Shadow DOM Studio HUD Host & Draggable Floating Pill |
 | 09 | 2026-09-17 | `task/core-automation-engine` | `e0d33fa` | Implement FlowDownloadService and QueueManager orchestrator (Phase 2 Complete, merged dev `c14ca68`) | Phase 3 Sub-phase 3.1: Minimalist Toolbar Popup Launcher |

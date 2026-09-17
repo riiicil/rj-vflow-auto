@@ -21,6 +21,7 @@ import {
 } from '../core/FlowStorage.js';
 
 import { renderStudioLayout, renderQueueItem } from './FlowHUDTemplates.js';
+import { queueManager, QUEUE_STATES } from '../core/QueueManager.js';
 
 export class FlowHUDHost {
   constructor() {
@@ -70,7 +71,10 @@ export class FlowHUDHost {
       console.warn('[FlowHUDHost] Failed to load initial state', e);
     }
 
-    // 2. Create Host & Open Shadow Root (ADR-003)
+    // 2. Recover from abrupt tab reload or crash during active batch
+    await this.recoverStaleBatchState();
+
+    // 3. Create Host & Open Shadow Root (ADR-003)
     this.host = document.getElementById(this.hostId);
     if (!this.host) {
       this.host = document.createElement('div');
@@ -107,6 +111,28 @@ export class FlowHUDHost {
 
     // 8. Subscribe to storage updates for live ticker & queue updates
     onChanged(cfg => this.handleStorageUpdate(cfg));
+  }
+
+  /**
+   * Recovers from abrupt tab reloads or crashes during active batch.
+   * Ensures automation is not stuck in a locked running state.
+   */
+  async recoverStaleBatchState() {
+    try {
+      const cfg = await getConfig();
+      if (cfg.activeBatch && cfg.activeBatch.isRunning) {
+        // Reset running flag so user can start a fresh batch
+        await saveConfig({
+          activeBatch: {
+            isRunning: false,
+            isPaused: false,
+            activeItemId: null
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[FlowHUDHost] Failed to recover stale batch state', err);
+    }
   }
 
   /**
@@ -582,6 +608,118 @@ export class FlowHUDHost {
         await this.syncQueueList();
       });
     }
+
+    // 7. Automation Execution Controls (Start & Stop)
+    const btnStartQueue = this.shadow.getElementById('btnStartQueue');
+    const btnStopQueue = this.shadow.getElementById('btnStopQueue');
+
+    if (btnStartQueue) {
+      btnStartQueue.addEventListener('click', async () => {
+        const queue = await getQueue();
+        const pendingItems = queue.filter(it => it.status === 'pending');
+
+        if (pendingItems.length === 0) {
+          // If no pending items, switch to Text Batch tab and flash textarea
+          const navTab = this.shadow.querySelector('.hud-nav-tab[data-tab="text-batch"]');
+          if (navTab) navTab.click();
+          const txt = this.shadow.getElementById('txtBatchPrompts');
+          if (txt) {
+            txt.focus();
+            txt.placeholder = 'Please add prompts to queue first before starting batch!';
+          }
+          return;
+        }
+
+        btnStartQueue.disabled = true;
+        if (btnStopQueue) btnStopQueue.disabled = false;
+
+        try {
+          await queueManager.start();
+        } catch (err) {
+          console.error('[FlowHUDHost] Failed to start queue', err);
+          btnStartQueue.disabled = false;
+          if (btnStopQueue) btnStopQueue.disabled = true;
+        }
+      });
+    }
+
+    if (btnStopQueue) {
+      btnStopQueue.addEventListener('click', async () => {
+        btnStopQueue.disabled = true;
+        try {
+          await queueManager.stop();
+        } catch (err) {
+          console.error('[FlowHUDHost] Failed to stop queue', err);
+        }
+      });
+    }
+
+    // 8. Queue Manager State & Progress Subscriptions
+    queueManager.onStateChange((state) => {
+      const btnStart = this.shadow.getElementById('btnStartQueue');
+      const btnStop = this.shadow.getElementById('btnStopQueue');
+
+      if (state === QUEUE_STATES.RUNNING) {
+        if (btnStart) btnStart.disabled = true;
+        if (btnStop) btnStop.disabled = false;
+        this.updateTicker('Running', 'running');
+      } else if (state === QUEUE_STATES.STOPPED) {
+        if (btnStart) btnStart.disabled = false;
+        if (btnStop) btnStop.disabled = true;
+        this.updateTicker('Stopped', 'stopped');
+        this.syncQueueList().catch(() => {});
+      } else {
+        // IDLE
+        if (btnStart) btnStart.disabled = false;
+        if (btnStop) btnStop.disabled = true;
+        this.updateTicker('Idle', 'idle');
+        this.syncQueueList().catch(() => {});
+      }
+    });
+
+    queueManager.onProgress((payload) => {
+      if (!payload || !payload.itemId) return;
+
+      // 1. Update queue card directly in DOM if visible
+      const card = this.shadow.querySelector(`.hud-queue-card[data-id="${payload.itemId}"]`);
+      if (card) {
+        const badge = card.querySelector('.queue-item-badge');
+        const status = payload.status || 'pending';
+
+        // Update card border class
+        card.className = `hud-queue-card status-${status}`;
+
+        // Update badge class and label
+        if (badge) {
+          badge.className = `queue-item-badge status-${status}`;
+          if (status === 'generating') {
+            badge.textContent = `GENERATING (${payload.percent || 25}%)`;
+          } else if (status === 'downloading') {
+            badge.textContent = `DOWNLOADING (${payload.percent || 85}%)`;
+          } else if (status === 'injecting') {
+            badge.textContent = 'INJECTING (10%)';
+          } else {
+            badge.textContent = status.toUpperCase();
+          }
+        }
+
+        // If error payload, append error element
+        if (payload.error) {
+          let errEl = card.querySelector('.queue-card-error');
+          if (!errEl) {
+            errEl = document.createElement('div');
+            errEl.className = 'queue-card-error';
+            card.appendChild(errEl);
+          }
+          errEl.textContent = payload.error;
+        }
+      }
+
+      // 2. Update pill ticker
+      if (payload.status === 'generating' || payload.status === 'injecting' || payload.status === 'downloading') {
+        this.updateTicker(`${payload.status.toUpperCase()} (${payload.percent || 0}%)`, 'running');
+      }
+    });
   }
 
   /**
@@ -731,6 +869,13 @@ export class FlowHUDHost {
       selRes.value = targetRes;
     }
 
+    // Synchronize execution control buttons
+    const isRunning = cfg.activeBatch && cfg.activeBatch.isRunning;
+    const btnStart = this.shadow.getElementById('btnStartQueue');
+    const btnStop = this.shadow.getElementById('btnStopQueue');
+    if (btnStart) btnStart.disabled = isRunning;
+    if (btnStop) btnStop.disabled = !isRunning;
+
     await this.syncQueueList();
   }
 
@@ -820,11 +965,20 @@ export class FlowHUDHost {
 
     const isRunning = cfg.activeBatch && cfg.activeBatch.isRunning;
 
+    const btnStart = this.shadow.getElementById('btnStartQueue');
+    const btnStop = this.shadow.getElementById('btnStopQueue');
+
     if (isRunning) {
+      if (btnStart) btnStart.disabled = true;
+      if (btnStop) btnStop.disabled = false;
       const activeIdx = cfg.activeBatch.completedCount || 0;
       const total = cfg.activeBatch.totalCount || 1;
       this.updateTicker(`Running #${activeIdx + 1}/${total}`, 'running');
     } else {
+      if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
+        if (btnStart) btnStart.disabled = false;
+        if (btnStop) btnStop.disabled = true;
+      }
       this.updateTicker('Idle', 'idle');
     }
 

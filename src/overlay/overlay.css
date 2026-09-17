@@ -422,8 +422,16 @@
   gap: 4px;
 }
 
+.hud-queue-card.status-injecting {
+  border-color: rgba(87, 193, 255, 0.4);
+}
+
 .hud-queue-card.status-generating {
   border-color: rgba(87, 193, 255, 0.4);
+}
+
+.hud-queue-card.status-downloading {
+  border-color: rgba(89, 212, 153, 0.4);
 }
 
 .hud-queue-card.status-completed {
@@ -449,9 +457,19 @@
   color: var(--rj-text-muted, #9c9c9d);
 }
 
+.queue-item-badge.status-injecting {
+  background-color: var(--rj-accent-cyan-soft);
+  color: var(--rj-accent-cyan);
+}
+
 .queue-item-badge.status-generating {
   background-color: var(--rj-accent-cyan-soft);
   color: var(--rj-accent-cyan);
+}
+
+.queue-item-badge.status-downloading {
+  background-color: var(--rj-accent-green-soft);
+  color: var(--rj-accent-green);
 }
 
 .queue-item-badge.status-completed {

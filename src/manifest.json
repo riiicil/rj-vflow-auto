@@ -36,7 +36,7 @@
         "https://flow.google.com/*"
       ],
       "js": [
-        "content/content_main.js"
+        "content/content_loader.js"
       ],
       "run_at": "document_idle"
     }
@@ -44,6 +44,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "content/*",
         "overlay/*",
         "styles/*",
         "assets/*",
