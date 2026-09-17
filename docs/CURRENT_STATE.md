@@ -9,7 +9,7 @@
 ## 1. Current Phase Progress
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
-- **Phase 2 — Core Automation Engine & Services**: [IN_PROGRESS] (Sub-phase 2.1 complete: FlowDOM.js and FlowStorage.js; Sub-phase 2.2 complete: FlowSettingsService.js; Sub-phase 2.3 complete: FlowIngredientService.js and FlowPromptService.js; Sub-phase 2.4 pending)
+- **Phase 2 — Core Automation Engine & Services**: [IN_PROGRESS] (Sub-phases 2.1 through 2.4 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, and FlowWatcherService.js implemented; Sub-phase 2.5 pending)
 - **Phase 3 — Dual-Mode UI Implementation**: [PLANNED]
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
@@ -66,6 +66,7 @@
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, and creative agent mode suppression.
   - `src/services/FlowIngredientService.js` — Reference media clipboard ingestion, upload consent auto-agreement, frame slot triggers, and ingredient chip clearing.
   - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
+  - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), and asset metadata extraction.
 - **Modular Extension Scaffold (`src/`):**
   - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
   - `src/assets/icons/` — Bundled extension icons.
@@ -79,7 +80,7 @@
   - `docs/references/GOOGLE_FLOW_DOM.md` — Ported language-resilient selector specification and native event routines.
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
-  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 7).
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 8).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
@@ -89,7 +90,6 @@
 ## 5. What Does NOT Exist Yet
 
 - **Phase 2 — Core Automation Engine & Services:**
-  - `src/services/FlowWatcherService.js` (Sub-phase 2.4).
   - `src/services/FlowDownloadService.js` & `src/core/QueueManager.js` (Sub-phase 2.5).
 - **Phase 3–5:** Dual-Mode UI HUD, E2E stress testing, and production packaging pipeline.
 
@@ -103,6 +103,7 @@
 - `src/services/FlowSettingsService.js` verified valid syntax via `node --check`.
 - `src/services/FlowIngredientService.js` verified valid syntax via `node --check`.
 - `src/services/FlowPromptService.js` verified valid syntax via `node --check`.
+- `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
 - Working tree active on branch `task/core-automation-engine`.
@@ -111,4 +112,4 @@
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 2 Sub-phase 2.4**: Implement `src/services/FlowWatcherService.js` for top-batch virtual scroll monitoring and in-card failure detection.
+- Proceed to **Phase 2 Sub-phase 2.5**: Implement `src/services/FlowDownloadService.js` and `src/core/QueueManager.js` to complete Phase 2 automation services.

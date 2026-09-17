@@ -48,9 +48,10 @@ gantt
   - Commit: `42698d8 feat(services): implement FlowSettingsService for model, ratio, and agent suppression`
   - Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and agent mode disabling.
 - [x] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[COMPLETE]`
-  - Commit: `feat(services): implement FlowIngredientService and FlowPromptService`
+  - Commit: `270cee5 feat(services): implement FlowIngredientService and FlowPromptService`
   - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
-- [ ] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[PLANNED]`
+- [x] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[COMPLETE]`
+  - Commit: `feat(services): implement FlowWatcherService for top-batch monitoring and failure detection`
   - Implement `src/services/FlowWatcherService.js` with top-batch virtual scroll monitoring and `isCardGenerationSuccess(card)`.
 - [ ] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[PLANNED]`
   - Implement `src/services/FlowDownloadService.js` and `src/core/QueueManager.js` state machine.
