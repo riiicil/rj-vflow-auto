@@ -1,52 +1,90 @@
-# Roadmap — RJ V-Flow Auto
+# Project Roadmap — RJ V-Flow Auto (Next-Gen v3.0)
 
-> Priority order reflects user value vs implementation complexity.
+> **Disclaimer**: This roadmap defines the master engineering sequence for the complete v3.0 refactoring. Milestones and sub-phases may be refined based on empirical in-browser testing on `flow.google.com`.
 
-## Phase 0 — Docs & Repository Governance ✅
+---
 
-- [x] `AGENTS.md` — agent orientation file
-- [x] `docs/ARCHITECTURE.md` — system design
-- [x] `docs/CURRENT_STATE.md` — working state snapshot
-- [x] `docs/HANDOFF.md` — session continuity
-- [x] `docs/ROADMAP.md` — this file
-- [x] `docs/session-analysis.md` — full debug session log
-- [x] Git repository initialized and pushed
+## Milestone Overview
 
-## Phase 1 — Stability & Verification ✅
+```mermaid
+gantt
+    title RJ V-Flow Auto v3.0 Development Roadmap
+    dateFormat  YYYY-MM-DD
+    section Phase 1
+    Cleanup & Governance Foundation       :active, 2026-09-17, 1d
+    section Phase 2
+    Core Automation Engine & Services     :2026-09-18, 3d
+    section Phase 3
+    Dual-Mode UI Implementation           :2026-09-21, 3d
+    section Phase 4
+    E2E Integration & Stress Testing      :2026-09-24, 2d
+    section Phase 5
+    Production Packaging & Release        :2026-09-26, 2d
+```
 
-Verify all modes work correctly after the CDP migration:
+---
 
-- [x] `text-image` mode: multi-prompt, all models, all ratios
-- [x] `text-video` mode: multi-prompt, all models, landscape/portrait
-- [x] `img-to-vid` mode: single and multi-image asset queue
-- [x] `edit-image` mode: asset + prompt
-- [x] Multi-output (`outputs > 1`) for image mode
-- [x] Download quality selectors for all modes
-- [x] Stop button mid-run for all modes
+## Phased Execution Breakdown
 
-## Phase 2 — UX Improvements (Potential)
+### Phase 1: Cleanup & Governance Foundation `[IN_PROGRESS]`
+- **Target Branch**: `task/cleanup-and-governance` $\to$ `dev`
+- [x] **Sub-phase 1.1**: Git Archiving, `.gitignore` Hardening, and Docs Initiation `[COMPLETE]`
+  - Commit: `8f3e5d1 chore(git): isolate and push legacy branch and harden gitignore`
+- [x] **Sub-phase 1.2**: Purge Root Zip Archives, Legacy Version Folders, and Obsolete UI Scripts `[COMPLETE]`
+  - Commit: `4c07274 chore(cleanup): purge root zip archives, legacy version folders, and obsolete UI scripts`
+- [ ] **Sub-phase 1.3**: Establish Complete Documentation Suite Adhering to `DOCS_STYLE` and Port `GOOGLE_FLOW_DOM` `[IN_PROGRESS]`
+  - Commit: `docs(governance): establish complete documentation suite adhering to DOCS_STYLE and port GOOGLE_FLOW_DOM`
+- [ ] **Sub-phase 1.4**: Author Root `AGENTS.md`, `DESIGN.md`, Clean MV3 Manifest, and `src/` Scaffold `[PLANNED]`
+  - Commit: `chore(foundation): author root AGENTS.md, DESIGN.md tokens, clean MV3 manifest, and src scaffold`
 
-- [ ] **Progress indicator in side panel** — show which prompt is currently running (e.g. "Prompt 2/5 — Generating...")
-- [ ] **Retry on generation failure** — if a prompt fails (API error), retry once before skipping
-- [ ] **Prompt validation** — warn user if a prompt line exceeds known Flow character limits
-- [ ] **Duplicate prompt detection** — warn if same prompt appears multiple times in the list
-- [ ] **Configurable delay** — allow user to set custom delay between prompts
+---
 
-## Phase 3 — Feature Additions (Potential)
+### Phase 2: Core Automation Engine & Services `[PLANNED]`
+- **Target Branch**: `task/core-automation-engine` $\to$ `dev`
+- [ ] **Sub-phase 2.1**: Core DOM Utility Library & Storage Engine `[PLANNED]`
+  - Implement `src/engine/FlowDOM.js` and `src/engine/FlowStorage.js` with schema versioning.
+- [ ] **Sub-phase 2.2**: Settings Service & Creative Agent Mode Suppression `[PLANNED]`
+  - Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and agent mode disabling.
+- [ ] **Sub-phase 2.3**: Ingredients Service & ProseMirror Prompt Injection `[PLANNED]`
+  - Implement `src/services/FlowIngredientService.js` and `src/services/FlowPromptService.js` with native clipboard and event stream injection.
+- [ ] **Sub-phase 2.4**: Watcher Service & In-Card Failure Detection `[PLANNED]`
+  - Implement `src/services/FlowWatcherService.js` with top-batch virtual scroll monitoring and `isCardGenerationSuccess(card)`.
+- [ ] **Sub-phase 2.5**: Download Service & Queue Manager Orchestrator `[PLANNED]`
+  - Implement `src/services/FlowDownloadService.js` and `src/engine/QueueManager.js` state machine.
 
-- [ ] **Batch mode with schedule** — run a batch at a specific time or with a delay between sets
-- [ ] **Project selector** — allow user to choose which Flow project to run automation on
-- [ ] **Export download manifest** — save a CSV/JSON of downloaded files + their prompts
-- [ ] **Auto-switch account** — detect when account quota is hit and notify user
+---
 
-## Phase 4 — Build & Distribution
+### Phase 3: Dual-Mode UI Implementation `[PLANNED]`
+- **Target Branch**: `task/dual-mode-ui` $\to$ `dev`
+- [ ] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[PLANNED]`
+  - Implement `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
+- [ ] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[PLANNED]`
+  - Implement `#flow-auto-hud-root` open Shadow DOM, fluid drag physics, boundary clamping, and minimize-to-pill transition.
+- [ ] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[PLANNED]`
+  - Implement dynamic Left Column (States A, B, C, D) and Right Column (Parameters sidebar) adhering to Raycast Dark Precision design tokens.
+- [ ] **Sub-phase 3.4**: Reactive Storage Synchronization & Automation Controls `[PLANNED]`
+  - Connect Start, Stop, and Pause controls with live status ticker and auto-save state recovery.
 
-- [ ] **`.gitignore` verification** — ensure `dist/`, `node_modules/`, `*.zip` are excluded
-- [ ] **Build pipeline review** — verify `build.js` obfuscation works correctly with CDP code
-- [ ] **Release packaging** — versioned zip for distribution
+---
 
-## Non-Goals
+### Phase 4: End-to-End Integration & Multi-Language Stress Testing `[PLANNED]`
+- **Target Branch**: `task/e2e-integration-testing` $\to$ `dev`
+- [ ] **Sub-phase 4.1**: Text-to-Image & Text-to-Video Batch Validation `[PLANNED]`
+  - Multi-prompt automated generation across Omni 1.1 Flash and Veo 3.1 models.
+- [ ] **Sub-phase 4.2**: Image-to-Video & Frames-to-Video Multi-Asset Injection `[PLANNED]`
+  - Single-ingredient and start/end frame automated pairing and submission.
+- [ ] **Sub-phase 4.3**: Failure Handling & System Recovery Stress Test `[PLANNED]`
+  - In-card moderation blocks, quota limits, and network stall auto-healing.
+- [ ] **Sub-phase 4.4**: Multi-Language Locale Verification `[PLANNED]`
+  - Verify 100% selector resilience on non-English locales (Indonesian, Spanish, Japanese, German, French).
 
-- ❌ Automated account login / OAuth — too risky and against ToS
-- ❌ Concurrent multi-tab generation — Flow is single-project per tab
-- ❌ Modify generated images/videos — out of scope for this tool
+---
+
+### Phase 5: Production Packaging Pipeline & Release `[PLANNED]`
+- **Target Branch**: `task/packaging-and-release` $\to$ `dev`
+- [ ] **Sub-phase 5.1**: Production Bundler & AST Obfuscation Pipeline `[PLANNED]`
+  - Configure `esbuild` and `javascript-obfuscator` build script.
+- [ ] **Sub-phase 5.2**: Release Packaging (`dist/` & `releases/v3.0.0.zip`) `[PLANNED]`
+  - Output clean `dist/LOAD THIS FOLDER/` and verified zip archive.
+- [ ] **Sub-phase 5.3**: Release Documentation & Milestone Finalization `[PLANNED]`
+  - Finalize `CHANGELOG.md`, synchronize version in `manifest.json`, and merge `dev` into `main`.
