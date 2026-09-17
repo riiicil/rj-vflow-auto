@@ -6,39 +6,44 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 1 (Cleanup & Governance Foundation) — Sub-phase 1.3 Complete
+- **Current Milestone**: Phase 1 (Cleanup & Governance Foundation) — [COMPLETE] / Ready for Phase 2
 - **Active Branch**: `task/cleanup-and-governance`
-- **Latest Commit**: Pending Sub-phase 1.3 commit (`docs(governance): establish complete documentation suite adhering to DOCS_STYLE and port GOOGLE_FLOW_DOM`)
+- **Latest Commit**: Pending Sub-phase 1.4 commit (`chore(foundation): author root AGENTS.md, DESIGN.md tokens, and clean MV3 manifest`)
 - **Working Tree**: Clean
-- **Build / Test State**: Healthy, governance foundation active and institutional knowledge ported
+- **Build / Test State**: Verified healthy, clean Manifest V3 ready, zero legacy clutter
 
 ---
 
 ## 2. Active In-Flight Context
 
-Sub-phase 1.3 has established the complete documentation and governance foundation:
-1. Complete governance documentation suite modeled after `RJ_AIO_Metadata` standards has been instantiated in `docs/`:
-   - `docs/DOCS_STYLE.md` (Formatting standards, templates, per-commit checklist).
-   - `docs/ARCHITECTURE.md` (MV3 lifecycle, Zero-CDP protocol, Mermaid system graph, Shadow DOM HUD).
-   - `docs/GIT_POLICY.md` (Branch hierarchy `main <- dev <- task/*`, conventional commits, merge rules).
-   - `docs/ROADMAP.md` (Master 5-phase refactoring roadmap with atomic sub-phase breakdown).
-   - `docs/DECISIONS.md` (Architectural Decision Records ADR-001 through ADR-008).
-2. The complete language-resilient selector map and native execution routines from `bahan/vflow-note.md` have been ported to `docs/references/GOOGLE_FLOW_DOM.md`.
-3. The repository is ready for Sub-phase 1.4 foundation scaffolding (`AGENTS.md`, `DESIGN.md`, clean `src/manifest.json`, and `src/` directory scaffold).
+Phase 1 (Cleanup & Governance Foundation) is now **100% complete**:
+1. All legacy v2.x code and commit history is permanently preserved on remote `origin/legacy`.
+2. All root zip archives, legacy version folders, and obsolete UI/CDP scripts have been purged.
+3. The complete documentation suite adhering to `DOCS_STYLE.md` is active in `docs/`.
+4. Permanent institutional knowledge of Google Flow's DOM selectors is ported to `docs/references/GOOGLE_FLOW_DOM.md`.
+5. Root project foundation files (`AGENTS.md`, `DESIGN.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `icons/`) are established.
+6. A clean, zero-CDP Manifest V3 has been established at `src/manifest.json` with modular directory scaffolding under `src/`.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Sub-phase 1.4 Execution**:
-   - Author root `AGENTS.md` and `DESIGN.md` (Raycast Dark Precision tokens, Phosphor/Lucide SVG icon system, strict zero native emoji).
-   - Author clean `src/manifest.json` with permissions (`storage`, `downloads`, `activeTab`, `scripting`), host permissions (`*://flow.google.com/*`), zero `debugger` permission, and sidepanel purged.
-   - Establish `src/` modular directory scaffold (`src/background/`, `src/content/`, `src/engine/`, `src/services/`, `src/overlay/`, `src/popup/`, `src/styles/`, `src/icons/`).
-   - Move or synchronize `icons/` into `src/icons/`.
-   - Update `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and add Session Entry 4 to `docs/agent-logs/2026-09-17.md`.
-   - Commit as `chore(foundation): author root AGENTS.md, DESIGN.md tokens, clean MV3 manifest, and src scaffold`.
-2. **Phase 2 Preparation**:
-   - Following Sub-phase 1.4 completion and merge to `dev`, prepare `task/core-automation-engine` for Phase 2 implementation.
+1. **Phase 1 Merge to `dev`** (Pending Human User Instruction):
+   - When instructed by human user:
+     ```bash
+     git checkout dev
+     git merge --no-ff task/cleanup-and-governance
+     ```
+2. **Phase 2 (Core Automation Engine & Services) Initialization**:
+   - Create task branch:
+     ```bash
+     git checkout -b task/core-automation-engine dev
+     ```
+   - **Sub-phase 2.1 Execution**:
+     - Implement `src/core/FlowDOM.js`: Centralized language-resilient selector query engine (Material Symbols ligatures, Angular custom tags, internal CSS classes).
+     - Implement `src/core/FlowStorage.js`: Storage engine (`chrome.storage.local`) with debounced auto-save, schema versioning, and auto-healing.
+     - Update `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and add Session Entry 5 to `docs/agent-logs/2026-09-17.md`.
+     - Commit as `feat(core): implement FlowDOM selector engine and FlowStorage service`.
 
 ---
 
@@ -55,6 +60,7 @@ Sub-phase 1.3 has established the complete documentation and governance foundati
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 03 | 2026-09-17 | `task/cleanup-and-governance` | Pending | Establish complete governance docs suite and port GOOGLE_FLOW_DOM reference | Sub-phase 1.4: Author AGENTS.md, DESIGN.md, clean manifest, and src scaffold |
+| 04 | 2026-09-17 | `task/cleanup-and-governance` | Pending | Author root AGENTS.md, DESIGN.md, clean manifest, and src scaffold (Phase 1 Complete) | Phase 2 Sub-phase 2.1: FlowDOM & FlowStorage |
+| 03 | 2026-09-17 | `task/cleanup-and-governance` | `e980390` | Establish complete governance docs suite and port GOOGLE_FLOW_DOM reference | Sub-phase 1.4: Author AGENTS.md, DESIGN.md, clean manifest, and src scaffold |
 | 02 | 2026-09-17 | `task/cleanup-and-governance` | `4c07274` | Purge root zip archives, legacy version folders, and obsolete UI scripts | Sub-phase 1.3: Mirror and author full governance docs suite |
 | 01 | 2026-09-17 | `task/cleanup-and-governance` | `8f3e5d1` | Isolate and push legacy branch, harden gitignore, initialize docs suite | Sub-phase 1.2: Purge root zips and legacy folders |
