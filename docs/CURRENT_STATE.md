@@ -1,81 +1,78 @@
-# Current State — RJ V-Flow Auto
+# Current Project State — RJ V-Flow Auto Extension
 
-> Snapshot after CDP session lifecycle refactor (2026-06-02).
+*Last Updated: 2026-09-17*<br>
+*Active Branch: `task/cleanup-and-governance`*<br>
+*Current Milestone: Phase 1 (Cleanup & Governance Foundation) — Sub-phase 1.1 Complete*
 
-## Version
+---
 
-**2.1.6** (branch: `dev`)
+## 1. Current Phase Progress
 
-## What Works ✅
+- **Phase 1 — Cleanup & Governance Foundation**: [IN_PROGRESS] (Sub-phase 1.1 complete: legacy branch isolated and pushed to remote, gitignore hardened, tracking docs initialized)
+- **Phase 2 — Core Automation Engine & Services**: [PLANNED]
+- **Phase 3 — Dual-Mode UI Implementation**: [PLANNED]
+- **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
+- **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
-| Feature | Status |
-|---|---|
-| Text-to-image generation | ✅ Working |
-| Text-to-video generation | ✅ Working |
-| Multi-prompt batch (text modes) | ✅ Working |
-| Image-to-video mode | ✅ Working (not re-tested post CDP) |
-| Edit-image mode | ✅ Working (not re-tested post CDP) |
-| Prompt insertion via CDP | ✅ Working — `isTrusted: true` |
-| Generate button click via CDP | ✅ Working — `isTrusted: true` |
-| Queued tile false-positive prevention | ✅ Fixed with double-confirm |
-| Auto-download after generation | ✅ Working |
-| Settings configuration (mode/ratio/outputs/model) | ✅ Working |
-| Clear editor after each prompt | ✅ Working via CDP |
-| Stop automation mid-run | ✅ Working |
+---
 
-## Critical Technical Detail
+## 2. Branches Matrix
 
-The extension relies on **Chrome DevTools Protocol (CDP)** via `chrome.debugger` to interact with the Google Labs Flow page. This is required because:
+| Branch | Status | Purpose |
+| :--- | :--- | :--- |
+| `main` | Production | Stable production releases only |
+| `dev` | Integration | Active development integration branch |
+| `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
+| `task/cleanup-and-governance` | Active | Phase 1: Cleanup & Governance Foundation |
 
-- The Flow editor is built on **Slate.js** (React) which validates `event.isTrusted`
-- All events from standard `dispatchEvent()` have `isTrusted: false` → silently ignored by Slate
-- CDP events are generated at browser engine level → `isTrusted: true` → accepted by Slate
+---
 
-**Without CDP, the extension cannot insert text or click Generate.**
+## 3. Platform & Target Model Matrix
 
-## Known Behaviors (Not Bugs)
+| Model Family | Media Type | Generation Feature | Sub-Mode | Duration Support | Implementation Status |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Omni 1.1 Flash** | Video | Text-to-Video, Image-to-Video, Video-to-Video, Frames | Ingredients / Frames | 4s, 6s, 8s, 10s | [PLANNED] |
+| **Veo 3.1 - Fast** | Video | Text-to-Video, Image-to-Video, Frames | Ingredients / Frames | N/A (Preset) | [PLANNED] |
+| **Veo 3.1 - Lite** | Video | Text-to-Video, Image-to-Video, Frames | Ingredients / Frames | N/A (Preset) | [PLANNED] |
+| **Veo 3.1 - Quality** | Video | Text-to-Video, Frames (No I2V) | Frames Only | N/A (Preset) | [PLANNED] |
+| **Nano Banana Pro** | Image | Text-to-Image, Edit Image | Ingredients | N/A | [PLANNED] |
+| **Nano Banana 2** | Image | Text-to-Image, Edit Image | Ingredients | N/A | [PLANNED] |
+| **Nano Banana 2 Lite** | Image | Text-to-Image, Edit Image | Ingredients | N/A | [PLANNED] |
 
-| Behavior | Explanation |
-|---|---|
-| Chrome shows `"RJ V-Flow Auto started debugging this browser"` banner | Expected — required by Chrome when `chrome.debugger` is attached. Suppressable with `--silent-debugger-extension-api` Chrome flag. |
-| Queued videos briefly flash "complete" then revert | Flow's queue system. Handled by double-confirm logic. |
-| `400 Bad Request` from `batchGenerateImages` | Server-side content policy rejection. Not an extension bug. Recorded as `failedCount`. |
+---
 
-## Supported Models (as of v2.1.3)
+## 4. What Exists
 
-**Image modes** (`text-image`, `edit-image`):
-- 🍌 Nano Banana Pro
-- 🍌 Nano Banana 2
-- Imagen 4
+- **Git & Safety Infrastructure:**
+  - `legacy` branch isolated and pushed to remote origin.
+  - `.gitignore` hardened for build outputs, dependencies, archives, and scratch tools.
+- **Governance & Documentation Suite (`docs/`):**
+  - `docs/CURRENT_STATE.md` — Living project dashboard and inventory.
+  - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entry 1).
+- **Engineering Baseline:**
+  - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
+  - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
 
-**Video modes** (`text-video`, `img-to-vid`):
-- Veo 3.1 - Lite
-- Veo 3.1 - Fast
-- Veo 3.1 - Quality (text-video only)
+---
 
-## Supported Download Qualities
+## 5. What Does NOT Exist Yet
 
-| Mode | Options |
-|---|---|
-| Image | Auto (max), 1K Original, 2K Upscaled, 4K Upscaled |
-| Video | Auto (max), 270p GIF, 720p Original, 1080p Upscaled, 4K Upscaled |
+- **Sub-phase 1.2:** Root zip archives and legacy version folders (`v2.1.2/` – `v2.1.6/`, `bootstrap/`, `panel/`, `scripts/`) not yet purged.
+- **Sub-phase 1.3:** Full governance docs suite (`DOCS_STYLE.md`, `ARCHITECTURE.md`, `GIT_POLICY.md`, `ROADMAP.md`, `DECISIONS.md`, and ported `docs/references/GOOGLE_FLOW_DOM.md`) not yet generated.
+- **Sub-phase 1.4:** Root `AGENTS.md`, `DESIGN.md`, and clean `src/manifest.json` not yet authored.
+- **Phase 2–5:** Automation engine services, Dual-Mode UI HUD, and production packaging pipeline.
 
-## Branch Structure
+---
 
-- `main` — current working state (this snapshot)
+## 6. Testing & Build Verification Status
 
-## Completed Work (This Session)
+- `git status` clean and tracking branch `task/cleanup-and-governance`.
+- Remote origin contains `legacy` branch.
+- Zero Native Emoji Policy strictly verified across all new files.
 
-- **Phase 0**: Docs governance ✅ (2026-05-24)
-- **CDP integration**: `chrome.debugger` handler in background.js ✅
-- **setPromptText rewrite**: CDP `insertText` as primary strategy ✅
-- **triggerGenerate rewrite**: CDP `click` as primary strategy ✅
-- **Queued tile fix**: Double-confirmation in `waitForGenerationComplete` ✅
-- **Log cleanup**: `Tile layer changed` logs only on state change ✅
-- **Git repo init**: First push to `https://github.com/riiicil/rj-vflow-auto.git` ✅
-- **rrweb analysis** (2026-06-02): Root cause of 403/unusual detection identified — CDP per-action attach interrupts reCAPTCHA token refresh ✅
-- **CDP attach-once refactor** (2026-06-02): CDP session attached once per run, detached in finally — allows reCAPTCHA to refresh between generate calls ✅
-- **CDP-based Slate Editor Sync** (2026-06-03): Resolved prompt duplication/leakage by dynamically constructing document selection and clearing/inserting directly in Slate's model via CDP for all extension modes. ✅
-- **Side Panel Grid Layout Reorder** (2026-06-03): Removed duration select, reordered controls grid, and nested Quality and Download Mode together. ✅
-- **Toast Monitor & Retries** (2026-06-03): Implemented upscale toast monitoring in Slow download mode with 3x retry loop and fallback to original quality. ✅
-- **Pure Random Prompt Option** (2026-06-03): Added prompt source selection to choose manual prompt list or extension-generated randomized prompts (3-10 style keywords with deduplication history of 250 items). ✅
+---
+
+## 7. Immediate Next Step
+
+- Proceed to **Sub-phase 1.2**: Purge root zip archives (`v2.1.3.zip`–`v2.1.6.zip`), legacy version folders (`v2.1.2/`–`v2.1.6/`), `bootstrap/`, `panel/`, and `scripts/`.
