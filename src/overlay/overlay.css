@@ -1,0 +1,238 @@
+/**
+ * overlay.css — Isolated Shadow DOM Studio HUD Styles
+ * Adheres strictly to Raycast Dark Precision (DESIGN.md, ADR-002, ADR-003)
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+#flow-hud-container {
+  position: fixed;
+  z-index: 2147483647;
+  font-family: var(--rj-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--rj-text-body, #cdcdcd);
+  user-select: none;
+  pointer-events: auto;
+}
+
+#flow-hud-container.is-hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Full Studio Window
+   ========================================================================== */
+.hud-window {
+  width: 720px;
+  height: 480px;
+  background-color: var(--rj-bg-canvas, #07080a);
+  border: 1px solid var(--rj-border-hairline, #242728);
+  border-radius: var(--rj-radius-lg, 12px);
+  box-shadow: var(--rj-shadow-overlay, 0 16px 40px rgba(0, 0, 0, 0.6));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#flow-hud-container.is-minimized .hud-window {
+  display: none !important;
+}
+
+/* Header Bar */
+.hud-header {
+  height: 42px;
+  min-height: 42px;
+  background-color: var(--rj-bg-surface, #0d0d0d);
+  border-bottom: 1px solid var(--rj-border-hairline, #242728);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.hud-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  flex: 1;
+  height: 100%;
+}
+
+.hud-drag-handle:active {
+  cursor: grabbing;
+}
+
+.hud-brand-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rj-radius-sm, 6px);
+  object-fit: contain;
+}
+
+.hud-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rj-text-primary, #ffffff);
+  letter-spacing: -0.2px;
+}
+
+.hud-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--rj-accent-cyan, #57c1ff);
+  background-color: var(--rj-accent-cyan-soft, rgba(87, 193, 255, 0.15));
+  padding: 1px 6px;
+  border-radius: var(--rj-radius-pill, 9999px);
+}
+
+.hud-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--rj-text-ash, #6a6b6c);
+  padding: 5px;
+  border-radius: var(--rj-radius-sm, 6px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.hud-icon-btn:hover {
+  background-color: var(--rj-bg-elevated, #101111);
+  color: var(--rj-text-primary, #ffffff);
+}
+
+.hud-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Content Container Placeholder */
+.hud-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  background-color: var(--rj-bg-canvas, #07080a);
+}
+
+.hud-placeholder-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--rj-text-muted, #9c9c9d);
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   Floating Draggable Pill (Minimized State)
+   ========================================================================== */
+.hud-pill {
+  display: none;
+  height: 34px;
+  background-color: var(--rj-bg-surface, #0d0d0d);
+  border: 1px solid var(--rj-border-hairline, #242728);
+  border-radius: var(--rj-radius-pill, 9999px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 0 10px 0 6px;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.hud-pill:active {
+  cursor: grabbing;
+}
+
+#flow-hud-container.is-minimized .hud-pill {
+  display: flex !important;
+}
+
+.pill-grip {
+  display: flex;
+  align-items: center;
+  color: var(--rj-text-ash, #6a6b6c);
+}
+
+.pill-grip svg {
+  width: 10px;
+  height: 16px;
+}
+
+.pill-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--rj-radius-pill, 9999px);
+  object-fit: contain;
+}
+
+.pill-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--rj-text-ash, #6a6b6c);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pill-status-dot.dot-running {
+  background-color: var(--rj-accent-green, #59d499);
+  box-shadow: 0 0 6px rgba(89, 212, 153, 0.7);
+}
+
+.pill-status-dot.dot-paused {
+  background-color: var(--rj-accent-yellow, #ffc533);
+  box-shadow: 0 0 6px rgba(255, 197, 51, 0.7);
+}
+
+.pill-status-dot.dot-idle {
+  background-color: var(--rj-text-muted, #9c9c9d);
+}
+
+.pill-ticker {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rj-text-primary, #ffffff);
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+}
+
+.pill-expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--rj-text-muted, #9c9c9d);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: var(--rj-radius-sm, 6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.pill-expand-btn:hover {
+  color: var(--rj-text-primary, #ffffff);
+  background-color: var(--rj-bg-elevated, #101111);
+}
+
+.pill-expand-btn svg {
+  width: 13px;
+  height: 13px;
+}

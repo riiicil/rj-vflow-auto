@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phase 3.1 complete: `variables.css`, `popup.html`, `popup.css`, and `popup.js` implemented; Sub-phases 3.2 through 3.4 pending)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 & 3.2 complete: `variables.css`, `popup/`, `overlay.css`, `FlowHUDHost.js`, `content_main.js`, and `service_worker.js` active; Sub-phases 3.3 and 3.4 pending)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -76,6 +76,12 @@
   - `src/popup/popup.html` — Minimalist popup layout with brand header, connection status card, action buttons, and telemetry bar.
   - `src/popup/popup.css` — Compact 320px styling adhering to Raycast Dark Precision design tokens.
   - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher.
+- **In-Page Studio Overlay HUD (`src/overlay/`):**
+  - `src/overlay/overlay.css` — Isolated Shadow DOM styling for Studio HUD window and Floating Pill adhering to Raycast Dark tokens.
+  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, drag physics, boundary clamping, position persistence, and minimize transitions.
+- **Content & Background Workers (`src/content/`, `src/background/`):**
+  - `src/content/content_main.js` — Content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
+  - `src/background/service_worker.js` — Clean Manifest V3 background service worker with lifecycle event listener.
 - **Modular Extension Scaffold (`src/`):**
   - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
   - `src/assets/icons/` — Bundled extension icons.
@@ -89,7 +95,7 @@
   - `docs/references/GOOGLE_FLOW_DOM.md` — Ported language-resilient selector specification and native event routines.
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
-  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 9).
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 10).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
@@ -99,7 +105,7 @@
 ## 5. What Does NOT Exist Yet
 
 - **Phase 3 — Dual-Mode UI Implementation:**
-  - `src/overlay/` — Shadow DOM Studio HUD Host (`#flow-auto-hud-root`), draggable floating pill, and two-column studio HUD layout (Sub-phases 3.2 through 3.4).
+  - `src/overlay/` — Two-Column Studio Layout & Queue Builder (`FlowStudioHUD.js`, `hud.css`) and reactive automation controls (Sub-phases 3.3 and 3.4).
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing:**
   - Comprehensive automated batch test harnesses, moderation error recovery, and non-English locale verification.
 - **Phase 5 — Production Packaging Pipeline & Release:**
@@ -122,6 +128,10 @@
 - `src/styles/variables.css` verified valid CSS tokens.
 - `src/popup/popup.html` and `src/popup/popup.css` verified.
 - `src/popup/popup.js` verified valid syntax via `node --check`.
+- `src/overlay/overlay.css` verified valid CSS tokens.
+- `src/overlay/FlowHUDHost.js` verified valid syntax via `node --check`.
+- `src/content/content_main.js` verified valid syntax via `node --check`.
+- `src/background/service_worker.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
 - Working tree active on branch `task/dual-mode-ui`.
@@ -130,5 +140,5 @@
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.2**: Implement `src/overlay/` Studio HUD Host & Draggable Floating Pill in Shadow DOM.
+- Proceed to **Phase 3 (Dual-Mode UI Implementation)** -> **Sub-phase 3.3**: Implement Two-Column Studio Layout & Queue Builder inside `src/overlay/`.
 
