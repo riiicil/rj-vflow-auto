@@ -29,16 +29,15 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
    - `src/overlay/FlowHUDHost.js`: Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid draggable physics with viewport boundary clamping, position persistence in `FlowStorage`, minimize/restore transitions, and reactive live status ticker.
    - `src/content/content_main.js`: Content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
    - `src/background/service_worker.js`: Manifest V3 background service worker with lifecycle event listener.
-3. **Sub-phase 3.3 Complete (`f808156`)**:
-   - `src/overlay/FlowHUDTemplates.js`: Pure inline Lucide SVG icons (`ICONS`), `renderStudioLayout()` generating full Two-Column Studio Layout markup (workspace tabs, batch textareas, reference dropzones, parameter sidebar, start/stop buttons), and `renderQueueItem()` generating queue card markup.
-   - `src/overlay/overlay.css`: Comprehensive styling for Two-Column Studio Layout (740x500px), workspace navigation tabs, batch prompt textarea, media dropzones, queue card list with status pills, parameters sidebar, and start/stop buttons.
-   - `src/overlay/FlowHUDHost.js`: Mounted dynamic two-column studio markup, wired navigation tabs, dynamic mode-switching (restricting video aspect ratios strictly to 16:9 and 9:16 only), file dropzones with FileReader Base64 conversion, frame swap action, queue item additions to `FlowStorage`, and queue card removal.
-4. **Sub-phase 3.4 Complete**:
-   - `src/content/content_loader.js`: Manifest V3 content script ES module dynamic bootstrap loader.
-   - `src/manifest.json`: Configured `content/content_loader.js` entrypoint and exposed `content/*` in `web_accessible_resources`.
-   - `src/popup/popup.js`: Updated fallback script injection target to `content/content_loader.js`.
-   - `src/overlay/overlay.css`: Added status badge and card border styles for `status-injecting` and `status-downloading`.
-   - `src/overlay/FlowHUDHost.js`: Wired `Start Batch` and `Stop Batch` execution controls to `QueueManager`, dynamic live progress and card badge updates (`INJECTING (10%)`, `GENERATING (45%)`, `DOWNLOADING (85%)`, `COMPLETED`, `FAILED`), and defensive stale batch state recovery on init.
+3. **Sub-phase 3.3 & 3.4 Complete (`f808156`, `bbd613a`)**:
+   - Implemented Shadow DOM HUD host, dynamic module loader (`content_loader.js`), and QueueManager automation controls.
+4. **Blueprint Realignment & RJ AIO Metadata Parity Complete**:
+   - `src/styles/variables.css`: Realigned `--rj-accent-cyan` to signature `#079183` and `--rj-accent-cyan-soft` to `rgba(7, 145, 131, 0.18)`.
+   - `src/styles/components.css`: Ported complete Raycast Dark Precision component suite (form controls, inputs, buttons, segmented groups, active/inactive disabled states) from RJ AIO Metadata.
+   - `src/overlay/CustomSelect.js`: Implemented Shadow DOM adapted accessible custom dropdown select component with smart viewport placement.
+   - `src/overlay/FlowHUDTemplates.js`: Realigned layout 100% to `bahan/vflow-note.md` wireframe (lines 429-631) featuring Left Column Queue Builder (State A empty dropzone, State B text prompt rows, State C 1-ingredient rows with image thumbnail slot, State D 2-frames rows), Right Column Parameters Sidebar with CustomSelect, shared footer (`Save Queue`, `Start`, `Stop`), and floating draggable pill.
+   - `src/overlay/overlay.css`: Complete styling for two-column studio HUD (820x520px), media dropzone slots, auto-resizing prompt inputs, and action buttons.
+   - `src/overlay/FlowHUDHost.js`: Injected stylesheets, row-based queue management, drag-and-drop ingestion, CSV/TXT import, clipboard paste, CustomSelect enhancement, and QueueManager reactive execution.
 
 ---
 
@@ -66,7 +65,8 @@ Phase 3 (Dual-Mode UI Implementation) is now complete:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 13 | 2026-09-17 | `task/dual-mode-ui` | Pending | Connect reactive storage synchronization and automation controls (Phase 3 Complete) | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 14 | 2026-09-17 | `task/dual-mode-ui` | Pending | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Merge task/dual-mode-ui to dev & begin Phase 4 |
+| 13 | 2026-09-17 | `task/dual-mode-ui` | `bbd613a` | Connect reactive storage synchronization and automation controls (Phase 3 Complete) | Realign Studio HUD layout to vflow-note wireframe |
 | 12 | 2026-09-17 | `task/dual-mode-ui` | `f808156` | Build dynamic two-column studio HUD and template generators (Sub-phase 3.3 Complete) | Phase 3 Sub-phase 3.4: Reactive Storage Synchronization & Automation Controls |
 | 11 | 2026-09-17 | `task/dual-mode-ui` | `7750ffe` | Implement Shadow DOM HUD host and draggable floating pill (Sub-phase 3.2 Complete) | Phase 3 Sub-phase 3.3: Two-Column Studio Layout & Queue Builder |
 | 10 | 2026-09-17 | `task/dual-mode-ui` | `ce3a4cb` | Implement minimalist toolbar popup launcher and connection detector (Sub-phase 3.1 Complete) | Phase 3 Sub-phase 3.2: Shadow DOM Studio HUD Host & Draggable Floating Pill |

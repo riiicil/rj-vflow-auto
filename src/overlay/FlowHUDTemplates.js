@@ -1,10 +1,10 @@
 /**
  * FlowHUDTemplates.js — Pure SVG Icons & HTML Template Generators
  * 
- * Provides modular HTML templates for the Two-Column Studio Layout,
- * Left Column Queue Builder (States A, B, C, D), and Right Column Parameters Sidebar.
+ * Implements the master wireframe from bahan/vflow-note.md (lines 429-631)
+ * with complete design system parity to RJ AIO Metadata (Raycast Dark Precision).
  * 
- * Adheres strictly to Raycast Dark Precision (DESIGN.md, ADR-007).
+ * Strict Zero Native Emoji Policy (ADR-007).
  */
 
 export const ICONS = {
@@ -14,252 +14,234 @@ export const ICONS = {
   TRASH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
   UPLOAD: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`,
   IMAGE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
-  VIDEO: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>`,
-  LAYERS: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
-  CHECK: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
-  ALERT: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
-  SWAP: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="8 21 3 21 3 16"></polyline><line x1="3" y1="21" x2="20" y2="4"></line></svg>`
+  CLIPBOARD: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
+  EXPAND: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
+  MINIMIZE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+  CLOSE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+  SWAP: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="8 21 3 21 3 16"></polyline><line x1="3" y1="21" x2="20" y2="4"></line></svg>`,
+  FILE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`,
+  SAVE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`
 };
 
 /**
  * Generates the full Two-Column Studio Layout markup.
+ * Exactly matches bahan/vflow-note.md wireframe (lines 489-631).
  */
 export function renderStudioLayout() {
+  const logoUrl = chrome.runtime.getURL('assets/logo/logo_rj.png');
+
   return `
-    <div class="hud-two-col">
-      <!-- LEFT COLUMN: Workspace & Queue Builder -->
-      <div class="hud-col-left">
-        <!-- Top Mode Tabs -->
-        <div class="hud-nav-tabs">
-          <button class="hud-nav-tab active" data-tab="text-batch">
-            <span class="hud-tab-icon">${ICONS.LAYERS}</span>
-            <span>Text Batch</span>
+    <div class="hud-window">
+      <!-- Window Header Bar -->
+      <header class="hud-header">
+        <div class="hud-brand" id="hudDragHandle">
+          <img src="${logoUrl}" alt="RJ" class="hud-brand-logo">
+          <span class="hud-title">V-Flow</span>
+          <span class="hud-version-tag">Studio</span>
+        </div>
+        <div class="hud-window-controls">
+          <button class="rj-btn-icon" id="btnMinimizeHud" title="Minimize to Floating Pill">
+            ${ICONS.MINIMIZE}
           </button>
-          <button class="hud-nav-tab" data-tab="i2v">
-            <span class="hud-tab-icon">${ICONS.IMAGE}</span>
-            <span>Image-to-Video</span>
-          </button>
-          <button class="hud-nav-tab" data-tab="f2v">
-            <span class="hud-tab-icon">${ICONS.VIDEO}</span>
-            <span>Frames-to-Video</span>
-          </button>
-          <button class="hud-nav-tab" data-tab="queue-list">
-            <span class="hud-tab-icon">${ICONS.CHECK}</span>
-            <span>Queue List (<span id="hudQueueCountBadge">0</span>)</span>
+          <button class="rj-btn-icon rj-btn-danger" id="btnCloseHud" title="Close Overlay">
+            ${ICONS.CLOSE}
           </button>
         </div>
+      </header>
 
-        <!-- Dynamic Workspace Content -->
-        <div class="hud-workspace-content">
-          <!-- View 1: Text Batch (State A/B) -->
-          <div class="hud-tab-pane active" id="paneTextBatch">
-            <div class="hud-input-group">
-              <label class="hud-label">
-                <span>Batch Prompts (1 per line)</span>
-                <span class="hud-hint">Lines will be queued as separate tasks</span>
+      <!-- Two-Column Body -->
+      <div class="hud-body">
+        <!-- LEFT COLUMN: Dynamic Queue Builder & Media Editor -->
+        <div class="hud-col-left">
+          <!-- Top Action Toolbar -->
+          <div class="hud-queue-toolbar">
+            <div class="toolbar-left">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnAddQueueRow" title="Add new row">
+                ${ICONS.PLUS}
+                <span>Add Row</span>
+              </button>
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnPasteClipboard" title="Paste prompts from clipboard">
+                ${ICONS.CLIPBOARD}
+                <span>Paste</span>
+              </button>
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnImportFile" title="Import TXT or CSV">
+                ${ICONS.FILE}
+                <span>Import CSV</span>
+              </button>
+              <input type="file" id="fileImportQueue" accept=".csv,.txt" style="display: none;">
+            </div>
+            <div class="toolbar-right">
+              <button class="rj-btn rj-btn-sm hud-btn-clear" id="btnClearAllQueue" title="Clear all queue items">
+                <span>Clear All</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Rows Container (Renders State A, B, C, or D) -->
+          <div class="hud-queue-content" id="hudQueueContent">
+            <!-- Dynamic rows or State A will be injected here -->
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Setting Parameters Sidebar -->
+        <div class="hud-col-right">
+          <div class="hud-sidebar-scroll">
+            <!-- Parameter 1: Generation Mode -->
+            <div class="rj-field-group">
+              <label class="rj-field-label" for="selGenerationMode">
+                <span>Generation Mode</span>
               </label>
-              <textarea class="hud-textarea" id="txtBatchPrompts" placeholder="Enter one prompt per line...&#10;A futuristic cyberpunk city in rain&#10;A majestic snow leopard on mountain peak" rows="7"></textarea>
+              <select class="rj-select" id="selGenerationMode">
+                <option value="text-to-video" selected>Text to Video</option>
+                <option value="text-to-image">Text to Image</option>
+                <option value="image-to-video">Image to Video</option>
+                <option value="frames-to-video">Frame to Video</option>
+                <option value="edit-image">Edit Image</option>
+              </select>
             </div>
-            <div class="hud-actions-row">
-              <button class="hud-btn hud-btn-secondary" id="btnClearTextBatch">Clear</button>
-              <button class="hud-btn hud-btn-primary" id="btnAddTextBatch">
-                <span class="hud-btn-icon">${ICONS.PLUS}</span>
-                <span>Add to Queue</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- View 2: Image-to-Video (State C) -->
-          <div class="hud-tab-pane" id="paneI2V">
-            <div class="hud-dropzone-row">
-              <div class="hud-dropzone" id="dropzoneI2V">
-                <input type="file" id="fileI2V" accept="image/*,video/*" style="display: none;">
-                <div class="dropzone-empty" id="dropzoneI2VEmpty">
-                  <span class="dropzone-icon">${ICONS.UPLOAD}</span>
-                  <span class="dropzone-text">Drop Reference Image or Click to Browse</span>
-                  <span class="dropzone-sub">Supports PNG, JPG, MP4</span>
-                </div>
-                <div class="dropzone-preview" id="dropzoneI2VPreview" style="display: none;">
-                  <img id="imgI2VPreview" class="preview-media" alt="Reference">
-                  <button class="dropzone-remove-btn" id="btnRemoveI2V" title="Remove Media">${ICONS.TRASH}</button>
-                </div>
+            <!-- Parameter 2: Target Model -->
+            <div class="rj-field-group">
+              <label class="rj-field-label" for="selModelFamily">
+                <span>Model Selector</span>
+              </label>
+              <select class="rj-select" id="selModelFamily">
+                <optgroup label="Video Models" id="grpVideoModels">
+                  <option value="Omni 1.1 Flash" selected>Omni 1.1 Flash</option>
+                  <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
+                  <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
+                  <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
+                </optgroup>
+                <optgroup label="Image Models" id="grpImageModels" style="display: none;">
+                  <option value="Nano Banana Pro">Nano Banana Pro</option>
+                  <option value="Nano Banana 2">Nano Banana 2</option>
+                  <option value="Nano Banana 2 Lite">Nano Banana 2 Lite</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Parameter 3: Video Duration (Omni 1.1 Flash only) -->
+            <div class="rj-field-group" id="grpDuration">
+              <label class="rj-field-label">
+                <span>Duration</span>
+                <span class="rj-field-hint">Omni only</span>
+              </label>
+              <div class="rj-segment-group" id="segDuration">
+                <button class="rj-segment-btn" data-val="4s">4s</button>
+                <button class="rj-segment-btn active" data-val="6s">6s</button>
+                <button class="rj-segment-btn" data-val="8s">8s</button>
+                <button class="rj-segment-btn" data-val="10s">10s</button>
               </div>
             </div>
-            <div class="hud-input-group" style="margin-top: 8px;">
-              <label class="hud-label">Motion / Action Prompt</label>
-              <textarea class="hud-textarea" id="txtI2VPrompt" placeholder="Describe the desired movement or camera animation..." rows="3"></textarea>
-            </div>
-            <div class="hud-actions-row">
-              <button class="hud-btn hud-btn-primary" id="btnAddI2V">
-                <span class="hud-btn-icon">${ICONS.PLUS}</span>
-                <span>Add I2V to Queue</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- View 3: Frames-to-Video (State D) -->
-          <div class="hud-tab-pane" id="paneF2V">
-            <div class="hud-frames-grid">
-              <!-- Start Frame -->
-              <div class="hud-dropzone" id="dropzoneF2VStart">
-                <input type="file" id="fileF2VStart" accept="image/*" style="display: none;">
-                <div class="dropzone-empty" id="dropzoneF2VStartEmpty">
-                  <span class="dropzone-icon">${ICONS.IMAGE}</span>
-                  <span class="dropzone-text">Start Frame</span>
-                </div>
-                <div class="dropzone-preview" id="dropzoneF2VStartPreview" style="display: none;">
-                  <img id="imgF2VStartPreview" class="preview-media" alt="Start Frame">
-                  <button class="dropzone-remove-btn" id="btnRemoveF2VStart">${ICONS.TRASH}</button>
-                </div>
-              </div>
-
-              <!-- Swap Button -->
-              <button class="hud-icon-btn hud-swap-btn" id="btnSwapF2V" title="Swap Start and End Frames">
-                ${ICONS.SWAP}
-              </button>
-
-              <!-- End Frame -->
-              <div class="hud-dropzone" id="dropzoneF2VEnd">
-                <input type="file" id="fileF2VEnd" accept="image/*" style="display: none;">
-                <div class="dropzone-empty" id="dropzoneF2VEndEmpty">
-                  <span class="dropzone-icon">${ICONS.IMAGE}</span>
-                  <span class="dropzone-text">End Frame</span>
-                </div>
-                <div class="dropzone-preview" id="dropzoneF2VEndPreview" style="display: none;">
-                  <img id="imgF2VEndPreview" class="preview-media" alt="End Frame">
-                  <button class="dropzone-remove-btn" id="btnRemoveF2VEnd">${ICONS.TRASH}</button>
-                </div>
+            <!-- Parameter 4: Aspect Ratio -->
+            <div class="rj-field-group" id="grpAspectRatio">
+              <label class="rj-field-label">
+                <span>Aspect Ratio</span>
+              </label>
+              <div class="rj-segment-group" id="segAspectRatio">
+                <button class="rj-segment-btn active" data-val="16:9">16:9</button>
+                <button class="rj-segment-btn" data-val="9:16">9:16</button>
+                <button class="rj-segment-btn ratio-img-only" data-val="4:3" style="display: none;">4:3</button>
+                <button class="rj-segment-btn ratio-img-only" data-val="1:1" style="display: none;">1:1</button>
               </div>
             </div>
-            <div class="hud-input-group" style="margin-top: 8px;">
-              <label class="hud-label">Interpolation Prompt</label>
-              <textarea class="hud-textarea" id="txtF2VPrompt" placeholder="Describe the transition between start and end frames..." rows="3"></textarea>
-            </div>
-            <div class="hud-actions-row">
-              <button class="hud-btn hud-btn-primary" id="btnAddF2V">
-                <span class="hud-btn-icon">${ICONS.PLUS}</span>
-                <span>Add F2V to Queue</span>
-              </button>
-            </div>
-          </div>
 
-          <!-- View 4: Queue List View -->
-          <div class="hud-tab-pane" id="paneQueueList">
-            <div class="hud-queue-header">
-              <span class="queue-title">Active Queue Items</span>
-              <div class="queue-header-actions">
-                <button class="hud-btn-text" id="btnClearCompletedQueue">Clear Done</button>
-                <button class="hud-btn-text hud-btn-danger" id="btnClearAllQueue">Clear All</button>
+            <!-- Parameter 5: Output Multiplier (Image Mode only) -->
+            <div class="rj-field-group" id="grpMultiplier" style="display: none;">
+              <label class="rj-field-label">
+                <span>Outputs</span>
+                <span class="rj-field-hint">Image mode</span>
+              </label>
+              <div class="rj-segment-group" id="segOutputs">
+                <button class="rj-segment-btn active" data-val="1">x1</button>
+                <button class="rj-segment-btn" data-val="2">x2</button>
+                <button class="rj-segment-btn" data-val="3">x3</button>
+                <button class="rj-segment-btn" data-val="4">x4</button>
               </div>
             </div>
-            <div class="hud-queue-cards-list" id="hudQueueListContainer">
-              <div class="queue-empty-msg">No items in queue. Add prompts above!</div>
+
+            <!-- Parameter 6: Target Resolution -->
+            <div class="rj-field-group">
+              <label class="rj-field-label" for="selResolution">
+                <span>Target Resolution</span>
+              </label>
+              <select class="rj-select" id="selResolution">
+                <optgroup label="Video Resolutions" id="grpVideoRes">
+                  <option value="4K">4K (Upscaled)</option>
+                  <option value="1080p" selected>1080p (FHD)</option>
+                  <option value="720p">720p (HD)</option>
+                </optgroup>
+                <optgroup label="Image Resolutions" id="grpImageRes" style="display: none;">
+                  <option value="4K">4K (Max)</option>
+                  <option value="2K" selected>2K (QHD)</option>
+                  <option value="1K">1K (Standard)</option>
+                </optgroup>
+              </select>
             </div>
           </div>
-        </div>
-
-        <!-- Left Column Footer -->
-        <div class="hud-left-footer">
-          <span class="footer-stat" id="hudQueueSummaryText">Queue: 0 items</span>
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Parameters Sidebar -->
-      <div class="hud-col-right">
-        <div class="hud-sidebar-scroll">
-          <!-- Media Mode -->
-          <div class="hud-param-group">
-            <label class="hud-param-label">Media Mode</label>
-            <div class="hud-segment-group" id="segMediaMode">
-              <button class="hud-segment-btn active" data-val="text-to-video">
-                <span class="seg-icon">${ICONS.VIDEO}</span>
-                <span>Video</span>
-              </button>
-              <button class="hud-segment-btn" data-val="text-to-image">
-                <span class="seg-icon">${ICONS.IMAGE}</span>
-                <span>Image</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Target Model -->
-          <div class="hud-param-group">
-            <label class="hud-param-label">Model Family</label>
-            <select class="hud-select" id="selModelFamily">
-              <optgroup label="Video Models" id="grpVideoModels">
-                <option value="Omni 1.1 Flash" selected>Omni 1.1 Flash</option>
-                <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
-                <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
-                <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
-              </optgroup>
-              <optgroup label="Image Models" id="grpImageModels" style="display: none;">
-                <option value="Nano Banana Pro">Nano Banana Pro</option>
-                <option value="Nano Banana 2">Nano Banana 2</option>
-                <option value="Nano Banana 2 Lite">Nano Banana 2 Lite</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <!-- Duration (Omni only) -->
-          <div class="hud-param-group" id="grpDuration">
-            <label class="hud-param-label">Duration (Omni)</label>
-            <div class="hud-segment-group hud-segment-4" id="segDuration">
-              <button class="hud-segment-btn" data-val="4s">4s</button>
-              <button class="hud-segment-btn active" data-val="6s">6s</button>
-              <button class="hud-segment-btn" data-val="8s">8s</button>
-              <button class="hud-segment-btn" data-val="10s">10s</button>
-            </div>
-          </div>
-
-          <!-- Aspect Ratio (Video: 16:9 & 9:16 only; Image: 16:9, 9:16, 4:3, 1:1) -->
-          <div class="hud-param-group">
-            <label class="hud-param-label">Aspect Ratio</label>
-            <div class="hud-segment-group" id="segAspectRatio">
-              <button class="hud-segment-btn active" data-val="16:9">16:9</button>
-              <button class="hud-segment-btn" data-val="9:16">9:16</button>
-              <button class="hud-segment-btn ratio-img-only" data-val="4:3" style="display: none;">4:3</button>
-              <button class="hud-segment-btn ratio-img-only" data-val="1:1" style="display: none;">1:1</button>
-            </div>
-          </div>
-
-          <!-- Output Multiplier (Image Mode only) -->
-          <div class="hud-param-group" id="grpMultiplier" style="display: none;">
-            <label class="hud-param-label">Outputs</label>
-            <div class="hud-segment-group hud-segment-4" id="segOutputs">
-              <button class="hud-segment-btn active" data-val="1">x1</button>
-              <button class="hud-segment-btn" data-val="2">x2</button>
-              <button class="hud-segment-btn" data-val="3">x3</button>
-              <button class="hud-segment-btn" data-val="4">x4</button>
-            </div>
-          </div>
-
-          <!-- Download Resolution -->
-          <div class="hud-param-group">
-            <label class="hud-param-label">Download Resolution</label>
-            <select class="hud-select" id="selResolution">
-              <optgroup label="Video Resolutions" id="grpVideoRes">
-                <option value="4K">4K (Upscaled)</option>
-                <option value="1080p" selected>1080p (FHD)</option>
-                <option value="720p">720p (HD)</option>
-              </optgroup>
-              <optgroup label="Image Resolutions" id="grpImageRes" style="display: none;">
-                <option value="4K">4K (Max)</option>
-                <option value="2K" selected>2K (QHD)</option>
-                <option value="1K">1K (Standard)</option>
-              </optgroup>
-            </select>
-          </div>
+      <!-- Shared Footer Action Bar -->
+      <footer class="hud-footer">
+        <div class="hud-footer-left">
+          <span class="hud-stats-badge" id="hudQueueSummaryText">0 prompts queued | Est: ~0s</span>
         </div>
-
-        <!-- Execution Action Controls Footer (Start & Stop) -->
-        <div class="hud-sidebar-footer">
-          <button class="hud-btn hud-btn-start" id="btnStartQueue">
-            <span class="hud-btn-icon">${ICONS.PLAY}</span>
-            <span>Start Batch</span>
+        <div class="hud-footer-right">
+          <button class="rj-btn rj-btn-secondary" id="btnSaveQueue" title="Save current queue & parameters draft">
+            ${ICONS.SAVE}
+            <span>Save Queue</span>
           </button>
-          <button class="hud-btn hud-btn-danger" id="btnStopQueue" disabled>
-            <span class="hud-btn-icon">${ICONS.STOP}</span>
-            <span>Stop Batch</span>
+          <button class="rj-btn rj-btn-accent" id="btnStartQueue" title="Start batch generation">
+            ${ICONS.PLAY}
+            <span>Start</span>
+          </button>
+          <button class="rj-btn rj-btn-danger" id="btnStopQueue" title="Stop running generation" disabled>
+            ${ICONS.STOP}
+            <span>Stop</span>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Collapsed Floating Draggable Pill (Running State) -->
+    <div class="hud-pill" id="flowHudPill">
+      <div class="pill-drag-area">
+        <img src="${logoUrl}" alt="RJ" class="pill-logo">
+        <span class="pill-status-dot dot-idle" id="pillStatusDot"></span>
+        <span class="pill-ticker" id="pillTickerText">Idle</span>
+      </div>
+      <button class="rj-btn-icon pill-expand-btn" id="btnExpandHud" title="Expand to Studio HUD">
+        ${ICONS.EXPAND}
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * State A: Renders the Empty / Idle dropzone with quick action buttons.
+ */
+export function renderEmptyDropzone() {
+  return `
+    <div class="hud-empty-state">
+      <div class="hud-empty-dropzone" id="hudEmptyDropzone">
+        <input type="file" id="fileEmptyDropzone" accept="image/*,video/*,.csv,.txt" multiple style="display: none;">
+        <span class="empty-icon">${ICONS.UPLOAD}</span>
+        <span class="empty-title">Upload / Drag File</span>
+        <span class="empty-sub">Drop images, CSV, or prompt TXT here</span>
+        <span class="empty-hint">or click to select file</span>
+      </div>
+      <div class="hud-empty-quick-actions">
+        <span class="quick-label">Quick Actions:</span>
+        <div class="quick-buttons">
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickAddEmptyRow">
+            ${ICONS.PLUS}
+            <span>Add Empty Row</span>
+          </button>
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickPasteClipboard">
+            ${ICONS.CLIPBOARD}
+            <span>Paste from Clipboard</span>
           </button>
         </div>
       </div>
@@ -268,21 +250,90 @@ export function renderStudioLayout() {
 }
 
 /**
- * Renders a single queue item card in the queue list view.
+ * State B, C, D: Renders an individual Queue Row based on generation mode.
  */
-export function renderQueueItem(item) {
-  const statusClass = `status-${item.status || 'pending'}`;
-  const promptSnippet = (item.prompt || '').substring(0, 70) + ((item.prompt || '').length > 70 ? '...' : '');
+export function renderQueueRow(item, index, mode = 'text-to-video') {
+  const num = index + 1;
+  const status = item.status || 'pending';
+  const statusClass = `status-${status}`;
+  const isIngredientMode = mode === 'image-to-video' || mode === 'edit-image';
+  const isFramesMode = mode === 'frames-to-video';
+
+  let mediaSlotHtml = '';
+
+  if (isIngredientMode) {
+    const imgSrc = (item.ingredients && item.ingredients[0]?.dataUrl) || (typeof item.ingredients?.[0] === 'string' ? item.ingredients[0] : null);
+    mediaSlotHtml = `
+      <div class="row-media-slot ${imgSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="single" title="Drop or click to select image">
+        <input type="file" class="row-file-input" accept="image/*" style="display: none;">
+        ${imgSrc ? `
+          <img src="${imgSrc}" class="row-thumb-img" alt="Ref">
+          <button class="row-remove-thumb-btn" title="Remove image" data-idx="${index}" data-slot="single">${ICONS.CLOSE}</button>
+        ` : `
+          <div class="row-slot-placeholder">
+            <span class="slot-icon">${ICONS.IMAGE}</span>
+            <span class="slot-text">+ Drop</span>
+          </div>
+        `}
+      </div>
+    `;
+  } else if (isFramesMode) {
+    const startSrc = item.frames?.start || null;
+    const endSrc = item.frames?.end || null;
+    mediaSlotHtml = `
+      <div class="row-frames-group">
+        <!-- Start Frame -->
+        <div class="row-media-slot ${startSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="start" title="Start Frame">
+          <input type="file" class="row-file-input" accept="image/*" style="display: none;">
+          ${startSrc ? `
+            <img src="${startSrc}" class="row-thumb-img" alt="Start">
+            <button class="row-remove-thumb-btn" title="Remove frame" data-idx="${index}" data-slot="start">${ICONS.CLOSE}</button>
+          ` : `
+            <div class="row-slot-placeholder">
+              <span class="slot-text">Start</span>
+            </div>
+          `}
+        </div>
+
+        <!-- Swap -->
+        <button class="row-swap-frames-btn" data-idx="${index}" title="Swap Start & End Frames">
+          ${ICONS.SWAP}
+        </button>
+
+        <!-- End Frame -->
+        <div class="row-media-slot ${endSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="end" title="End Frame">
+          <input type="file" class="row-file-input" accept="image/*" style="display: none;">
+          ${endSrc ? `
+            <img src="${endSrc}" class="row-thumb-img" alt="End">
+            <button class="row-remove-thumb-btn" title="Remove frame" data-idx="${index}" data-slot="end">${ICONS.CLOSE}</button>
+          ` : `
+            <div class="row-slot-placeholder">
+              <span class="slot-text">End</span>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  const promptPlaceholder = isIngredientMode
+    ? 'Enter motion / action prompt for this image...'
+    : isFramesMode
+      ? 'Enter transition / interpolation prompt...'
+      : 'Enter prompt text here...';
 
   return `
-    <div class="hud-queue-card ${statusClass}" data-id="${item.id}">
-      <div class="queue-card-top">
-        <span class="queue-item-badge ${statusClass}">${(item.status || 'pending').toUpperCase()}</span>
-        <span class="queue-item-meta">${item.model || ''} | ${item.aspectRatio || ''}</span>
-        <button class="queue-card-remove-btn" data-id="${item.id}" title="Remove Item">${ICONS.TRASH}</button>
+    <div class="hud-queue-row ${statusClass}" data-id="${item.id}" data-idx="${index}">
+      <span class="row-num">#${num}</span>
+      ${mediaSlotHtml}
+      <div class="row-input-wrapper">
+        <textarea class="row-prompt-input" data-idx="${index}" rows="1" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
+        ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
+        ${item.error ? `<div class="row-error-hint">${item.error}</div>` : ''}
       </div>
-      <div class="queue-card-prompt">${promptSnippet || 'No prompt specified'}</div>
-      ${item.error ? `<div class="queue-card-error">${item.error}</div>` : ''}
+      <button class="rj-btn-icon rj-btn-danger row-delete-btn" data-idx="${index}" title="Delete row">
+        ${ICONS.TRASH}
+      </button>
     </div>
   `;
 }

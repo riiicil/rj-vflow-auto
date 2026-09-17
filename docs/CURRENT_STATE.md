@@ -71,15 +71,17 @@
   - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), and asset metadata extraction.
   - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
 - **Design System Tokens (`src/styles/`):**
-  - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline border `#242728`, accent cyan `#57c1ff`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`, and shadows).
+  - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`).
+  - `src/styles/components.css` — Raycast Dark Precision component styling (field groups, inputs, buttons, custom selects, segmented groups, active/inactive states) ported from RJ AIO Metadata.
 - **Minimalist Toolbar Popup Launcher (`src/popup/`):**
   - `src/popup/popup.html` — Minimalist popup layout with brand header, connection status card, action buttons, and telemetry bar.
   - `src/popup/popup.css` — Compact 320px styling adhering to Raycast Dark Precision design tokens.
   - `src/popup/popup.js` — Live tab URL inspector, Google Flow connection detector, reactive storage telemetry, and Studio HUD toggle launcher with `content_loader.js` fallback injection.
 - **In-Page Studio Overlay HUD (`src/overlay/`):**
-  - `src/overlay/overlay.css` — Comprehensive Shadow DOM styling for Two-Column Studio HUD window, workspace tabs, media dropzones, queue card list, and parameters sidebar adhering to Raycast Dark tokens.
-  - `src/overlay/FlowHUDTemplates.js` — Lucide SVG icons and modular HTML templates for Two-Column Studio Layout and Queue Card rendering.
-  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, position persistence, dynamic mode switching, dropzones, queue list rendering, execution controls (`Start Batch`, `Stop Batch`), live card progress updating, and stale batch state recovery.
+  - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation.
+  - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons and Studio HUD wireframe layout templates (State A empty dropzone, State B text rows, State C 1-ingredient rows, State D 2-frames rows, parameters sidebar, shared footer, floating pill) aligned 100% with `bahan/vflow-note.md`.
+  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px) and collapsible floating pill (36px).
+  - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, row-based queue management, CustomSelect enhancement, and QueueManager reactive execution wiring (`Start Batch`, `Stop Batch`), live card progress updating, and stale batch state recovery.
 - **Content & Background Workers (`src/content/`, `src/background/`):**
   - `src/content/content_loader.js` — Manifest V3 content script ES module dynamic bootstrap loader.
   - `src/content/content_main.js` — Primary ES module content script entrypoint on `flow.google.com` initializing overlay and runtime message routing.
@@ -125,9 +127,10 @@
 - `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
 - `src/services/FlowDownloadService.js` verified valid syntax via `node --check`.
 - All 8 core automation engine and service modules verified syntax-valid (0 errors).
-- `src/styles/variables.css` verified valid CSS tokens.
+- `src/styles/variables.css` and `src/styles/components.css` verified valid CSS tokens.
 - `src/popup/popup.html` and `src/popup/popup.css` verified.
 - `src/popup/popup.js` verified valid syntax via `node --check`.
+- `src/overlay/CustomSelect.js` verified valid syntax via `node --check`.
 - `src/overlay/overlay.css` verified valid CSS tokens.
 - `src/overlay/FlowHUDTemplates.js` verified valid syntax via `node --check`.
 - `src/overlay/FlowHUDHost.js` verified valid syntax via `node --check`.
