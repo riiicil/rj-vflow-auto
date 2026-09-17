@@ -1,15 +1,15 @@
 # Current Project State — RJ V-Flow Auto Extension
 
 *Last Updated: 2026-09-17*<br>
-*Active Branch: `task/cleanup-and-governance`*<br>
-*Current Milestone: Phase 1 (Cleanup & Governance Foundation) — [COMPLETE]*
+*Active Branch: `task/core-automation-engine`*<br>
+*Current Milestone: Phase 2 (Core Automation Engine & Services) — [IN_PROGRESS]*
 
 ---
 
 ## 1. Current Phase Progress
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
-- **Phase 2 — Core Automation Engine & Services**: [PLANNED]
+- **Phase 2 — Core Automation Engine & Services**: [IN_PROGRESS] (Sub-phase 2.1 complete: FlowDOM.js query library and FlowStorage.js persistence engine implemented; Sub-phase 2.2 pending)
 - **Phase 3 — Dual-Mode UI Implementation**: [PLANNED]
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
@@ -23,7 +23,8 @@
 | `main` | Production | Stable production releases only |
 | `dev` | Integration | Active development integration branch |
 | `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
-| `task/cleanup-and-governance` | Active | Phase 1: Cleanup & Governance Foundation (Ready to merge to dev) |
+| `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
+| `task/core-automation-engine` | Active | Phase 2: Core Automation Engine & Services (Active working branch) |
 
 ---
 
@@ -58,6 +59,9 @@
   - `CHANGELOG.md` — Keep a Changelog / SemVer history documenting v3.0 refactoring.
   - `LICENSE` — MIT License (2026 Riiicil).
   - `icons/` — Optimized branding icons (`icon16.png`, `icon48.png`, `icon128.png`, `logo_rj.png`).
+- **Core Automation Engine (`src/core/`):**
+  - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, MutationObserver waiters, and in-card validator (`isCardGenerationSuccess`).
+  - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
 - **Modular Extension Scaffold (`src/`):**
   - `src/manifest.json` — Clean Chromium Manifest V3 without `chrome.debugger` permissions.
   - `src/assets/icons/` — Bundled extension icons.
@@ -71,7 +75,7 @@
   - `docs/references/GOOGLE_FLOW_DOM.md` — Ported language-resilient selector specification and native event routines.
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
-  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1, 2, 3, & 4).
+  - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 5).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
@@ -81,7 +85,6 @@
 ## 5. What Does NOT Exist Yet
 
 - **Phase 2 — Core Automation Engine & Services:**
-  - `src/core/FlowDOM.js` & `src/core/FlowStorage.js` (Sub-phase 2.1).
   - `src/services/FlowSettingsService.js` (Sub-phase 2.2).
   - `src/services/FlowIngredientService.js` & `src/services/FlowPromptService.js` (Sub-phase 2.3).
   - `src/services/FlowWatcherService.js` (Sub-phase 2.4).
@@ -93,12 +96,14 @@
 ## 6. Testing & Build Verification Status
 
 - `src/manifest.json` verified valid Manifest V3 JSON.
+- `src/core/FlowDOM.js` verified valid syntax via `node --check`.
+- `src/core/FlowStorage.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
-- Working tree clean on branch `task/cleanup-and-governance`.
+- Working tree active on branch `task/core-automation-engine`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed to **Phase 2 (Core Automation Engine & Services)** -> **Sub-phase 2.1**: Implement language-resilient `FlowDOM.js` query engine and `FlowStorage.js` persistence service.
+- Proceed to **Phase 2 Sub-phase 2.2**: Implement `src/services/FlowSettingsService.js` for aspect ratio, model selection, duration, and creative agent mode suppression.

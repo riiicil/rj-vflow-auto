@@ -6,44 +6,30 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 1 (Cleanup & Governance Foundation) — [COMPLETE] / Ready for Phase 2
-- **Active Branch**: `task/cleanup-and-governance`
-- **Latest Commit**: Pending Sub-phase 1.4 commit (`chore(foundation): author root AGENTS.md, DESIGN.md tokens, and clean MV3 manifest`)
-- **Working Tree**: Clean
-- **Build / Test State**: Verified healthy, clean Manifest V3 ready, zero legacy clutter
+- **Current Milestone**: Phase 2 (Core Automation Engine & Services) — [IN_PROGRESS]
+- **Active Branch**: `task/core-automation-engine`
+- **Latest Commit**: Pending Sub-phase 2.1 commit (`feat(core): implement FlowDOM selector engine and FlowStorage service`)
+- **Working Tree**: Active working branch in progress
+- **Build / Test State**: Verified healthy, `FlowDOM.js` & `FlowStorage.js` passing syntax validation (`node --check`)
 
 ---
 
 ## 2. Active In-Flight Context
 
-Phase 1 (Cleanup & Governance Foundation) is now **100% complete**:
-1. All legacy v2.x code and commit history is permanently preserved on remote `origin/legacy`.
-2. All root zip archives, legacy version folders, and obsolete UI/CDP scripts have been purged.
-3. The complete documentation suite adhering to `DOCS_STYLE.md` is active in `docs/`.
-4. Permanent institutional knowledge of Google Flow's DOM selectors is ported to `docs/references/GOOGLE_FLOW_DOM.md`.
-5. Root project foundation files (`AGENTS.md`, `DESIGN.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `icons/`) are established.
-6. A clean, zero-CDP Manifest V3 has been established at `src/manifest.json` with modular directory scaffolding under `src/`.
+Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
+Phase 2 (Core Automation Engine & Services) Sub-phase 2.1 is now **100% complete**:
+1. `src/core/FlowDOM.js` is implemented, centralizing language-resilient selectors (`SELECTORS`), Material Symbols ligatures (`LIGATURES`), MutationObserver element waiters, native event dispatchers (`simulateClick`, `simulateEnter`), and in-card failure detection (`isCardGenerationSuccess`).
+2. `src/core/FlowStorage.js` is implemented, establishing Schema Version 3 persistence wrapping `chrome.storage.local`, 50ms debounced saves, complete queue CRUD helpers (`enqueueItem`, `enqueueBatch`, `updateQueueItem`, `removeQueueItem`, `clearCompletedQueue`), and reactive event listeners (`onChanged`).
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Phase 1 Merge to `dev`** (Pending Human User Instruction):
-   - When instructed by human user:
-     ```bash
-     git checkout dev
-     git merge --no-ff task/cleanup-and-governance
-     ```
-2. **Phase 2 (Core Automation Engine & Services) Initialization**:
-   - Create task branch:
-     ```bash
-     git checkout -b task/core-automation-engine dev
-     ```
-   - **Sub-phase 2.1 Execution**:
-     - Implement `src/core/FlowDOM.js`: Centralized language-resilient selector query engine (Material Symbols ligatures, Angular custom tags, internal CSS classes).
-     - Implement `src/core/FlowStorage.js`: Storage engine (`chrome.storage.local`) with debounced auto-save, schema versioning, and auto-healing.
-     - Update `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and add Session Entry 5 to `docs/agent-logs/2026-09-17.md`.
-     - Commit as `feat(core): implement FlowDOM selector engine and FlowStorage service`.
+1. **Sub-phase 2.2 Execution**:
+   - Implement `src/services/FlowSettingsService.js`: Automate prompt box settings popover (`flow-prompt-box-settings`), model dropdown selection (`flow-menu-item`), duration toggles (`mat-button-toggle`), aspect ratio selection, and suppression of Google Flow creative agent mode (`ensureAgentModeOff()`).
+2. **Sub-phase 2.3 Preparation**:
+   - `FlowIngredientService.js` (asset ingestion and image-to-video / frame injection).
+   - `FlowPromptService.js` (native ProseMirror paragraph event injection via `document.execCommand('insertText')`).
 
 ---
 
@@ -60,7 +46,8 @@ Phase 1 (Cleanup & Governance Foundation) is now **100% complete**:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 04 | 2026-09-17 | `task/cleanup-and-governance` | Pending | Author root AGENTS.md, DESIGN.md, clean manifest, and src scaffold (Phase 1 Complete) | Phase 2 Sub-phase 2.1: FlowDOM & FlowStorage |
+| 05 | 2026-09-17 | `task/core-automation-engine` | Pending | Implement FlowDOM selector engine and FlowStorage service (Sub-phase 2.1 Complete) | Phase 2 Sub-phase 2.2: FlowSettingsService |
+| 04 | 2026-09-17 | `task/cleanup-and-governance` | `eff9539` | Author root AGENTS.md, DESIGN.md, clean manifest, and src scaffold (Phase 1 Complete) | Merge to dev & start Phase 2 Sub-phase 2.1 |
 | 03 | 2026-09-17 | `task/cleanup-and-governance` | `e980390` | Establish complete governance docs suite and port GOOGLE_FLOW_DOM reference | Sub-phase 1.4: Author AGENTS.md, DESIGN.md, clean manifest, and src scaffold |
 | 02 | 2026-09-17 | `task/cleanup-and-governance` | `4c07274` | Purge root zip archives, legacy version folders, and obsolete UI scripts | Sub-phase 1.3: Mirror and author full governance docs suite |
 | 01 | 2026-09-17 | `task/cleanup-and-governance` | `8f3e5d1` | Isolate and push legacy branch, harden gitignore, initialize docs suite | Sub-phase 1.2: Purge root zips and legacy folders |
