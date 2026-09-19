@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `78c55e2` (`fix(hud): row container selection behavior conditional trash visibility and prompt textarea height`)
+- **Latest Commit**: `19064d3` (`fix(hud): selection focus toggle multi-select transition and uncheck focus clearing`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, container selection joining verified, strict conditional trash button hiding verified, textarea 2-3 lines default height verified, keyboard range selection (Shift/Ctrl) verified, CustomSelect hidden option fallback verified, prompt clamping verified, and Batch vs Single parameter orchestration verified via automated test suite.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, container selection joining verified, focus toggle on click verified, uncheck focus clearing verified, active-row bulk delete verified, textarea 2-3 lines default height verified, keyboard range selection (Shift/Ctrl) verified, CustomSelect hidden option fallback verified, prompt clamping verified, and Batch vs Single parameter orchestration verified via automated test suite.
 
 ---
 
@@ -65,10 +65,15 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
     - `src/overlay/FlowHUDTemplates.js`: Updated resolution option labeling to exact specifications: Video (`720p (Original size)`, `1080p (Upscaled)`, `4k (Upscaled)`) and Image (`1k (Original size)`, `2k (Upscaled)`, `4k (Upscaled)`). Suppressed `.row-error-hint` in queue rows so error details stay strictly in the console log. Added `#sidebarModeBanner`.
     - `src/overlay/FlowHUDHost.js`: Added dynamic header indicator `#sidebarModeBanner` ("BATCH PARAMETERS — Applies to all X rows" vs "SINGLE PARAMETERS — Item #X / MULTI-SELECTION (X items)") with prompt text clamped to max 38 characters followed by `...` to keep sidebar layout clean.
     - Unified Logging: Replaced all raw `console.warn` and `console.error` calls across `src/` with `logger.warn` and `logger.error`.
-14. **Session 27 Fix Complete (Commit 11, `HEAD`)**:
+14. **Session 27 Fix Complete (Commit 11, `78c55e2`)**:
     - `src/overlay/FlowHUDHost.js`: Refactored row container click behavior. When 0 rows are checked, clicking any row container focuses/activates that row (`activeRowIdx = idx`, applying `.row-active` cyan accent) without checking its checkbox across both Batch and Single modes, allowing seamless parameter inspection in Single mode (`ROW #X`) without unintended selections. When 1 or more rows are already checked (`selectedCount > 0`), clicking another row container automatically checks that row too (`it.selected = true`), allowing swift multi-selection without precision-clicking the checkbox. Checkbox direct click (`change` event with `e.stopPropagation()`) independently toggles individual row selection.
     - `src/overlay/FlowHUDHost.js`: Fixed bulk delete trash button visibility bug. Refactored `updateSelectionUI()` to strictly set `#btnBulkDeleteQueue.style.display = selectedCount > 0 ? 'inline-flex' : 'none'`, ensuring the trash button is strictly hidden whenever 0 rows are checked in both Single and Batch modes.
     - `src/overlay/FlowHUDTemplates.js` & `src/overlay/overlay.css`: Increased default prompt textarea rows to `rows="2"`, expanded `.row-prompt-input` min-height to `54px` (max-height `130px`) with `13px` font size, `1.45` line-height, and `7px 9px` padding to comfortably display 2 to 3 lines of prompt text simultaneously by default. Added `margin-top: 6px;` to `.row-select-handle` for dead-center vertical alignment with the first line of the expanded textarea.
+15. **Session 28 Fix Complete (Commit 12, `HEAD`)**:
+    - `src/overlay/FlowHUDHost.js`: Implemented focus toggle on container click (Kondisi 1). Clicking an un-selected row container focuses it (`activeRowIdx = idx`, `.row-active` cyan accent border) without checking its checkbox; clicking the same focused row container a second time un-focuses it (`activeRowIdx = null`, removing `.row-active`).
+    - `src/overlay/FlowHUDHost.js`: Implemented seamless multi-selection transition (Kondisi 2). Normal click switches active focus between rows without checking checkboxes. When row A is focused without checkmark, `Ctrl` / `Cmd` + clicking container row B now marks both row A and row B as checked (`selected = true`).
+    - `src/overlay/FlowHUDHost.js`: Fixed focus persistence bug on uncheck. When unchecking a row (via checkbox or clicking container of an already checked row), that row immediately loses both checkmark and focus. If another checked row remains, active focus shifts to that remaining checked row; if no checked rows remain, `activeRowIdx` resets to `null`, completely clearing `.row-active` and hiding the trash button.
+    - `src/overlay/FlowHUDHost.js`: Enabled trash button visibility when rows are checked OR when a single row is active/focused (`hasSelectionOrActive`), and wired `#btnBulkDeleteQueue` to delete the focused row if `selectedCount === 0`.
 
 ---
 

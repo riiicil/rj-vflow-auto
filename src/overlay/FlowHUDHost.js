@@ -321,6 +321,13 @@ export class FlowHUDHost {
         this.queueItems.forEach(item => {
           item.selected = isChecked;
         });
+        if (isChecked) {
+          this.activeRowIdx = 0;
+          this.lastSelectedIdx = 0;
+        } else {
+          this.activeRowIdx = null;
+          this.lastSelectedIdx = null;
+        }
         this.updateSelectionUI();
       });
     }
@@ -328,7 +335,10 @@ export class FlowHUDHost {
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
       btnBulkDelete.addEventListener('click', async () => {
-        const toDelete = this.queueItems.filter(it => it.selected);
+        let toDelete = this.queueItems.filter(it => it.selected);
+        if (toDelete.length === 0 && this.activeRowIdx !== null && this.queueItems[this.activeRowIdx]) {
+          toDelete = [this.queueItems[this.activeRowIdx]];
+        }
         if (toDelete.length === 0) return;
 
         // Clean up FlowImageDB records for deleted items
@@ -750,6 +760,10 @@ export class FlowHUDHost {
     container.querySelectorAll('.row-select-checkbox').forEach(cb => {
       cb.addEventListener('click', (e) => {
         e.stopPropagation();
+      });
+
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
         const idx = Number(cb.dataset.idx);
         if (this.isSortMode) return;
 
@@ -762,11 +776,25 @@ export class FlowHUDHost {
           });
           this.activeRowIdx = idx;
         } else {
-          if (this.queueItems[idx]) {
-            this.queueItems[idx].selected = cb.checked;
+          if (cb.checked) {
+            this.queueItems[idx].selected = true;
+            this.activeRowIdx = idx;
+            this.lastSelectedIdx = idx;
+          } else {
+            this.queueItems[idx].selected = false;
+            // When unchecking: if this row was active, shift active to remaining checked row, or null if none
+            if (this.activeRowIdx === idx) {
+              const remaining = this.queueItems.findIndex((it, i) => it.selected && i !== idx);
+              this.activeRowIdx = remaining !== -1 ? remaining : null;
+              this.lastSelectedIdx = this.activeRowIdx;
+            } else {
+              const remainingCount = this.queueItems.filter(it => it.selected).length;
+              if (remainingCount === 0) {
+                this.activeRowIdx = null;
+                this.lastSelectedIdx = null;
+              }
+            }
           }
-          this.activeRowIdx = idx;
-          this.lastSelectedIdx = idx;
         }
         this.updateSelectionUI();
       });
@@ -792,35 +820,76 @@ export class FlowHUDHost {
         const idx = Number(row.dataset.idx);
         if (isNaN(idx) || !this.queueItems[idx]) return;
 
-        const currentSelectedCount = this.queueItems.filter(it => it.selected).length;
+        const selectedCount = this.queueItems.filter(it => it.selected).length;
 
-        if (e.shiftKey && this.lastSelectedIdx !== null) {
+        if (e.shiftKey && (this.lastSelectedIdx !== null || this.activeRowIdx !== null)) {
           // Shift + Click: Range Selection
-          const start = Math.min(this.lastSelectedIdx, idx);
-          const end = Math.max(this.lastSelectedIdx, idx);
+          const anchor = this.lastSelectedIdx !== null ? this.lastSelectedIdx : this.activeRowIdx;
+          const start = Math.min(anchor, idx);
+          const end = Math.max(anchor, idx);
           this.queueItems.forEach((it, i) => {
             if (i >= start && i <= end) it.selected = true;
           });
           this.activeRowIdx = idx;
+          this.lastSelectedIdx = idx;
         } else if (e.ctrlKey || e.metaKey) {
           // Ctrl / Cmd + Click: Toggle Selection
-          this.queueItems[idx].selected = !this.queueItems[idx].selected;
-          this.activeRowIdx = idx;
-          this.lastSelectedIdx = idx;
-        } else {
-          // Normal Click:
-          if (currentSelectedCount > 0) {
-            // When items are already checked, clicking another row container checks this row too
+          if (selectedCount === 0 && this.activeRowIdx !== null && this.activeRowIdx !== idx) {
+            // When a row was focused (e.g. row 2) and user Ctrl+Clicks row 3:
+            // Both the previously focused row AND clicked row become CHECKED!
+            const prevActive = this.activeRowIdx;
+            if (this.queueItems[prevActive]) {
+              this.queueItems[prevActive].selected = true;
+            }
             this.queueItems[idx].selected = true;
             this.activeRowIdx = idx;
             this.lastSelectedIdx = idx;
           } else {
-            // When no items are checked, clicking container activates/focuses row WITHOUT checking its checkbox
-            this.queueItems.forEach(it => {
-              it.selected = false;
-            });
-            this.activeRowIdx = idx;
-            this.lastSelectedIdx = idx;
+            this.queueItems[idx].selected = !this.queueItems[idx].selected;
+            if (this.queueItems[idx].selected) {
+              this.activeRowIdx = idx;
+              this.lastSelectedIdx = idx;
+            } else {
+              if (this.activeRowIdx === idx) {
+                const remaining = this.queueItems.findIndex(it => it.selected);
+                this.activeRowIdx = remaining !== -1 ? remaining : null;
+                this.lastSelectedIdx = this.activeRowIdx;
+              }
+            }
+          }
+        } else {
+          // Normal Click:
+          if (selectedCount === 0) {
+            // Case A: Currently 0 items are checked
+            if (this.activeRowIdx === null) {
+              // Subcase A1: Focus this row without checking checkbox
+              this.activeRowIdx = idx;
+              this.lastSelectedIdx = idx;
+            } else if (this.activeRowIdx === idx) {
+              // Subcase A2 (Kondisi 1): Click already focused row again -> UN-FOCUS (lepas fokus)
+              this.activeRowIdx = null;
+              this.lastSelectedIdx = null;
+            } else {
+              // Subcase A3: Another row was focused (e.g. row 2) and user clicks row 3 WITHOUT Ctrl:
+              // Normal click simply switches focus to row 3 without checking checkboxes
+              this.activeRowIdx = idx;
+              this.lastSelectedIdx = idx;
+            }
+          } else {
+            // Case B: 1 or more items are already checked (selectedCount > 0)
+            if (this.queueItems[idx].selected) {
+              // Subcase B1 (Kondisi 2): Clicked row is already checked -> UNCHECK this row
+              this.queueItems[idx].selected = false;
+              // Shift active focus to remaining checked row, or null if none
+              const remainingChecked = this.queueItems.findIndex((it, i) => it.selected && i !== idx);
+              this.activeRowIdx = remainingChecked !== -1 ? remainingChecked : null;
+              this.lastSelectedIdx = this.activeRowIdx;
+            } else {
+              // Subcase B2: Clicked row is not checked -> check this row too ("ikut kecentang")
+              this.queueItems[idx].selected = true;
+              this.activeRowIdx = idx;
+              this.lastSelectedIdx = idx;
+            }
           }
         }
 
@@ -1225,10 +1294,14 @@ export class FlowHUDHost {
       chkSelectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
     }
 
-    // 2. Bulk Delete Button Visibility (Strictly visible only when 1 or more rows are checked)
+    // 2. Bulk Delete Button Visibility
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
-      btnBulkDelete.style.display = selectedCount > 0 ? 'inline-flex' : 'none';
+      const hasSelectionOrActive = selectedCount > 0 || (this.activeRowIdx !== null && Boolean(this.queueItems[this.activeRowIdx]));
+      btnBulkDelete.style.display = hasSelectionOrActive ? 'inline-flex' : 'none';
+      btnBulkDelete.title = selectedCount > 1
+        ? `Delete ${selectedCount} selected rows`
+        : 'Delete selected row';
     }
 
     // 3. Sort Button Conditional Disabled State
