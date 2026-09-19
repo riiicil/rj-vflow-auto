@@ -20,12 +20,15 @@ export const ICONS = {
   CLOSE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
   SWAP: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="8 21 3 21 3 16"></polyline><line x1="3" y1="21" x2="20" y2="4"></line></svg>`,
   FILE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`,
-  SAVE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`
+  SAVE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`,
+  SORT: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>`,
+  GRIP_VERTICAL: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>`,
+  SLIDERS: `<svg class="rj-icon-lg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`
 };
 
 /**
  * Generates the full Two-Column Studio Layout markup.
- * Exactly matches bahan/vflow-note.md wireframe (lines 489-631).
+ * Aligned with bahan/vflow-note.md & new note vflow.md (Commit 5).
  */
 export function renderStudioLayout() {
   const logoUrl = chrome.runtime.getURL('assets/logo/logo_rj.png');
@@ -42,9 +45,6 @@ export function renderStudioLayout() {
           <button class="rj-hud-btn-icon" id="btnMinimizeHud" title="Minimize to Floating Pill" type="button" aria-label="Minimize">
             ${ICONS.MINIMIZE}
           </button>
-          <button class="rj-hud-btn-icon rj-close" id="btnCloseHud" title="Close Studio" type="button" aria-label="Close">
-            ${ICONS.CLOSE}
-          </button>
         </div>
       </header>
 
@@ -55,24 +55,26 @@ export function renderStudioLayout() {
           <!-- Top Action Toolbar -->
           <div class="hud-queue-toolbar">
             <div class="toolbar-left">
+              <input type="checkbox" class="rj-checkbox" id="chkSelectAllQueue" title="Select all">
+              <div class="toolbar-param-mode">
+                <span class="toolbar-label">Set params:</span>
+                <select class="rj-select rj-select-sm" id="selParamMode">
+                  <option value="batch" selected>Batch</option>
+                  <option value="single">Single</option>
+                </select>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button class="rj-btn-icon rj-btn-danger" id="btnBulkDeleteQueue" type="button" title="Delete selected rows" style="display: none;">
+                ${ICONS.TRASH}
+              </button>
+              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnToggleSortMode" type="button" title="Toggle sort mode">
+                ${ICONS.SORT}
+                <span>Sort</span>
+              </button>
               <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnAddQueueRow" type="button" title="Add new row">
                 ${ICONS.PLUS}
                 <span>Add Row</span>
-              </button>
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnPasteClipboard" type="button" title="Paste prompts from clipboard">
-                ${ICONS.CLIPBOARD}
-                <span>Paste</span>
-              </button>
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnImportFile" type="button" title="Import TXT or CSV">
-                ${ICONS.FILE}
-                <span>Import CSV</span>
-              </button>
-              <input type="file" id="fileImportQueue" accept=".csv,.txt" style="display: none;">
-            </div>
-            <div class="toolbar-right">
-              <button class="rj-btn rj-btn-secondary rj-btn-sm hud-btn-clear" id="btnClearAllQueue" type="button" title="Clear all queue items">
-                ${ICONS.TRASH}
-                <span>Clear All</span>
               </button>
             </div>
           </div>
@@ -85,7 +87,15 @@ export function renderStudioLayout() {
 
         <!-- RIGHT COLUMN: Setting Parameters Sidebar -->
         <div class="hud-col-right">
-          <div class="hud-sidebar-scroll">
+          <!-- Single Mode Empty Selection Placeholder -->
+          <div class="sidebar-single-placeholder" id="sidebarSinglePlaceholder" style="display: none;">
+            <span class="sidebar-placeholder-icon">${ICONS.SLIDERS}</span>
+            <span class="sidebar-placeholder-title">Select row(s) to configure parameters</span>
+            <span class="sidebar-placeholder-sub">Parameters configured here will apply to the selected row(s).</span>
+          </div>
+
+          <!-- Parameter Controls Scroll Container -->
+          <div class="hud-sidebar-scroll" id="sidebarControls">
             <!-- Parameter 1: Generation Mode -->
             <div class="rj-field-group">
               <label class="rj-field-label" for="selGenerationMode">
@@ -225,7 +235,7 @@ export function renderEmptyDropzone() {
         <input type="file" id="fileEmptyDropzone" accept="image/*,video/*,.csv,.txt" multiple style="display: none;">
         <span class="empty-icon">${ICONS.UPLOAD}</span>
         <span class="empty-title">Upload / Drag File</span>
-        <span class="empty-sub">Drop images, CSV, or prompt TXT here</span>
+        <span class="empty-sub">Drop images or prompt TXT here</span>
         <span class="empty-hint">or click to select file</span>
       </div>
       <div class="hud-empty-quick-actions">
@@ -247,13 +257,14 @@ export function renderEmptyDropzone() {
 
 /**
  * State B, C, D: Renders an individual Queue Row based on generation mode.
+ * Redesigned with row-select checkbox, sort drag handle, and zero individual delete buttons.
  */
-export function renderQueueRow(item, index, mode = 'text-to-video') {
-  const num = index + 1;
+export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode = false) {
   const status = item.status || 'pending';
   const statusClass = `status-${status}`;
   const isIngredientMode = mode === 'image-to-video' || mode === 'edit-image';
   const isFramesMode = mode === 'frames-to-video';
+  const isChecked = Boolean(item.selected);
 
   let mediaSlotHtml = '';
 
@@ -319,17 +330,17 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
       : 'Enter prompt text here...';
 
   return `
-    <div class="hud-queue-row ${statusClass}" data-id="${item.id}" data-idx="${index}">
-      <span class="row-num">#${num}</span>
+    <div class="hud-queue-row ${statusClass} ${isSortMode ? 'is-sorting' : ''}" data-id="${item.id}" data-idx="${index}" ${isSortMode ? 'draggable="true"' : ''}>
+      <div class="row-select-handle">
+        <input type="checkbox" class="rj-checkbox row-select-checkbox" data-idx="${index}" ${isChecked ? 'checked' : ''} title="Select row" style="${isSortMode ? 'display: none;' : ''}">
+        <span class="row-drag-handle" title="Drag to reorder" style="${isSortMode ? 'display: inline-flex;' : 'display: none;'}">${ICONS.GRIP_VERTICAL}</span>
+      </div>
       ${mediaSlotHtml}
       <div class="row-input-wrapper">
         <textarea class="row-prompt-input" data-idx="${index}" rows="1" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
         ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
         ${item.error ? `<div class="row-error-hint">${item.error}</div>` : ''}
       </div>
-      <button class="rj-btn-icon rj-btn-danger row-delete-btn" data-idx="${index}" type="button" title="Delete row">
-        ${ICONS.TRASH}
-      </button>
     </div>
   `;
 }

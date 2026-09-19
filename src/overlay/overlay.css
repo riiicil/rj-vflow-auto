@@ -122,7 +122,7 @@
 svg.rj-icon,
 .rj-btn svg,
 .rj-btn-icon svg,
-.row-delete-btn svg,
+.row-drag-handle svg,
 .row-remove-thumb-btn svg,
 .row-swap-frames-btn svg,
 .slot-icon svg,
@@ -173,6 +173,58 @@ svg.rj-icon,
   background-color: var(--rj-bg-canvas, #07080a);
 }
 
+/* ==========================================================================
+   Custom Raycast Precision Checkbox
+   ========================================================================== */
+.rj-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
+  border: 1px solid var(--rj-border-hairline, #242728);
+  border-radius: var(--rj-radius-sm, 4px);
+  background-color: var(--rj-bg-card, #121212);
+  cursor: pointer;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 0;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.rj-checkbox:hover {
+  border-color: var(--rj-accent-cyan, #079183);
+  background-color: var(--rj-bg-elevated, #101111);
+}
+
+.rj-checkbox:checked {
+  background-color: var(--rj-accent-cyan, #079183);
+  border-color: var(--rj-accent-cyan, #079183);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: 11px 11px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rj-checkbox:indeterminate {
+  background-color: var(--rj-accent-cyan, #079183);
+  border-color: var(--rj-accent-cyan, #079183);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='12' x2='19' y2='12'%3E%3C/line%3E%3C/svg%3E");
+  background-size: 11px 11px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.rj-checkbox:focus-visible {
+  box-shadow: 0 0 0 2px rgba(7, 145, 131, 0.35);
+}
+
 /* Queue Action Toolbar */
 .hud-queue-toolbar {
   height: 38px;
@@ -188,44 +240,143 @@ svg.rj-icon,
 .toolbar-left {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.toolbar-param-mode {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-.toolbar-left .rj-btn-secondary {
+.toolbar-param-mode .toolbar-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--rj-text-muted, #9c9c9d);
+  white-space: nowrap;
+}
+
+.toolbar-param-mode .rj-select-wrapper {
+  width: 88px;
+  min-width: 80px;
+}
+
+.toolbar-param-mode .rj-select-trigger {
+  min-height: 26px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: var(--rj-radius-sm, 4px);
   background-color: #141719;
   border: 1px solid #282b2e;
   color: #c0c4c7;
 }
 
-.toolbar-left .rj-btn-secondary:hover {
+.toolbar-param-mode .rj-select-trigger:hover {
   background-color: #1c2023;
   border-color: #3a3e42;
   color: #ffffff;
 }
 
-.toolbar-left .rj-btn-secondary svg {
-  stroke: #8a99a8;
+.toolbar-param-mode .rj-select-arrow {
+  width: 12px;
+  height: 12px;
 }
 
-.toolbar-left .rj-btn-secondary:hover svg {
-  stroke: var(--rj-accent-cyan, #079183);
+.toolbar-param-mode .rj-select-dropdown {
+  min-width: 88px;
+}
+
+.toolbar-param-mode .rj-select-option {
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 
-.hud-btn-clear {
-  background: transparent !important;
-  color: #787f85 !important;
-  border: 1px solid transparent !important;
+#btnBulkDeleteQueue {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rj-radius-sm, 4px);
+  background-color: rgba(255, 97, 97, 0.1);
+  border: 1px solid rgba(255, 97, 97, 0.25);
+  color: var(--rj-accent-red, #ff6161);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.hud-btn-clear:hover {
-  background-color: rgba(255, 97, 97, 0.12) !important;
-  border-color: rgba(255, 97, 97, 0.25) !important;
-  color: #ff6161 !important;
+#btnBulkDeleteQueue:hover {
+  background-color: rgba(255, 97, 97, 0.2);
+  border-color: rgba(255, 97, 97, 0.4);
+  color: #ffffff;
+}
+
+#btnToggleSortMode {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--rj-radius-sm, 4px);
+  background-color: #141719;
+  border: 1px solid #282b2e;
+  color: #c0c4c7;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#btnToggleSortMode:hover {
+  background-color: #1c2023;
+  border-color: #3a3e42;
+  color: #ffffff;
+}
+
+#btnToggleSortMode:hover svg {
+  stroke: var(--rj-accent-cyan, #079183);
+}
+
+#btnToggleSortMode.active {
+  background-color: var(--rj-accent-cyan-soft, rgba(7, 145, 131, 0.18));
+  border-color: var(--rj-accent-cyan, #079183);
+  color: #14b8a6;
+}
+
+#btnToggleSortMode.active svg {
+  stroke: var(--rj-accent-cyan, #079183);
+}
+
+#btnAddQueueRow {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--rj-radius-sm, 4px);
+  background-color: #141719;
+  border: 1px solid #282b2e;
+  color: #c0c4c7;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#btnAddQueueRow:hover {
+  background-color: #1c2023;
+  border-color: #3a3e42;
+  color: #ffffff;
+}
+
+#btnAddQueueRow:hover svg {
+  stroke: var(--rj-accent-cyan, #079183);
 }
 
 
@@ -344,12 +495,48 @@ svg.rj-icon,
   background-color: rgba(255, 97, 97, 0.05);
 }
 
-.row-num {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--rj-text-ash, #6a6b6c);
-  min-width: 24px;
+.row-select-handle {
+  width: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.row-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rj-text-ash, #6a6b6c);
+  cursor: grab;
+  transition: color 0.15s ease;
+}
+
+.row-drag-handle:hover {
+  color: var(--rj-text-primary, #ffffff);
+}
+
+.row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.hud-queue-row.is-sorting {
+  cursor: grab;
+}
+
+.hud-queue-row.is-dragging {
+  opacity: 0.35;
+  border: 1px dashed var(--rj-accent-cyan, #079183);
+  background-color: var(--rj-bg-elevated, #101111);
+}
+
+.hud-queue-row.drag-over-top {
+  border-top: 2px solid var(--rj-accent-cyan, #079183);
+}
+
+.hud-queue-row.drag-over-bottom {
+  border-bottom: 2px solid var(--rj-accent-cyan, #079183);
 }
 
 /* Media Thumbnail Slots (State C & D) */
@@ -527,14 +714,6 @@ svg.rj-icon,
   color: var(--rj-accent-red, #ff6161);
 }
 
-.row-delete-btn {
-  opacity: 0.6;
-}
-
-.hud-queue-row:hover .row-delete-btn {
-  opacity: 1;
-}
-
 /* --------------------------------------------------------------------------
    Right Column: Parameters Sidebar
    -------------------------------------------------------------------------- */
@@ -544,6 +723,54 @@ svg.rj-icon,
   height: 100%;
   background-color: var(--rj-bg-surface, #0d0d0d);
   overflow: hidden;
+  position: relative;
+}
+
+/* Single Mode Empty Selection Placeholder */
+.sidebar-single-placeholder {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 16px;
+  gap: 10px;
+  user-select: none;
+}
+
+.sidebar-placeholder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--rj-bg-card, #121212);
+  border: 1px solid var(--rj-border-hairline, #242728);
+  margin-bottom: 2px;
+}
+
+.sidebar-placeholder-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--rj-text-ash, #6a6b6c);
+}
+
+.sidebar-placeholder-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rj-text-muted, #9c9c9d);
+  line-height: 1.4;
+  max-width: 190px;
+}
+
+.sidebar-placeholder-sub {
+  font-size: 10px;
+  color: var(--rj-text-ash, #6a6b6c);
+  line-height: 1.4;
+  max-width: 180px;
 }
 
 .hud-sidebar-scroll {

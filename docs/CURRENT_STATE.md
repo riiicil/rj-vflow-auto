@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping; Commit 4 complete: FlowImageDB IndexedDB binary storage engine, storage sanitization, and synchronous file upload crash fix)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping; Commit 4 complete: FlowImageDB IndexedDB binary storage engine, storage sanitization, and synchronous file upload crash fix; Commit 5 complete: Studio HUD queue toolbar redesign, multi-select checkboxes, sort controls, and single mode sidebar placeholder)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -82,8 +82,8 @@
   - `src/popup/popup.js` — Lightweight tab URL inspector toggling State 1 vs State 2 and handling direct page open.
 - **In-Page Studio Overlay HUD (`src/overlay/`):**
   - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation with container boundary detection (`.hud-sidebar-scroll` / `.hud-window`) and smart upward `.dropup` flipping.
-  - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons with explicit sizing, Studio HUD wireframe layout templates aligned 100% with `bahan/vflow-note.md`, Save draft button, and unified Start/Stop action button.
-  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px), window controls, universal SVG icon visibility, elevated footer (`#101111`), standardized footer action buttons (`#btnSaveQueue`, `#btnStartQueue` 30px x 78px), and collapsible floating pill (36px).
+  - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons with explicit sizing, Studio HUD wireframe layout templates aligned with `new note vflow.md`, redesigned queue toolbar (`#chkSelectAllQueue`, `selParamMode`, `#btnBulkDeleteQueue`, `#btnToggleSortMode`, `#btnAddQueueRow`), row items with multi-select checkboxes and drag handles, and `#sidebarSinglePlaceholder` single mode container.
+  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px), window controls, universal SVG icon visibility, elevated footer (`#101111`), custom `.rj-checkbox` styles, sort mode drag indicators, and single mode placeholder.
   - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, row-based queue management, glitch-free segmented buttons, strict model partitioning (Video vs Image), single reactive Start/Stop toggle button, and QueueManager execution wiring.
 - **Content & Background Workers (`src/content/`, `src/background/`):**
   - `src/content/content_loader.js` — Manifest V3 content script ES module dynamic bootstrap loader.
@@ -144,15 +144,16 @@
 - `src/content/content_loader.js` verified valid syntax via `node --check`.
 - `src/content/content_main.js` verified valid syntax via `node --check`.
 - `src/background/service_worker.js` verified valid syntax via `node --check`.
-- All 17 JS modules across `src/` verified passing `node --check` (0 errors).
+- All 18 JS modules across `src/` verified passing `node --check` (0 errors).
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
 - UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping verified syntax-valid.
+- Redesigned queue toolbar templates, multi-select checkboxes, sort mode handles, and single mode placeholder verified syntax-valid.
 - Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed with **Commit 4: IndexedDB Storage & Image Upload Crash Fix** (`src/core/FlowImageDB.js`, `src/core/FlowStorage.js`, `src/overlay/FlowHUDHost.js`).
+- Proceed with **Commit 6: HUD Event Orchestration & Interactive Handlers** (`src/overlay/FlowHUDHost.js`).
 
