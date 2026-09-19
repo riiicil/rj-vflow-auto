@@ -60,6 +60,7 @@ export const QUEUE_STATUS = {
 export const DEFAULT_CONFIG = {
   schemaVersion: SCHEMA_VERSION,
   mode: MEDIA_MODES.TEXT_TO_VIDEO,
+  paramMode: 'batch',
   model: MODELS.OMNI_FLASH,
   aspectRatio: '16:9',
   duration: '6s',
@@ -110,6 +111,7 @@ function migrateSchema(raw) {
   migrated.schemaVersion = SCHEMA_VERSION;
 
   // Ensure nested structures are not undefined
+  migrated.paramMode = raw.paramMode || 'batch';
   migrated.settings = Object.assign(clone(DEFAULT_CONFIG.settings), raw.settings || {});
   migrated.activeBatch = Object.assign(clone(DEFAULT_CONFIG.activeBatch), raw.activeBatch || {});
   if (!Array.isArray(migrated.queue)) {

@@ -50,6 +50,9 @@ export class FlowHUDHost {
     // Queue & Mode State
     this.queueItems = [];
     this.activeMode = 'text-to-video';
+    this.paramMode = 'batch';
+    this.isSortMode = false;
+    this.draggedRowIdx = null;
   }
 
   /**
@@ -70,6 +73,7 @@ export class FlowHUDHost {
       }
       this.isMinimized = Boolean(cfg.settings && cfg.settings.overlayMinimized);
       this.activeMode = cfg.mode || 'text-to-video';
+      this.paramMode = cfg.paramMode || 'batch';
     } catch (e) {
       console.warn('[FlowHUDHost] Failed to load initial state', e);
     }
@@ -77,6 +81,11 @@ export class FlowHUDHost {
     // 3. Load initial queue from storage
     try {
       this.queueItems = await getQueue();
+      if (Array.isArray(this.queueItems)) {
+        this.queueItems.forEach(it => {
+          if (typeof it.selected !== 'boolean') it.selected = false;
+        });
+      }
       await this.hydrateQueuePreviews();
     } catch (e) {
       this.queueItems = [];
@@ -302,28 +311,70 @@ export class FlowHUDHost {
       btnAddRow.addEventListener('click', () => this.addQueueRow());
     }
 
-    const btnPasteClip = this.shadow.getElementById('btnPasteClipboard');
-    if (btnPasteClip) {
-      btnPasteClip.addEventListener('click', () => this.pasteClipboard());
-    }
-
-    const btnImport = this.shadow.getElementById('btnImportFile');
-    const fileImport = this.shadow.getElementById('fileImportQueue');
-    if (btnImport && fileImport) {
-      btnImport.addEventListener('click', () => fileImport.click());
-      fileImport.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-          this.importFile(e.target.files[0]);
-          fileImport.value = '';
-        }
+    const chkSelectAll = this.shadow.getElementById('chkSelectAllQueue');
+    if (chkSelectAll) {
+      chkSelectAll.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        this.queueItems.forEach(item => {
+          item.selected = isChecked;
+        });
+        this.shadow.querySelectorAll('.row-select-checkbox').forEach(cb => {
+          cb.checked = isChecked;
+        });
+        this.updateSelectionUI();
       });
     }
 
-    const btnClearAll = this.shadow.getElementById('btnClearAllQueue');
-    if (btnClearAll) {
-      btnClearAll.addEventListener('click', async () => {
-        this.queueItems = [];
-        await clearAllQueue();
+    const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
+    if (btnBulkDelete) {
+      btnBulkDelete.addEventListener('click', async () => {
+        const toDelete = this.queueItems.filter(it => it.selected);
+        if (toDelete.length === 0) return;
+
+        // Clean up FlowImageDB records for deleted items
+        for (const item of toDelete) {
+          if (Array.isArray(item.ingredients)) {
+            for (const ing of item.ingredients) {
+              if (ing && ing.imageId) {
+                flowImageDB.deleteImage(ing.imageId).catch(() => {});
+              }
+            }
+          }
+          if (item.frames) {
+            for (const slot of ['start', 'end']) {
+              if (item.frames[slot]?.imageId) {
+                flowImageDB.deleteImage(item.frames[slot].imageId).catch(() => {});
+              }
+            }
+          }
+        }
+
+        // Remove deleted items from queue
+        this.queueItems = this.queueItems.filter(it => !it.selected);
+
+        // Re-render and update UI
+        this.renderQueueContent();
+        this.updateSelectionUI();
+        await this.saveCurrentQueue();
+      });
+    }
+
+    const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
+    if (btnToggleSort) {
+      btnToggleSort.addEventListener('click', () => {
+        this.isSortMode = !this.isSortMode;
+        btnToggleSort.classList.toggle('active', this.isSortMode);
+        this.renderQueueContent();
+      });
+    }
+
+    const selParam = this.shadow.getElementById('selParamMode');
+    if (selParam) {
+      selParam.value = this.paramMode;
+      selParam.addEventListener('change', async (e) => {
+        this.paramMode = e.target.value;
+        await saveConfig({ paramMode: this.paramMode });
+        this.updateSidebarParamModeUI();
         this.renderQueueContent();
       });
     }
@@ -332,10 +383,23 @@ export class FlowHUDHost {
     const selMode = this.shadow.getElementById('selGenerationMode');
     if (selMode) {
       selMode.addEventListener('change', async (e) => {
-        this.activeMode = e.target.value;
-        await saveConfig({ mode: this.activeMode });
-        this.syncModeUI(this.activeMode);
-        this.renderQueueContent();
+        const mode = e.target.value;
+        if (this.paramMode === 'single') {
+          const selected = this.queueItems.filter(it => it.selected);
+          if (selected.length > 0) {
+            selected.forEach(it => {
+              it.mode = mode;
+            });
+            this.syncModeUI(mode);
+            this.renderQueueContent();
+            await this.saveCurrentQueue();
+          }
+        } else {
+          this.activeMode = mode;
+          await saveConfig({ mode: this.activeMode });
+          this.syncModeUI(this.activeMode);
+          this.renderQueueContent();
+        }
       });
     }
 
@@ -343,21 +407,82 @@ export class FlowHUDHost {
     if (selModel) {
       selModel.addEventListener('change', async (e) => {
         const val = e.target.value;
-        await saveConfig({ model: val });
-        this.syncModelUI(val);
+        if (this.paramMode === 'single') {
+          const selected = this.queueItems.filter(it => it.selected);
+          if (selected.length > 0) {
+            selected.forEach(it => {
+              it.model = val;
+            });
+            this.syncModelUI(val);
+            await this.saveCurrentQueue();
+          }
+        } else {
+          await saveConfig({ model: val });
+          this.syncModelUI(val);
+        }
       });
     }
 
     // Segmented Button Groups (Duration, Aspect Ratio, Outputs)
-    this.setupSegmentGroup('segDuration', (val) => saveConfig({ duration: val }).catch(() => {}));
-    this.setupSegmentGroup('segAspectRatio', (val) => saveConfig({ aspectRatio: val }).catch(() => {}));
-    this.setupSegmentGroup('segOutputs', (val) => saveConfig({ outputCount: Number(val) }).catch(() => {}));
+    this.setupSegmentGroup('segDuration', async (val) => {
+      if (this.paramMode === 'single') {
+        const selected = this.queueItems.filter(it => it.selected);
+        if (selected.length > 0) {
+          selected.forEach(it => {
+            it.duration = val;
+          });
+          await this.saveCurrentQueue();
+        }
+      } else {
+        await saveConfig({ duration: val }).catch(() => {});
+      }
+    });
+
+    this.setupSegmentGroup('segAspectRatio', async (val) => {
+      if (this.paramMode === 'single') {
+        const selected = this.queueItems.filter(it => it.selected);
+        if (selected.length > 0) {
+          selected.forEach(it => {
+            it.aspectRatio = val;
+          });
+          await this.saveCurrentQueue();
+        }
+      } else {
+        await saveConfig({ aspectRatio: val }).catch(() => {});
+      }
+    });
+
+    this.setupSegmentGroup('segOutputs', async (val) => {
+      const count = Number(val);
+      if (this.paramMode === 'single') {
+        const selected = this.queueItems.filter(it => it.selected);
+        if (selected.length > 0) {
+          selected.forEach(it => {
+            it.outputs = count;
+            it.outputCount = count;
+          });
+          await this.saveCurrentQueue();
+        }
+      } else {
+        await saveConfig({ outputCount: count }).catch(() => {});
+      }
+    });
 
     const selRes = this.shadow.getElementById('selResolution');
     if (selRes) {
-      selRes.addEventListener('change', (e) => {
+      selRes.addEventListener('change', async (e) => {
         const val = e.target.value;
-        saveConfig({ videoResolution: val, imageResolution: val }).catch(() => {});
+        if (this.paramMode === 'single') {
+          const selected = this.queueItems.filter(it => it.selected);
+          if (selected.length > 0) {
+            selected.forEach(it => {
+              it.resolution = val;
+            });
+            await this.saveCurrentQueue();
+          }
+        } else {
+          saveConfig({ videoResolution: val, imageResolution: val }).catch(() => {});
+        }
       });
     }
 
@@ -513,12 +638,17 @@ export class FlowHUDHost {
       // State A: Empty State Dropzone
       container.innerHTML = renderEmptyDropzone();
       this.bindEmptyDropzoneEvents();
+      this.updateSelectionUI();
       return;
     }
 
     // State B, C, D: Render Rows
-    container.innerHTML = this.queueItems.map((it, idx) => renderQueueRow(it, idx, this.activeMode)).join('');
+    container.innerHTML = this.queueItems.map((it, idx) => {
+      const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
+      return renderQueueRow(it, idx, rowMode, this.isSortMode);
+    }).join('');
     this.bindRowEvents();
+    this.updateSelectionUI();
   }
 
   /**
@@ -528,7 +658,6 @@ export class FlowHUDHost {
     const dropzone = this.shadow.getElementById('hudEmptyDropzone');
     const fileInput = this.shadow.getElementById('fileEmptyDropzone');
     const btnQuickAdd = this.shadow.getElementById('btnQuickAddEmptyRow');
-    const btnQuickPaste = this.shadow.getElementById('btnQuickPasteClipboard');
 
     if (dropzone && fileInput) {
       dropzone.addEventListener('click', () => fileInput.click());
@@ -554,7 +683,6 @@ export class FlowHUDHost {
     }
 
     if (btnQuickAdd) btnQuickAdd.addEventListener('click', () => this.addQueueRow());
-    if (btnQuickPaste) btnQuickPaste.addEventListener('click', () => this.pasteClipboard());
   }
 
   /**
@@ -574,33 +702,85 @@ export class FlowHUDHost {
       });
     });
 
-    // 2. Delete row
-    container.querySelectorAll('.row-delete-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const idx = Number(btn.dataset.idx);
-        if (!isNaN(idx) && this.queueItems[idx]) {
-          const item = this.queueItems[idx];
-          if (Array.isArray(item.ingredients)) {
-            for (const ing of item.ingredients) {
-              if (ing && ing.imageId) {
-                flowImageDB.deleteImage(ing.imageId).catch(() => {});
-              }
-            }
-          }
-          if (item.frames) {
-            for (const slot of ['start', 'end']) {
-              if (item.frames[slot]?.imageId) {
-                flowImageDB.deleteImage(item.frames[slot].imageId).catch(() => {});
-              }
-            }
-          }
-          this.queueItems.splice(idx, 1);
-          this.renderQueueContent();
-          this.saveCurrentQueue().catch(() => {});
+    // 2. Row selection checkbox changes
+    container.querySelectorAll('.row-select-checkbox').forEach(cb => {
+      cb.addEventListener('change', (e) => {
+        const idx = Number(e.target.dataset.idx);
+        if (this.queueItems[idx]) {
+          this.queueItems[idx].selected = e.target.checked;
         }
+        this.updateSelectionUI();
       });
     });
+
+    // 3. Sort Mode Drag & Drop Reordering Handlers
+    if (this.isSortMode) {
+      const rows = container.querySelectorAll('.hud-queue-row');
+      rows.forEach(row => {
+        row.addEventListener('dragstart', (e) => {
+          const idx = Number(row.dataset.idx);
+          this.draggedRowIdx = idx;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(idx));
+          row.classList.add('is-dragging');
+        });
+
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+
+          const rect = row.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (e.clientY < midY) {
+            row.classList.add('drag-over-top');
+            row.classList.remove('drag-over-bottom');
+          } else {
+            row.classList.add('drag-over-bottom');
+            row.classList.remove('drag-over-top');
+          }
+        });
+
+        row.addEventListener('dragleave', (e) => {
+          if (!row.contains(e.relatedTarget)) {
+            row.classList.remove('drag-over-top', 'drag-over-bottom');
+          }
+        });
+
+        row.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const targetIdx = Number(row.dataset.idx);
+          const draggedIdx = this.draggedRowIdx;
+          const isBottom = row.classList.contains('drag-over-bottom');
+
+          row.classList.remove('drag-over-top', 'drag-over-bottom');
+
+          if (draggedIdx !== null && !isNaN(draggedIdx) && !isNaN(targetIdx) && draggedIdx !== targetIdx) {
+            const draggedItem = this.queueItems[draggedIdx];
+            const targetItem = this.queueItems[targetIdx];
+
+            if (draggedItem && targetItem) {
+              this.queueItems.splice(draggedIdx, 1);
+              const newTargetIdx = this.queueItems.indexOf(targetItem);
+              const insertIdx = isBottom ? newTargetIdx + 1 : newTargetIdx;
+              this.queueItems.splice(insertIdx, 0, draggedItem);
+
+              this.renderQueueContent();
+              this.saveCurrentQueue().catch(() => {});
+            }
+          }
+          this.draggedRowIdx = null;
+        });
+
+        row.addEventListener('dragend', () => {
+          container.querySelectorAll('.hud-queue-row').forEach(r => {
+            r.classList.remove('is-dragging', 'drag-over-top', 'drag-over-bottom');
+          });
+          this.draggedRowIdx = null;
+        });
+      });
+    }
 
     // 3. Media Slots (Single I2V / Edit-Image)
     container.querySelectorAll('.row-media-slot[data-slot="single"]').forEach(slot => {
@@ -771,16 +951,26 @@ export class FlowHUDHost {
    * Adds an empty queue row and focuses it.
    */
   addQueueRow(initialPrompt = '', media = null) {
+    const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
     const newItem = {
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       prompt: initialPrompt,
       status: 'pending',
+      selected: false,
+      mode: this.activeMode,
+      model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+      aspectRatio: '16:9',
+      duration: '6s',
+      outputs: 1,
+      resolution: isVideo ? '1080p' : '2K',
       ingredients: media?.ingredients || [],
       frames: media?.frames || {}
     };
 
     this.queueItems.push(newItem);
     this.renderQueueContent();
+    this.updateSelectionUI();
+    this.saveCurrentQueue().catch(() => {});
 
     // Focus the newly added prompt textarea
     const lastInput = this.shadow.querySelector(`.hud-queue-row[data-id="${newItem.id}"] .row-prompt-input`);
@@ -873,20 +1063,154 @@ export class FlowHUDHost {
    */
   async saveCurrentQueue() {
     const cfg = await getConfig();
-    const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
 
-    const normalizedItems = this.queueItems.map(it => ({
-      ...it,
-      mode: this.activeMode,
-      model: cfg.model || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro'),
-      aspectRatio: cfg.aspectRatio || '16:9',
-      duration: cfg.duration || '6s',
-      outputs: isVideo ? 1 : (cfg.outputCount || 1),
-      resolution: isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K'),
-      autoDownload: true
-    }));
+    const normalizedItems = this.queueItems.map(it => {
+      const mode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
+      const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+
+      return {
+        ...it,
+        mode,
+        model: (this.paramMode === 'single' && it.model)
+          ? it.model
+          : (cfg.model || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro')),
+        aspectRatio: (this.paramMode === 'single' && it.aspectRatio)
+          ? it.aspectRatio
+          : (cfg.aspectRatio || '16:9'),
+        duration: (this.paramMode === 'single' && it.duration)
+          ? it.duration
+          : (cfg.duration || '6s'),
+        outputs: isVideo ? 1 : (
+          (this.paramMode === 'single' && (it.outputs || it.outputCount))
+            ? (it.outputs || it.outputCount)
+            : (cfg.outputCount || 1)
+        ),
+        resolution: (this.paramMode === 'single' && it.resolution)
+          ? it.resolution
+          : (isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K')),
+        autoDownload: true
+      };
+    });
 
     await saveQueue(normalizedItems);
+  }
+
+  /**
+   * Updates selection counters, checkbox indeterminate state, bulk delete button,
+   * and single-mode parameter sidebar.
+   */
+  updateSelectionUI() {
+    const totalCount = this.queueItems.length;
+    const selectedCount = this.queueItems.filter(it => it.selected).length;
+
+    // 1. Select All Checkbox State & Indeterminate
+    const chkSelectAll = this.shadow.getElementById('chkSelectAllQueue');
+    if (chkSelectAll) {
+      chkSelectAll.checked = totalCount > 0 && selectedCount === totalCount;
+      chkSelectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+    }
+
+    // 2. Bulk Delete Button Visibility
+    const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
+    if (btnBulkDelete) {
+      btnBulkDelete.style.display = selectedCount > 0 ? 'inline-flex' : 'none';
+    }
+
+    // 3. Sidebar Parameters vs Placeholder
+    this.updateSidebarParamModeUI();
+  }
+
+  /**
+   * Updates sidebar visibility and controls based on paramMode ('batch' vs 'single')
+   * and current selection.
+   */
+  updateSidebarParamModeUI() {
+    const placeholder = this.shadow.getElementById('sidebarSinglePlaceholder');
+    const controls = this.shadow.getElementById('sidebarControls');
+    if (!placeholder || !controls) return;
+
+    if (this.paramMode === 'batch') {
+      placeholder.style.display = 'none';
+      controls.style.display = '';
+    } else {
+      // Single Mode
+      const selectedCount = this.queueItems.filter(it => it.selected).length;
+      if (selectedCount === 0) {
+        placeholder.style.display = 'flex';
+        controls.style.display = 'none';
+      } else {
+        placeholder.style.display = 'none';
+        controls.style.display = '';
+
+        const firstSelected = this.queueItems.find(it => it.selected);
+        if (firstSelected) {
+          this.syncSidebarControlsToItem(firstSelected);
+        }
+      }
+    }
+  }
+
+  /**
+   * Synchronizes sidebar controls to reflect an individual item's parameters.
+   */
+  syncSidebarControlsToItem(item) {
+    if (!item) return;
+
+    // 1. Generation Mode
+    const mode = item.mode || this.activeMode || 'text-to-video';
+    const selMode = this.shadow.getElementById('selGenerationMode');
+    if (selMode && selMode.value !== mode) {
+      selMode.value = mode;
+      CustomSelect.refresh(selMode);
+      this.syncModeUI(mode);
+    }
+
+    // 2. Model
+    const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+    const defaultModel = isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro';
+    const model = item.model || defaultModel;
+    const selModel = this.shadow.getElementById('selModelFamily');
+    if (selModel && selModel.value !== model) {
+      selModel.value = model;
+      CustomSelect.refresh(selModel);
+      this.syncModelUI(model);
+    }
+
+    // 3. Duration (Omni only)
+    const duration = item.duration || '6s';
+    const segDur = this.shadow.getElementById('segDuration');
+    if (segDur) {
+      segDur.querySelectorAll('.rj-segment-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === duration);
+      });
+    }
+
+    // 4. Aspect Ratio
+    const aspectRatio = item.aspectRatio || '16:9';
+    const segRatio = this.shadow.getElementById('segAspectRatio');
+    if (segRatio) {
+      segRatio.querySelectorAll('.rj-segment-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === aspectRatio);
+      });
+    }
+
+    // 5. Outputs
+    const outputs = String(item.outputs || item.outputCount || 1);
+    const segOut = this.shadow.getElementById('segOutputs');
+    if (segOut) {
+      segOut.querySelectorAll('.rj-segment-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === outputs);
+      });
+    }
+
+    // 6. Resolution
+    const defaultRes = isVideo ? '1080p' : '2K';
+    const resolution = item.resolution || defaultRes;
+    const selRes = this.shadow.getElementById('selResolution');
+    if (selRes && selRes.value !== resolution) {
+      selRes.value = resolution;
+      CustomSelect.refresh(selRes);
+    }
   }
 
   /**
@@ -1022,6 +1346,15 @@ export class FlowHUDHost {
       const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
       selRes.value = isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K');
     }
+
+    if (cfg.paramMode) {
+      this.paramMode = cfg.paramMode;
+    }
+    const selParam = this.shadow.getElementById('selParamMode');
+    if (selParam) {
+      selParam.value = this.paramMode;
+    }
+    this.updateSidebarParamModeUI();
 
     // Enhance native selects with CustomSelect dropdowns
     CustomSelect.initAll(this.shadow);

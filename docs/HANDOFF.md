@@ -8,9 +8,9 @@
 
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation & Realignment) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `a9043a8` (`feat(hud): redesign queue toolbar and row items with multi-select and sort controls`)
+- **Latest Commit**: `feat(hud): wire multi-select bulk delete sort reordering and single param mode bindings`
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational
+- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified
 
 ---
 
@@ -44,20 +44,25 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 8. **Commit 5 Complete (Session 21)**:
    - `src/overlay/FlowHUDTemplates.js`: Purged Close (`x`) button from window header controls, keeping only Minimize (`—`). Redesigned queue toolbar with Select All checkbox (`#chkSelectAllQueue`), `Set params:` parameter mode custom select (`Batch` vs `Single`), conditional bulk delete trash button (`#btnBulkDeleteQueue`, default `display: none`), sort mode toggle button (`#btnToggleSortMode`), and primary `+ Add Row` button (`#btnAddQueueRow`). Purged `Paste`, `Import CSV`, file input, and `Clear All`. Updated empty dropzone copy to *"Drop images or prompt TXT here"*. Redesigned queue row items: replaced row numbers with `.row-select-handle` (`.row-select-checkbox` and `.row-drag-handle`), completely removed individual row delete buttons. Added `#sidebarSinglePlaceholder` in `.hud-col-right` for Single mode empty row selection.
    - `src/overlay/overlay.css`: Implemented Raycast Dark Precision `.rj-checkbox` (15x15px, `#079183` accent check/indeterminate mark), styled toolbar param mode dropdown (`height: 26px`), bulk trash button, sort mode active state (`#14b8a6` color and soft cyan background), row select handle, grab/dragging visual states, and single mode sidebar placeholder.
+9. **Commit 6 Complete (Session 22)**:
+   - `src/overlay/FlowHUDHost.js`: Wired multi-select bulk delete (`#chkSelectAllQueue`, `.row-select-checkbox`, `#btnBulkDeleteQueue`) with automatic `FlowImageDB` cascading image binary deletion. Implemented sort mode HTML5 drag-and-drop reordering with `#btnToggleSortMode`, `.is-sorting` states, and precision array splicing. Wired `Set params:` parameter mode switching between `Batch` (global controls) and `Single` mode (hiding sidebar controls when 0 rows checked to show `#sidebarSinglePlaceholder`, and synchronizing controls specifically to selected row objects). Purged obsolete toolbar paste, CSV import, quick paste, and individual row delete listeners.
+   - `src/overlay/FlowHUDTemplates.js`: Purged dead `#btnQuickPasteClipboard` button from `renderEmptyDropzone()`.
+   - `src/core/FlowStorage.js`: Added `paramMode: 'batch'` default to `DEFAULT_CONFIG` and `migrateSchema`.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Commit 6: HUD Event Orchestration & Interactive Handlers**:
-   - Target files: `src/overlay/FlowHUDHost.js`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/agent-logs/2026-09-19.md`.
-   - Wire `#chkSelectAllQueue` change: toggles selection across all items in `this.queueItems`.
-   - Wire `.row-select-checkbox` change: updates `item.selected`; calculates `selectedCount`; dynamically shows/hides `#btnBulkDeleteQueue`; updates Select All checkbox checked & indeterminate states.
-   - Wire `#btnBulkDeleteQueue` click: deletes all selected rows, resets selection, auto-hides trash icon, and saves queue.
-   - Wire `#btnToggleSortMode` click: toggles sort active state; swaps row checkboxes for drag handles (`ICONS.GRIP_VERTICAL`); enables HTML5 `draggable="true"` on rows with drag-and-drop reordering.
-   - Wire `Set params:` mode switching: in `Batch` mode, show sidebar controls permanently; in `Single` mode, hide sidebar controls when 0 rows checked (show `#sidebarSinglePlaceholder`) and bind parameter changes specifically to selected row objects.
-2. **Commit 7: QueueManager Orchestration & Execution Branching**:
-   - Follow prioritized roadmap in `bahan/new note vflow.md:L1089-L1111`.
+1. **Commit 7: QueueManager Orchestration & Execution Branching**:
+   - Target files: `src/core/QueueManager.js`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/agent-logs/2026-09-19.md`.
+   - Execute `setupHeaderGridAndClearPrompt()` and `ensureAgentModeOff()` strictly **once** at the beginning of `QueueManager.start()` / `runLoop()`.
+   - Parameter Branching Orchestration:
+     - If `paramMode === 'batch'`: call `applySettings(batchConfig)` once before the generation loop; inside the loop skip opening prompt settings popover and traverse directly to media ingestion, prompt injection, and generation.
+     - If `paramMode === 'single'`: read each `nextItem` configuration inside the loop and call `applySettings(nextItem)` before media and prompt injection.
+   - Pass `item.resolution || cfg.targetResolution` to `downloadBatchTiles()`.
+   - Verify syntax with `node --check`.
+2. **Phase 4: End-to-End Integration & Multi-Language Stress Testing**:
+   - Proceed with multi-language and batch execution testing on `flow.google.com`.
 
 ---
 
@@ -78,7 +83,8 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 21 | 2026-09-19 | `task/dual-mode-ui` | `a9043a8` | Redesign queue toolbar, row items with multi-select, sort controls, and sidebar placeholder | Commit 6: HUD Event Orchestration & Interactive Handlers |
+| 22 | 2026-09-19 | `task/dual-mode-ui` | `HEAD` | Wire multi-select bulk delete, sort reordering, and single param mode bindings | Commit 7: QueueManager Orchestration & Execution Branching |
+| 21 | 2026-09-19 | `task/dual-mode-ui` | `e66a385` | Redesign queue toolbar, row items with multi-select, sort controls, and sidebar placeholder | Commit 6: HUD Event Orchestration & Interactive Handlers |
 | 20 | 2026-09-19 | `task/dual-mode-ui` | `f965737` | Implement FlowImageDB via indexedDB and fix asynchronous file upload crash | Commit 5: Studio HUD Templates & Row Redesign |
 | 19 | 2026-09-19 | `task/dual-mode-ui` | `6cde988` | Standardize accent tokens, vertical centering, button sizes, and dropdown clipping | Commit 4: IndexedDB Storage & Image Upload Crash Fix |
 | 18 | 2026-09-19 | `task/dual-mode-ui` | `28c8428` | Implement header grid setup and sequential interaction pacing delays | Commit 3: UI Tokens, Vertical Centering & Dropdown Clipping |

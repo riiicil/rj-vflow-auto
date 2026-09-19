@@ -245,10 +245,6 @@ export function renderEmptyDropzone() {
             ${ICONS.PLUS}
             <span>Add Empty Row</span>
           </button>
-          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnQuickPasteClipboard" type="button">
-            ${ICONS.CLIPBOARD}
-            <span>Paste from Clipboard</span>
-          </button>
         </div>
       </div>
     </div>
