@@ -313,8 +313,9 @@
   font-size: 11px;
   font-weight: 500;
   font-family: inherit;
-  padding: 5px 8px;
+  padding: 0 10px;
   height: 28px;
+  line-height: 1;
   box-sizing: border-box;
   border-radius: var(--rj-radius-sm);
   cursor: pointer;
@@ -327,6 +328,12 @@
   outline: none;
 }
 
+.rj-segment-btn span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 .rj-segment-btn:hover:not(.active):not(:disabled) {
   color: #c0c4c7;
   background-color: rgba(255, 255, 255, 0.05);
@@ -334,7 +341,7 @@
 
 .rj-segment-btn.active {
   background-color: #141719;
-  color: #57c1ff;
+  color: #14b8a6;
   font-weight: 600;
   border: 1px solid rgba(7, 145, 131, 0.6);
   box-shadow: 0 0 0 1px rgba(7, 145, 131, 0.2), 0 1px 4px rgba(0, 0, 0, 0.5);
@@ -349,9 +356,7 @@
 
 /* Base Icon Dimensions */
 .rj-icon,
-svg.rj-icon,
-.rj-btn svg,
-.rj-btn-icon svg {
+svg.rj-icon {
   width: 14px;
   height: 14px;
   min-width: 14px;
@@ -364,6 +369,21 @@ svg.rj-icon,
   stroke-linejoin: round;
   display: inline-block;
   vertical-align: middle;
+}
+
+.rj-btn svg,
+.rj-btn-icon svg {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
 }
 
 
@@ -380,10 +400,17 @@ svg.rj-icon,
   cursor: pointer;
   border: 1px solid transparent;
   padding: 6px 12px;
+  line-height: 1;
   transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   text-decoration: none;
   box-sizing: border-box;
   white-space: nowrap;
+}
+
+.rj-btn span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .rj-btn:active {
@@ -577,6 +604,6 @@ svg.rj-icon,
 }
 
 .rj-platform-link:hover {
-  color: #57c1ff;
+  color: #14b8a6;
 }
 

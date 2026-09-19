@@ -189,11 +189,12 @@ export class CustomSelect {
 
     if (typeof window !== 'undefined' && trigger && dropdown) {
       const rect = trigger.getBoundingClientRect();
-      const viewportHeight = window.innerHeight || 600;
-      const spaceBelow = viewportHeight - rect.bottom;
-      const spaceAbove = rect.top;
+      const container = trigger.closest('.hud-sidebar-scroll') || trigger.closest('.hud-window');
+      const containerRect = container ? container.getBoundingClientRect() : { bottom: window.innerHeight || 600, top: 0 };
+      const spaceBelow = containerRect.bottom - rect.bottom;
+      const spaceAbove = rect.top - containerRect.top;
 
-      if (spaceBelow < 180 && spaceAbove > spaceBelow) {
+      if (spaceBelow < 170 && spaceAbove > spaceBelow) {
         dropdown.classList.add('dropup');
         const maxH = Math.min(220, Math.max(100, Math.floor(spaceAbove - 16)));
         dropdown.style.maxHeight = `${maxH}px`;
@@ -222,6 +223,7 @@ export class CustomSelect {
     instance.wrapper.classList.remove('open');
     if (instance.dropdown) {
       instance.dropdown.classList.remove('dropup');
+      instance.dropdown.style.maxHeight = '';
     }
   }
 
@@ -231,6 +233,7 @@ export class CustomSelect {
       inst.wrapper.classList.remove('open');
       if (inst.dropdown) {
         inst.dropdown.classList.remove('dropup');
+        inst.dropdown.style.maxHeight = '';
       }
     });
   }

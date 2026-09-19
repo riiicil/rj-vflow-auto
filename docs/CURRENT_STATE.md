@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -74,15 +74,15 @@
   - `src/services/FlowActionService.js` — Service alias re-exporting `FlowDownloadService` / `flowDownloadService`.
 - **Design System Tokens (`src/styles/`):**
   - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`) pierced through `:root, :host`.
-  - `src/styles/components.css` — Raycast Dark Precision component styling (cards, status badges, platform warnings, field groups, inputs, buttons, custom selects, segmented groups, active/inactive states) ported from RJ AIO Metadata.
+  - `src/styles/components.css` — Raycast Dark Precision component styling (cards, status badges, platform warnings, field groups, inputs, buttons with `line-height: 1`, block icon glyphs, custom selects, segmented groups with `0 10px` padding and active `#14b8a6` color) ported from RJ AIO Metadata.
 - **Minimalist Toolbar Popup Launcher (`src/popup/`):**
   - `src/popup/popup.html` — Ultra-minimal popup layout (320px) matching blueprint lines 451-476: brand header (`logo_rj.png`, `V-Flow`, `v3.0.0`), State 1 (Warning icon + `Google Flow Not Detected` + open link) vs State 2 (Check icon + `Connected to Google Flow` + ready description). Zero extraneous controls or telemetry clutter.
   - `src/popup/popup.css` — Compact 320px styling adhering strictly to Raycast Dark Precision design tokens.
   - `src/popup/popup.js` — Lightweight tab URL inspector toggling State 1 vs State 2 and handling direct page open.
 - **In-Page Studio Overlay HUD (`src/overlay/`):**
-  - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation with hidden option/optgroup filtering.
+  - `src/overlay/CustomSelect.js` — Pure JavaScript custom dropdown select component adapted for Shadow DOM encapsulation with container boundary detection (`.hud-sidebar-scroll` / `.hud-window`) and smart upward `.dropup` flipping.
   - `src/overlay/FlowHUDTemplates.js` — Modular SVG icons with explicit sizing, Studio HUD wireframe layout templates aligned 100% with `bahan/vflow-note.md`, Save draft button, and unified Start/Stop action button.
-  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px), window controls, universal SVG icon visibility, elevated footer (`#101111`), high-contrast toolbar buttons, and collapsible floating pill (36px).
+  - `src/overlay/overlay.css` — Isolated Shadow DOM styles for two-column studio HUD (820x520px), window controls, universal SVG icon visibility, elevated footer (`#101111`), standardized footer action buttons (`#btnSaveQueue`, `#btnStartQueue` 30px x 78px), and collapsible floating pill (36px).
   - `src/overlay/FlowHUDHost.js` — Open Shadow DOM host mounting `#flow-auto-hud-root`, fluid drag physics, boundary clamping, row-based queue management, glitch-free segmented buttons, strict model partitioning (Video vs Image), single reactive Start/Stop toggle button, and QueueManager execution wiring.
 - **Content & Background Workers (`src/content/`, `src/background/`):**
   - `src/content/content_loader.js` — Manifest V3 content script ES module dynamic bootstrap loader.
@@ -102,7 +102,7 @@
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
   - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 12).
-  - `docs/agent-logs/2026-09-19.md` — Granular daily audit trail (Session Entries 17 and 18).
+  - `docs/agent-logs/2026-09-19.md` — Granular daily audit trail (Session Entries 1, 2, and 3).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `bahan/new note vflow.md` — Architectural defect analysis, UI redesign, and 7-commit execution roadmap.
@@ -146,12 +146,12 @@
 - All 17 JS modules across `src/` verified passing `node --check` (0 errors).
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
-- Header grid setup, sequential interaction pacing delays, and itemParams support verified syntax-valid.
+- UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping verified syntax-valid.
 - Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed with **Commit 3: UI Tokens, Vertical Alignment & Dropdown Clipping** (`src/styles/components.css`, `src/overlay/overlay.css`, `src/overlay/CustomSelect.js`).
+- Proceed with **Commit 4: IndexedDB Storage & Image Upload Crash Fix** (`src/core/FlowImageDB.js`, `src/core/FlowStorage.js`, `src/overlay/FlowHUDHost.js`).
 

@@ -208,7 +208,7 @@ svg.rj-icon,
 }
 
 .toolbar-left .rj-btn-secondary:hover svg {
-  stroke: #57c1ff;
+  stroke: var(--rj-accent-cyan, #079183);
 }
 
 .toolbar-right {
@@ -608,9 +608,36 @@ svg.rj-icon,
   gap: 8px;
 }
 
-/* Single Start/Stop Reactive Action Button */
+/* Standardized Footer Action Buttons */
+#btnSaveQueue,
 #btnStartQueue {
-  min-width: 76px;
+  height: 30px;
+  min-width: 78px;
+  box-sizing: border-box;
+  border-radius: var(--rj-radius-sm, 6px);
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  font-size: 11px;
+}
+
+#btnSaveQueue {
+  background-color: var(--rj-bg-elevated, #101111);
+  color: var(--rj-text-primary, #ffffff);
+  border: 1px solid var(--rj-border-hairline, #242728);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#btnSaveQueue:hover {
+  background-color: var(--rj-bg-card, #121212);
+  border-color: var(--rj-border-strong, rgba(255, 255, 255, 0.16));
+}
+
+#btnStartQueue {
+  border: 1px solid transparent;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
