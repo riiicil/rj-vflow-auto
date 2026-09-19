@@ -21,6 +21,7 @@ import {
 import { queueManager, QUEUE_STATES } from '../core/QueueManager.js';
 import { renderStudioLayout, renderEmptyDropzone, renderQueueRow, ICONS } from './FlowHUDTemplates.js';
 import { CustomSelect } from './CustomSelect.js';
+import { flowImageDB } from '../core/FlowImageDB.js';
 
 export class FlowHUDHost {
   constructor() {
@@ -76,6 +77,7 @@ export class FlowHUDHost {
     // 3. Load initial queue from storage
     try {
       this.queueItems = await getQueue();
+      await this.hydrateQueuePreviews();
     } catch (e) {
       this.queueItems = [];
     }
@@ -141,6 +143,46 @@ export class FlowHUDHost {
       }
     } catch (err) {
       console.warn('[FlowHUDHost] Failed to recover stale batch state', err);
+    }
+  }
+
+  /**
+   * Hydrates in-memory image preview URLs from FlowImageDB for items loaded from storage.
+   */
+  async hydrateQueuePreviews() {
+    if (!Array.isArray(this.queueItems) || this.queueItems.length === 0) return;
+
+    for (const item of this.queueItems) {
+      if (Array.isArray(item.ingredients)) {
+        for (const ing of item.ingredients) {
+          if (ing && typeof ing === 'object' && ing.imageId && !ing.dataUrl) {
+            try {
+              const record = await flowImageDB.getImage(ing.imageId);
+              if (record && (record.blob || record.file)) {
+                ing.dataUrl = URL.createObjectURL(record.blob || record.file);
+              }
+            } catch (err) {
+              console.warn('[FlowHUDHost] Failed to hydrate ingredient preview', err);
+            }
+          }
+        }
+      }
+
+      if (item.frames && typeof item.frames === 'object') {
+        for (const slot of ['start', 'end']) {
+          const frame = item.frames[slot];
+          if (frame && typeof frame === 'object' && frame.imageId && !frame.dataUrl) {
+            try {
+              const record = await flowImageDB.getImage(frame.imageId);
+              if (record && (record.blob || record.file)) {
+                frame.dataUrl = URL.createObjectURL(record.blob || record.file);
+              }
+            } catch (err) {
+              console.warn('[FlowHUDHost] Failed to hydrate frame preview', err);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -537,7 +579,22 @@ export class FlowHUDHost {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = Number(btn.dataset.idx);
-        if (!isNaN(idx)) {
+        if (!isNaN(idx) && this.queueItems[idx]) {
+          const item = this.queueItems[idx];
+          if (Array.isArray(item.ingredients)) {
+            for (const ing of item.ingredients) {
+              if (ing && ing.imageId) {
+                flowImageDB.deleteImage(ing.imageId).catch(() => {});
+              }
+            }
+          }
+          if (item.frames) {
+            for (const slot of ['start', 'end']) {
+              if (item.frames[slot]?.imageId) {
+                flowImageDB.deleteImage(item.frames[slot].imageId).catch(() => {});
+              }
+            }
+          }
           this.queueItems.splice(idx, 1);
           this.renderQueueContent();
           this.saveCurrentQueue().catch(() => {});
@@ -556,40 +613,59 @@ export class FlowHUDHost {
       });
 
       if (fileInp) {
-        fileInp.addEventListener('change', (e) => {
-          if (e.target.files && e.target.files[0]) {
-            this.readFileAsDataUrl(e.target.files[0], (dataUrl) => {
+        fileInp.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          const fileName = file.name;
+          try {
+            const imageId = await flowImageDB.saveImage(file, fileName);
+            this.readFileAsDataUrl(file, (dataUrl) => {
               if (this.queueItems[idx]) {
-                this.queueItems[idx].ingredients = [{ dataUrl, name: e.target.files[0].name }];
+                this.queueItems[idx].ingredients = [{ imageId, dataUrl, name: fileName }];
                 this.renderQueueContent();
+                this.saveCurrentQueue().catch(() => {});
               }
             });
+          } catch (err) {
+            console.error('[FlowHUDHost] Failed to save image to FlowImageDB', err);
           }
         });
       }
 
       slot.addEventListener('dragover', (e) => e.preventDefault());
-      slot.addEventListener('drop', (e) => {
+      slot.addEventListener('drop', async (e) => {
         e.preventDefault();
-        if (e.dataTransfer?.files?.[0]) {
-          this.readFileAsDataUrl(e.dataTransfer.files[0], (dataUrl) => {
+        const file = e.dataTransfer?.files?.[0];
+        if (!file) return;
+        const fileName = file.name;
+        try {
+          const imageId = await flowImageDB.saveImage(file, fileName);
+          this.readFileAsDataUrl(file, (dataUrl) => {
             if (this.queueItems[idx]) {
-              this.queueItems[idx].ingredients = [{ dataUrl, name: e.dataTransfer.files[0].name }];
+              this.queueItems[idx].ingredients = [{ imageId, dataUrl, name: fileName }];
               this.renderQueueContent();
+              this.saveCurrentQueue().catch(() => {});
             }
           });
+        } catch (err) {
+          console.error('[FlowHUDHost] Failed to save dropped image to FlowImageDB', err);
         }
       });
     });
 
     // Remove thumbnail
     container.querySelectorAll('.row-remove-thumb-btn[data-slot="single"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const idx = Number(btn.dataset.idx);
         if (this.queueItems[idx]) {
+          const oldIng = this.queueItems[idx].ingredients?.[0];
+          if (oldIng && oldIng.imageId) {
+            await flowImageDB.deleteImage(oldIng.imageId).catch(() => {});
+          }
           this.queueItems[idx].ingredients = [];
           this.renderQueueContent();
+          this.saveCurrentQueue().catch(() => {});
         }
       });
     });
@@ -606,42 +682,61 @@ export class FlowHUDHost {
         });
 
         if (fileInp) {
-          fileInp.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files[0]) {
-              this.readFileAsDataUrl(e.target.files[0], (dataUrl) => {
+          fileInp.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const fileName = file.name;
+            try {
+              const imageId = await flowImageDB.saveImage(file, fileName);
+              this.readFileAsDataUrl(file, (dataUrl) => {
                 if (this.queueItems[idx]) {
                   this.queueItems[idx].frames = this.queueItems[idx].frames || {};
-                  this.queueItems[idx].frames[slotType] = dataUrl;
+                  this.queueItems[idx].frames[slotType] = { imageId, dataUrl, name: fileName };
                   this.renderQueueContent();
+                  this.saveCurrentQueue().catch(() => {});
                 }
               });
+            } catch (err) {
+              console.error('[FlowHUDHost] Failed to save frame to FlowImageDB', err);
             }
           });
         }
 
         slot.addEventListener('dragover', (e) => e.preventDefault());
-        slot.addEventListener('drop', (e) => {
+        slot.addEventListener('drop', async (e) => {
           e.preventDefault();
-          if (e.dataTransfer?.files?.[0]) {
-            this.readFileAsDataUrl(e.dataTransfer.files[0], (dataUrl) => {
+          const file = e.dataTransfer?.files?.[0];
+          if (!file) return;
+          const fileName = file.name;
+          try {
+            const imageId = await flowImageDB.saveImage(file, fileName);
+            this.readFileAsDataUrl(file, (dataUrl) => {
               if (this.queueItems[idx]) {
                 this.queueItems[idx].frames = this.queueItems[idx].frames || {};
-                this.queueItems[idx].frames[slotType] = dataUrl;
+                this.queueItems[idx].frames[slotType] = { imageId, dataUrl, name: fileName };
                 this.renderQueueContent();
+                this.saveCurrentQueue().catch(() => {});
               }
             });
+          } catch (err) {
+            console.error('[FlowHUDHost] Failed to save dropped frame to FlowImageDB', err);
           }
         });
       });
 
       // Remove frame
       container.querySelectorAll(`.row-remove-thumb-btn[data-slot="${slotType}"]`).forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const idx = Number(btn.dataset.idx);
           if (this.queueItems[idx] && this.queueItems[idx].frames) {
+            const oldFrame = this.queueItems[idx].frames[slotType];
+            if (oldFrame && typeof oldFrame === 'object' && oldFrame.imageId) {
+              await flowImageDB.deleteImage(oldFrame.imageId).catch(() => {});
+            }
             delete this.queueItems[idx].frames[slotType];
             this.renderQueueContent();
+            this.saveCurrentQueue().catch(() => {});
           }
         });
       });
@@ -727,15 +822,22 @@ export class FlowHUDHost {
       if (name.endsWith('.txt') || name.endsWith('.csv')) {
         await this.importFile(file);
       } else if (file.type.startsWith('image/')) {
-        this.readFileAsDataUrl(file, (dataUrl) => {
-          this.queueItems.push({
-            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-            prompt: file.name.replace(/\.[^/.]+$/, ''),
-            status: 'pending',
-            ingredients: [{ dataUrl, name: file.name }]
+        const fileName = file.name;
+        try {
+          const imageId = await flowImageDB.saveImage(file, fileName);
+          this.readFileAsDataUrl(file, (dataUrl) => {
+            this.queueItems.push({
+              id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+              prompt: fileName.replace(/\.[^/.]+$/, ''),
+              status: 'pending',
+              ingredients: [{ imageId, dataUrl, name: fileName }]
+            });
+            this.renderQueueContent();
+            this.saveCurrentQueue().catch(() => {});
           });
-          this.renderQueueContent();
-        });
+        } catch (err) {
+          console.error('[FlowHUDHost] Failed to save bulk image to FlowImageDB', err);
+        }
       }
     }
   }

@@ -8,9 +8,9 @@
 
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation & Realignment) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `6cde988` (`style(ui): standardize accent tokens vertical centering button sizes and dropdown clipping`)
+- **Latest Commit**: `f965737` (`feat(storage): implement FlowImageDB via indexedDB and fix asynchronous file upload crash`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 17 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified
+- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational
 
 ---
 
@@ -34,16 +34,23 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
    - `src/styles/components.css`: Refactored `.rj-segment-btn.active` to use `color: #14b8a6;` and aligned `.rj-platform-link:hover`. Enforced `line-height: 1;` on `.rj-btn` and child spans, `display: block;` on button SVGs, and adjusted `.rj-segment-btn` padding to `0 10px; height: 28px; line-height: 1;` for exact vertical font dead-centering.
    - `src/overlay/overlay.css`: Standardized toolbar icon hover strokes to `var(--rj-accent-cyan, #079183)`. Standardized `#btnSaveQueue` and `#btnStartQueue` in HUD footer to identical geometry (`height: 30px; min-width: 78px; box-sizing: border-box; border-radius: var(--rj-radius-sm, 6px);`).
    - `src/overlay/CustomSelect.js`: Evaluated available space against `.hud-sidebar-scroll` or `.hud-window` container, triggering upward `.dropup` when `spaceBelow < 170px`, eliminating menu clipping at the bottom of the Studio HUD sidebar.
+7. **Commit 4 Complete (Session 20)**:
+   - `src/core/FlowImageDB.js`: Implemented native IndexedDB storage engine (`vflowImageDB`, store `images`) with `saveImage()`, `getImage()`, `getImageBlob()`, `deleteImage()`, `clearImages()`, and `cleanupUnreferenced()`. Stores high-resolution image binaries locally under unique UUIDs, immune to Chrome's 5MB `chrome.storage.local` quota.
+   - `src/core/FlowStorage.js`: Added `sanitizeQueueForStorage()` to strip heavy Base64 data URLs when `imageId` is present, protecting extension storage integrity.
+   - `src/overlay/FlowHUDHost.js`: Fixed Chromium asynchronous event nullification bug (`TypeError: Cannot read properties of null (reading 'files')`) by capturing `file` and `fileName` synchronously in change/drop handlers. Persisted images to `flowImageDB`, implemented database deletion cleanup on row/thumbnail removal, and hydrated previews on `init()` using `URL.createObjectURL`.
+   - `src/core/QueueManager.js`: Resolved raw `Blob`/`File` binaries directly from `flowImageDB.getImage(imageId)` during `processItem()`.
+   - `src/overlay/FlowHUDTemplates.js`: Handled frame slot objects `{ imageId, dataUrl }` safely in `renderQueueRow`.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Commit 4: IndexedDB Storage & Image Upload Crash Fix**:
-   - Implement `src/core/FlowImageDB.js` using IndexedDB (`vflowImageDB`, store `images`) for storing high-resolution image binaries locally without exceeding Chrome's 5MB quota.
-   - Fix synchronous image file ingestion in `src/overlay/FlowHUDHost.js`: capture `const file = e.target.files[0]; const fileName = file.name;` synchronously before calling `readFileAsDataUrl`, store image binary in `FlowImageDB`, saving UUID in queue item metadata.
-2. **Commit 5 through Commit 7**:
-   - Follow prioritized roadmap in `bahan/new note vflow.md:L1008-L1111`.
+1. **Commit 5: Studio HUD Templates & Row Redesign**:
+   - Target files: `src/overlay/FlowHUDTemplates.js`, `src/overlay/overlay.css`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/agent-logs/2026-09-19.md`.
+   - Redesign queue toolbar header: purge legacy toolbar, implement `#chkSelectAllQueue`, `Set params:` mode dropdown (`Batch` / `Single`), bulk trash, and sort button.
+   - Redesign queue rows with multi-select checkboxes, DragHandle, and status badge.
+2. **Commit 6 through Commit 7**:
+   - Follow prioritized roadmap in `bahan/new note vflow.md:L1042-L1111`.
 
 ---
 
@@ -64,6 +71,7 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
+| 20 | 2026-09-19 | `task/dual-mode-ui` | `f965737` | Implement FlowImageDB via indexedDB and fix asynchronous file upload crash | Commit 5: Studio HUD Templates & Row Redesign |
 | 19 | 2026-09-19 | `task/dual-mode-ui` | `6cde988` | Standardize accent tokens, vertical centering, button sizes, and dropdown clipping | Commit 4: IndexedDB Storage & Image Upload Crash Fix |
 | 18 | 2026-09-19 | `task/dual-mode-ui` | `28c8428` | Implement header grid setup and sequential interaction pacing delays | Commit 3: UI Tokens, Vertical Centering & Dropdown Clipping |
 | 17 | 2026-09-19 | `task/dual-mode-ui` | `3dbba27` | Resolve false generation failure with 4-state lifecycle and update resilient selectors | Commit 2: Automation Services Pacing & Header Grid Setup |

@@ -22,6 +22,7 @@ import { flowPromptService } from '../services/FlowPromptService.js';
 import { flowWatcherService } from '../services/FlowWatcherService.js';
 import { flowDownloadService } from '../services/FlowDownloadService.js';
 import { logger } from '../services/LoggerService.js';
+import { flowImageDB } from './FlowImageDB.js';
 
 export const QUEUE_STATES = {
   IDLE: 'idle',
@@ -244,16 +245,43 @@ export class QueueManager {
         logger.step('ingredients', `${item.ingredients.length} media file(s)`);
         await flowIngredientService.clearIngredients();
         for (const ing of item.ingredients) {
-          await flowIngredientService.injectMediaToFlow(ing.dataUrl || ing, ing.name || 'ingredient.png');
+          let mediaPayload = (ing && typeof ing === 'object' ? (ing.dataUrl || ing) : ing);
+          let mediaName = (ing && typeof ing === 'object' ? ing.name : 'ingredient.png') || 'ingredient.png';
+          if (ing && ing.imageId) {
+            const dbRecord = await flowImageDB.getImage(ing.imageId);
+            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+              mediaPayload = dbRecord.blob || dbRecord.file;
+              mediaName = dbRecord.name || mediaName;
+            }
+          }
+          await flowIngredientService.injectMediaToFlow(mediaPayload, mediaName);
         }
       } else if (item.frames && (item.frames.start || item.frames.end)) {
         logger.step('frames', 'Injecting start & end frames');
         await flowIngredientService.clearIngredients();
         if (item.frames.start) {
-          await flowIngredientService.setFrameSlot('start', item.frames.start);
+          let startPayload = (typeof item.frames.start === 'object' ? item.frames.start.dataUrl : item.frames.start) || item.frames.start;
+          let startName = item.frames.start?.name || 'start_frame.png';
+          if (item.frames.start?.imageId) {
+            const dbRecord = await flowImageDB.getImage(item.frames.start.imageId);
+            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+              startPayload = dbRecord.blob || dbRecord.file;
+              startName = dbRecord.name || startName;
+            }
+          }
+          await flowIngredientService.setFrameSlot('start', startPayload, startName);
         }
         if (item.frames.end) {
-          await flowIngredientService.setFrameSlot('end', item.frames.end);
+          let endPayload = (typeof item.frames.end === 'object' ? item.frames.end.dataUrl : item.frames.end) || item.frames.end;
+          let endName = item.frames.end?.name || 'end_frame.png';
+          if (item.frames.end?.imageId) {
+            const dbRecord = await flowImageDB.getImage(item.frames.end.imageId);
+            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+              endPayload = dbRecord.blob || dbRecord.file;
+              endName = dbRecord.name || endName;
+            }
+          }
+          await flowIngredientService.setFrameSlot('end', endPayload, endName);
         }
       }
 

@@ -137,6 +137,43 @@ export async function getConfig() {
 }
 
 /**
+ * Sanitizes queue items for chrome.storage.local persistence.
+ * Strips heavy dataUrl Base64 payloads if imageId reference is present,
+ * safeguarding against the 5MB extension storage quota limit.
+ */
+export function sanitizeQueueForStorage(queue) {
+  if (!Array.isArray(queue)) return [];
+
+  return queue.map(item => {
+    const cleanItem = { ...item };
+
+    if (Array.isArray(cleanItem.ingredients)) {
+      cleanItem.ingredients = cleanItem.ingredients.map(ing => {
+        if (ing && typeof ing === 'object' && ing.imageId) {
+          const { dataUrl, ...rest } = ing;
+          return rest;
+        }
+        return ing;
+      });
+    }
+
+    if (cleanItem.frames && typeof cleanItem.frames === 'object') {
+      const cleanFrames = { ...cleanItem.frames };
+      for (const slot of ['start', 'end']) {
+        const frame = cleanFrames[slot];
+        if (frame && typeof frame === 'object' && frame.imageId) {
+          const { dataUrl, ...rest } = frame;
+          cleanFrames[slot] = rest;
+        }
+      }
+      cleanItem.frames = cleanFrames;
+    }
+
+    return cleanItem;
+  });
+}
+
+/**
  * Persists updates to chrome.storage.local with 50ms debouncing.
  */
 export function saveConfig(updates) {
@@ -146,6 +183,10 @@ export function saveConfig(updates) {
     }
 
     // Merge updates into cachedConfig
+    if (updates.queue && Array.isArray(updates.queue)) {
+      updates.queue = sanitizeQueueForStorage(updates.queue);
+    }
+
     Object.assign(cachedConfig, updates);
     if (updates.settings) {
       cachedConfig.settings = Object.assign(cachedConfig.settings || {}, updates.settings);
@@ -192,7 +233,8 @@ export async function getQueue() {
  * Overwrites current queue with new array of items.
  */
 export async function saveQueue(queue) {
-  return saveConfig({ queue: Array.isArray(queue) ? queue : [] });
+  const sanitized = sanitizeQueueForStorage(Array.isArray(queue) ? queue : []);
+  return saveConfig({ queue: sanitized });
 }
 
 /**

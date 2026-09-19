@@ -274,8 +274,8 @@ export function renderQueueRow(item, index, mode = 'text-to-video') {
       </div>
     `;
   } else if (isFramesMode) {
-    const startSrc = item.frames?.start || null;
-    const endSrc = item.frames?.end || null;
+    const startSrc = (typeof item.frames?.start === 'object' ? item.frames?.start?.dataUrl : item.frames?.start) || null;
+    const endSrc = (typeof item.frames?.end === 'object' ? item.frames?.end?.dataUrl : item.frames?.end) || null;
     mediaSlotHtml = `
       <div class="row-frames-group">
         <!-- Start Frame -->

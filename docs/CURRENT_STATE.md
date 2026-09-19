@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping; Commit 4 complete: FlowImageDB IndexedDB binary storage engine, storage sanitization, and synchronous file upload crash fix)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -62,8 +62,9 @@
   - `icons/` — Optimized branding icons (`icon16.png`, `icon48.png`, `icon128.png`, `logo_rj.png`).
 - **Core Automation Engine (`src/core/`):**
   - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, pseudo `:has-text` support, MutationObserver waiters, 4-state lifecycle validators (`isCardGenerationSuccess`, `isCardGenerationFailed`), and centralized `sleep(ms)` pacing utility.
-  - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
-  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services with 1000ms download pacing.
+  - `src/core/FlowImageDB.js` — IndexedDB binary storage engine (`vflowImageDB`, store `images`) storing raw Blob/File binaries locally under unique UUIDs, bypassing Chrome's 5MB `chrome.storage.local` quota limit.
+  - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, `sanitizeQueueForStorage` quota protection, and reactive change listeners.
+  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle with direct IndexedDB binary ingestion and 1000ms download pacing.
 - **Specialized Automation Services (`src/services/`):**
   - `src/services/LoggerService.js` — Unified colorized console logging engine with `[RJ V-Flow Auto]` prefix and methods (`banner`, `item`, `step`, `info`, `success`, `warn`, `error`) matching RJ AIO Metadata standard.
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, creative agent mode suppression, `setupHeaderGridAndClearPrompt()` header automation, sequential pacing delays, and `applySettings(itemParams)` row parameter support.
