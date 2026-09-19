@@ -12,11 +12,16 @@ import {
   query,
   queryAll,
   waitForCondition,
-  isCardGenerationSuccess
+  isCardGenerationSuccess,
+  isCardGenerationFailed
 } from '../core/FlowDOM.js';
 import { logger } from './LoggerService.js';
 
 export class FlowWatcherService {
+  constructor() {
+    this.blankTransitionTimers = new WeakMap();
+  }
+
   /**
    * Retrieves the top-most (newest) batch container in the grid gallery.
    * Angular CDK Virtual Scroll unmounts older batches upon scrolling,
@@ -36,7 +41,11 @@ export class FlowWatcherService {
   }
 
   /**
-   * Evaluates the lifecycle state of a single tile card.
+   * Evaluates the lifecycle state of a single tile card using the 4-State Protocol:
+   * 1. PENDING_RENDERING: progress bar, pending tile, or percent text active.
+   * 2. BLANK_TRANSITION: rendering finished, no media src yet, no error tile (10s grace period).
+   * 3. DEFINITIVE_SUCCESS: isCardGenerationSuccess === true.
+   * 4. DEFINITIVE_FAILURE: isCardGenerationFailed === true or grace period exceeded (>10s).
    */
   getTileStatus(tileElement) {
     if (!tileElement) {
@@ -46,14 +55,13 @@ export class FlowWatcherService {
     const isPending = (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') ||
       Boolean(tileElement.querySelector('flow-pending-tile'));
     const isProgressActive = Boolean(tileElement.querySelector('.progress-bar, .progress-bar-fill'));
-    const isRendering = isPending || isProgressActive;
+    const hasPercentText = Array.from(tileElement.querySelectorAll('div, span')).some(
+      el => /^\d+%$/.test((el.textContent || '').trim())
+    );
+    const isRendering = isPending || isProgressActive || hasPercentText;
 
     const isSuccess = isCardGenerationSuccess(tileElement);
-
-    const hasErrorBadge = Boolean(tileElement.querySelector(SELECTORS.CARD_ERROR));
-    const hasErrorClass = tileElement.classList.contains('failed') ||
-      tileElement.classList.contains('blurred-error');
-    const isFailed = !isRendering && (hasErrorBadge || hasErrorClass || !isSuccess);
+    const hasDefinitiveFailure = isCardGenerationFailed(tileElement);
 
     let mediaType = 'unknown';
     let mediaSrc = '';
@@ -64,19 +72,80 @@ export class FlowWatcherService {
       mediaSrc = mediaEl.getAttribute('src') || mediaEl.currentSrc || '';
     }
 
-    let status = 'rendering';
+    // Definitive Success
     if (isSuccess) {
-      status = 'success';
-    } else if (isFailed) {
-      status = 'failed';
+      this.blankTransitionTimers.delete(tileElement);
+      return {
+        element: tileElement,
+        status: 'success',
+        isRendering: false,
+        isSuccess: true,
+        isFailed: false,
+        mediaType,
+        mediaSrc
+      };
     }
 
+    // Definitive Failure
+    if (hasDefinitiveFailure) {
+      this.blankTransitionTimers.delete(tileElement);
+      return {
+        element: tileElement,
+        status: 'failed',
+        isRendering: false,
+        isSuccess: false,
+        isFailed: true,
+        mediaType,
+        mediaSrc
+      };
+    }
+
+    // Active Rendering (progress bar, pending tile, or percentage ticker)
+    if (isRendering) {
+      this.blankTransitionTimers.delete(tileElement);
+      return {
+        element: tileElement,
+        status: 'rendering',
+        isRendering: true,
+        isSuccess: false,
+        isFailed: false,
+        mediaType,
+        mediaSrc
+      };
+    }
+
+    // Transient Blank Transition Phase (!isRendering && !isSuccess && !hasDefinitiveFailure)
+    // Between progress bar vanishing and media mounting (300ms–2000ms, with 10s grace timeout)
+    const now = Date.now();
+    let transitionStart = this.blankTransitionTimers.get(tileElement);
+    if (!transitionStart) {
+      transitionStart = now;
+      this.blankTransitionTimers.set(tileElement, transitionStart);
+    }
+
+    const elapsed = now - transitionStart;
+    if (elapsed > 10000) {
+      // 10s grace timeout exceeded without media mounting -> definitive failure
+      this.blankTransitionTimers.delete(tileElement);
+      return {
+        element: tileElement,
+        status: 'failed',
+        isRendering: false,
+        isSuccess: false,
+        isFailed: true,
+        mediaType,
+        mediaSrc
+      };
+    }
+
+    // Within grace period: classify as rendering to prevent false failure abort
     return {
       element: tileElement,
-      status,
-      isRendering,
-      isSuccess,
-      isFailed,
+      status: 'rendering',
+      isRendering: true,
+      isTransitioning: true,
+      isSuccess: false,
+      isFailed: false,
       mediaType,
       mediaSrc
     };

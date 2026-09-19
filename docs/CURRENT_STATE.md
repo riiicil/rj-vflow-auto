@@ -1,6 +1,6 @@
 # Current Project State — RJ V-Flow Auto Extension
 
-*Last Updated: 2026-09-17*<br>
+*Last Updated: 2026-09-19*<br>
 *Active Branch: `task/dual-mode-ui`*<br>
 *Current Milestone: Phase 3 (Dual-Mode UI Implementation) — [IN_PROGRESS]*
 
@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [COMPLETE] (Sub-phases 3.1 through 3.4 complete: `variables.css`, `popup/`, `overlay.css`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, and `service_worker.js` fully active; QueueManager execution wired with live progress telemetry)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; active engineering realigning HUD controls, 4-state generation failure resolution, and header grid setup)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -25,7 +25,7 @@
 | `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
 | `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
 | `task/core-automation-engine` | Merged | Phase 2: Core Automation Engine & Services (Merged into dev `c14ca68`) |
-| `task/dual-mode-ui` | Active | Phase 3: Dual-Mode UI Implementation (Active working branch, Phase 3 complete) |
+| `task/dual-mode-ui` | Active | Phase 3: Dual-Mode UI Implementation (Active working branch) |
 
 ---
 
@@ -61,7 +61,7 @@
   - `LICENSE` — MIT License (2026 Riiicil).
   - `icons/` — Optimized branding icons (`icon16.png`, `icon48.png`, `icon128.png`, `logo_rj.png`).
 - **Core Automation Engine (`src/core/`):**
-  - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, MutationObserver waiters, and in-card validator (`isCardGenerationSuccess`).
+  - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, pseudo `:has-text` support, MutationObserver waiters, and 4-state lifecycle validators (`isCardGenerationSuccess`, `isCardGenerationFailed`).
   - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
   - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services.
 - **Specialized Automation Services (`src/services/`):**
@@ -69,7 +69,7 @@
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, and creative agent mode suppression.
   - `src/services/FlowIngredientService.js` — Reference media clipboard ingestion, upload consent auto-agreement, frame slot triggers, and ingredient chip clearing.
   - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
-  - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, in-card failure detection (ADR-006/008), pending state detection (`flow-pending-tile`), and asset metadata extraction.
+  - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, 4-state lifecycle failure detection with 10s transient blank grace timer (ADR-006/008), pending state detection (`flow-pending-tile`), and asset metadata extraction.
   - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
 - **Design System Tokens (`src/styles/`):**
   - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`) pierced through `:root, :host`.
@@ -140,11 +140,12 @@
 - `src/background/service_worker.js` verified valid syntax via `node --check`.
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
+- 4-State generation lifecycle and master resilient selectors verified syntax-valid and functional.
 - Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Prepare merge of `task/dual-mode-ui` into `dev`, then proceed to **Phase 4 (End-to-End Integration & Multi-Language Stress Testing)**.
+- Proceed with **Commit 2: Automation Services Pacing & Header Grid Setup** (`setupHeaderGridAndClearPrompt()` and sequential pacing delays in `FlowSettingsService.js`, `FlowPromptService.js`, `FlowDownloadService.js`).
 

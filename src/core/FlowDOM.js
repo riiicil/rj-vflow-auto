@@ -10,9 +10,11 @@ export const SELECTORS = {
   // Top Header & Grid
   HEADER: 'flow-tile-view-header > header.header-base',
   TOOLS_BUTTON_GROUP: 'flow-tile-view-header .tools-button-group',
+  SETTINGS_2_BUTTON: 'flow-tile-view-header .tools-button-group button:has(mat-icon:has-text("settings_2"))',
   OVERLAY_PANE: 'div.cdk-overlay-pane',
-  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle-group mat-button-toggle:nth-of-type(1) button',
-  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane mat-slide-toggle button[role="switch"]',
+  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
+  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button',
+  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane button[name="clear-prompt-on-submit"], div.cdk-overlay-pane button[role="switch"]',
 
   // Prompt Box & Creative Agent Suppression
   PROMPT_BOX_CONTAINER: 'flow-prompt-box.prompt-box-container',
@@ -45,6 +47,7 @@ export const SELECTORS = {
   CARD_MEDIA: 'img.thumbnail, img.image, img, video',
   PROGRESS_BAR: '.progress-bar, .progress-bar-fill, flow-pending-tile',
   CARD_ERROR: '.error-container, .failed-indicator, .error-badge, .error-message',
+  ERROR_TILE: 'flow-error-tile, .error-tile, .error-tile-content',
   HOTBAR_CONTAINER: 'flow-hotbar-container div.hotbar-inner',
 
   // Download Menu
@@ -64,14 +67,82 @@ export const LIGATURES = {
   ASPECT_16_9: 'crop_16_9',
   ASPECT_9_16: 'crop_9_16',
   ASPECT_LANDSCAPE: 'crop_landscape',
-  ASPECT_SQUARE: 'crop_square'
+  ASPECT_SQUARE: 'crop_square',
+  WARNING: 'warning',
+  DELETE: 'delete',
+  DASHBOARD: 'dashboard'
 };
 
 /**
- * Basic safe element query.
+ * Internal resolver for pseudo-selectors containing :has-text("...")
+ */
+function queryAllWithHasText(selector, root) {
+  const parts = selector.split(/,(?![^()]*\))/);
+  const results = [];
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed.includes(':has-text(')) {
+      try {
+        results.push(...Array.from(root.querySelectorAll(trimmed)));
+      } catch (e) {
+        console.warn(`[FlowDOM] querySelectorAll failed for: ${trimmed}`, e);
+      }
+      continue;
+    }
+
+    // Pattern A: prefix:has(child:has-text("text")) suffix
+    const matchHasChild = trimmed.match(/^(.*?):has\((.*?):has-text\(["'](.*?)["']\)\)(.*)$/);
+    if (matchHasChild) {
+      const [, prefix, childSelector, expectedText, suffix] = matchHasChild;
+      const baseElements = prefix.trim() ? Array.from(root.querySelectorAll(prefix.trim())) : [root];
+      for (const el of baseElements) {
+        const children = childSelector.trim() ? Array.from(el.querySelectorAll(childSelector.trim())) : [el];
+        const hasMatchingChild = children.some(c => c.textContent && c.textContent.trim() === expectedText.trim());
+        if (hasMatchingChild) {
+          if (suffix && suffix.trim()) {
+            results.push(...Array.from(el.querySelectorAll(suffix.trim())));
+          } else {
+            results.push(el);
+          }
+        }
+      }
+      continue;
+    }
+
+    // Pattern B: target:has-text("text")
+    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)$/);
+    if (matchDirect) {
+      const [, targetSelector, expectedText] = matchDirect;
+      const candidates = targetSelector.trim() ? Array.from(root.querySelectorAll(targetSelector.trim())) : Array.from(root.querySelectorAll('*'));
+      for (const el of candidates) {
+        if (el.textContent && el.textContent.trim() === expectedText.trim()) {
+          results.push(el);
+        }
+      }
+      continue;
+    }
+
+    // Fallback standard query
+    try {
+      results.push(...Array.from(root.querySelectorAll(trimmed)));
+    } catch (e) {
+      console.warn(`[FlowDOM] Unsupported selector with :has-text: ${trimmed}`);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Basic safe element query. Supports :has-text("...") pseudo selectors.
  */
 export function query(selector, root = document) {
   try {
+    if (selector.includes(':has-text(')) {
+      const all = queryAllWithHasText(selector, root);
+      return all.length > 0 ? all[0] : null;
+    }
     return root.querySelector(selector);
   } catch (err) {
     console.error(`[FlowDOM] query error for selector: ${selector}`, err);
@@ -80,10 +151,13 @@ export function query(selector, root = document) {
 }
 
 /**
- * Basic safe queryAll returning an array.
+ * Basic safe queryAll returning an array. Supports :has-text("...") pseudo selectors.
  */
 export function queryAll(selector, root = document) {
   try {
+    if (selector.includes(':has-text(')) {
+      return queryAllWithHasText(selector, root);
+    }
     return Array.from(root.querySelectorAll(selector));
   } catch (err) {
     console.error(`[FlowDOM] queryAll error for selector: ${selector}`, err);
@@ -228,6 +302,26 @@ export function waitForCondition(predicate, { timeout = 10000, interval = 200 } 
 }
 
 /**
+ * Evaluates whether an asset tile has genuinely failed (ADR-006).
+ * Empirical verification: flow-error-tile, warning ligature, .error-tile,
+ * .failed, .blurred-error, or error message wrappers.
+ */
+export function isCardGenerationFailed(tileElement) {
+  if (!tileElement) return false;
+
+  const hasErrorTile = Boolean(tileElement.querySelector(SELECTORS.ERROR_TILE));
+  const hasWarningIcon = Boolean(
+    queryIcon(LIGATURES.WARNING, tileElement) ||
+    Array.from(tileElement.querySelectorAll('mat-icon')).some(i => i.textContent && i.textContent.trim() === LIGATURES.WARNING)
+  );
+  const hasErrorClass = tileElement.classList.contains('failed') ||
+    tileElement.classList.contains('blurred-error');
+  const hasErrorMessage = Boolean(tileElement.querySelector('.error-message, .error-subtitle, .error-message-text'));
+
+  return hasErrorTile || hasWarningIcon || hasErrorClass || hasErrorMessage;
+}
+
+/**
  * Evaluates whether an asset card completed successfully (ADR-006).
  * Google Flow does NOT produce toasts for moderation blocks or quota limits;
  * failed tiles remain blurred with error badges and no valid playable media source.
@@ -246,17 +340,12 @@ export function isCardGenerationSuccess(tileElement) {
     return false;
   }
 
-  // 2. Error badges / failed indicators must be absent
-  if (tileElement.querySelector(SELECTORS.CARD_ERROR)) {
+  // 2. Definitive failure check
+  if (isCardGenerationFailed(tileElement)) {
     return false;
   }
 
-  // 3. Card must not have failed or blurred-error state classes
-  if (tileElement.classList.contains('failed') || tileElement.classList.contains('blurred-error')) {
-    return false;
-  }
-
-  // 4. Must contain a valid rendered media element with active source
+  // 3. Must contain a valid rendered media element with active source
   const media = tileElement.querySelector(SELECTORS.CARD_MEDIA);
   if (!media) return false;
 
