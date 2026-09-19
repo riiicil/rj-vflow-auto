@@ -20,6 +20,8 @@ import {
   simulateClick
 } from '../core/FlowDOM.js';
 
+import { logger } from './LoggerService.js';
+
 /**
  * Converts a data URL (Base64) to a native binary Blob.
  */
@@ -169,7 +171,7 @@ export class FlowIngredientService {
   swapFrames() {
     const swapBtn = queryButtonByIcon(LIGATURES.SWAP);
     if (!swapBtn) {
-      console.warn('[FlowIngredientService] Swap frames button not found');
+      logger.warn('[FlowIngredientService] Swap frames button not found');
       return false;
     }
     return simulateClick(swapBtn);

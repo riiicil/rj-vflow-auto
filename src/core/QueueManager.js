@@ -90,13 +90,13 @@ export class QueueManager {
 
   notifyStateChange(state) {
     for (const cb of this.stateListeners) {
-      try { cb(state); } catch (e) { console.error('[QueueManager] State listener error', e); }
+      try { cb(state); } catch (e) { logger.error('[QueueManager] State listener error', e); }
     }
   }
 
   notifyProgress(payload) {
     for (const cb of this.progressListeners) {
-      try { cb(payload); } catch (e) { console.error('[QueueManager] Progress listener error', e); }
+      try { cb(payload); } catch (e) { logger.error('[QueueManager] Progress listener error', e); }
     }
   }
 

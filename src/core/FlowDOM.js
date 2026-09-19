@@ -6,6 +6,8 @@
  * Never uses localized text queries or CDP synthetic events.
  */
 
+import { logger } from '../services/LoggerService.js';
+
 export const SELECTORS = {
   // Top Header & Grid
   HEADER: 'flow-tile-view-header > header.header-base',
@@ -86,7 +88,7 @@ function queryAllWithHasText(selector, root) {
       try {
         results.push(...Array.from(root.querySelectorAll(trimmed)));
       } catch (e) {
-        console.warn(`[FlowDOM] querySelectorAll failed for: ${trimmed}`, e);
+        logger.warn(`[FlowDOM] querySelectorAll failed for: ${trimmed}`, e);
       }
       continue;
     }
@@ -127,7 +129,7 @@ function queryAllWithHasText(selector, root) {
     try {
       results.push(...Array.from(root.querySelectorAll(trimmed)));
     } catch (e) {
-      console.warn(`[FlowDOM] Unsupported selector with :has-text: ${trimmed}`);
+      logger.warn(`[FlowDOM] Unsupported selector with :has-text: ${trimmed}`);
     }
   }
 
@@ -145,7 +147,7 @@ export function query(selector, root = document) {
     }
     return root.querySelector(selector);
   } catch (err) {
-    console.error(`[FlowDOM] query error for selector: ${selector}`, err);
+    logger.error(`[FlowDOM] query error for selector: ${selector}`, err);
     return null;
   }
 }
@@ -160,7 +162,7 @@ export function queryAll(selector, root = document) {
     }
     return Array.from(root.querySelectorAll(selector));
   } catch (err) {
-    console.error(`[FlowDOM] queryAll error for selector: ${selector}`, err);
+    logger.error(`[FlowDOM] queryAll error for selector: ${selector}`, err);
     return [];
   }
 }

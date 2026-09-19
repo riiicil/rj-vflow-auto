@@ -23,6 +23,8 @@ import {
   sleep
 } from '../core/FlowDOM.js';
 
+import { logger } from './LoggerService.js';
+
 import {
   MODELS,
   MEDIA_MODES,
@@ -31,8 +33,6 @@ import {
   IMAGE_MODELS,
   VIDEO_MODELS
 } from '../core/FlowStorage.js';
-
-import { logger } from './LoggerService.js';
 
 export class FlowSettingsService {
   /**
@@ -256,7 +256,7 @@ export class FlowSettingsService {
       query('button:has(mat-icon:has-text("arrow_drop_down"))', popover);
 
     if (!modelTrigger) {
-      console.warn('[FlowSettingsService] Model select trigger not found');
+      logger.warn('[FlowSettingsService] Model select trigger not found');
       return;
     }
     // Normalized fast-path: if model is already selected in trigger label, bypass opening menu
@@ -274,7 +274,7 @@ export class FlowSettingsService {
     // Wait for dropdown menu panel to appear
     const menuPanel = await waitForElement(SELECTORS.MENU_PANEL, { timeout: 4000 }).catch(() => null);
     if (!menuPanel) {
-      console.warn('[FlowSettingsService] Menu panel did not appear after clicking model trigger');
+      logger.warn('[FlowSettingsService] Menu panel did not appear after clicking model trigger');
       return;
     }
 
@@ -298,7 +298,7 @@ export class FlowSettingsService {
     if (!targetItem) {
       const allItems = queryAll(menuButtonsSelector, menuPanel);
       const available = allItems.map(i => i.textContent.trim()).filter(Boolean);
-      console.warn(`[FlowSettingsService] Available models in menu: [${available.join(', ')}]`);
+      logger.warn(`[FlowSettingsService] Available models in menu: [${available.join(', ')}]`);
       // Close menu if item not found
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
       throw new Error(`[FlowSettingsService] Target model item "${targetModel}" not found in menu (available: ${available.join(', ')})`);

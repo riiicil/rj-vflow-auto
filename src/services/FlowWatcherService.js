@@ -311,7 +311,7 @@ export class FlowWatcherService {
               tiles: tileStatuses
             });
           } catch (e) {
-            console.error('[FlowWatcherService] Progress callback error', e);
+            logger.error('[FlowWatcherService] Progress callback error', e);
           }
         }
 

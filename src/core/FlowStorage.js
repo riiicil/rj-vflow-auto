@@ -5,6 +5,8 @@
  * Wraps chrome.storage.local with schema validation, debounced persistence, and auto-healing.
  */
 
+import { logger } from '../services/LoggerService.js';
+
 export const STORAGE_KEY = 'rj_vflow_config_v3';
 
 export const SCHEMA_VERSION = 3;
@@ -359,7 +361,7 @@ if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged)
         try {
           listener(clone(cachedConfig));
         } catch (e) {
-          console.error('[FlowStorage] Listener error', e);
+          logger.error('[FlowStorage] Listener error', e);
         }
       }
     }

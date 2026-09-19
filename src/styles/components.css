@@ -417,6 +417,13 @@ svg.rj-icon {
   transform: translateY(1px);
 }
 
+.rj-btn:disabled,
+.rj-btn.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
 .rj-btn-sm {
   font-size: 11px;
   padding: 4px 8px;

@@ -22,6 +22,7 @@ import { queueManager, QUEUE_STATES } from '../core/QueueManager.js';
 import { renderStudioLayout, renderEmptyDropzone, renderQueueRow, ICONS } from './FlowHUDTemplates.js';
 import { CustomSelect } from './CustomSelect.js';
 import { flowImageDB } from '../core/FlowImageDB.js';
+import { logger } from '../services/LoggerService.js';
 
 export class FlowHUDHost {
   constructor() {
@@ -53,6 +54,8 @@ export class FlowHUDHost {
     this.paramMode = 'batch';
     this.isSortMode = false;
     this.draggedRowIdx = null;
+    this.activeRowIdx = null;
+    this.lastSelectedIdx = null;
   }
 
   /**
@@ -75,7 +78,7 @@ export class FlowHUDHost {
       this.activeMode = cfg.mode || 'text-to-video';
       this.paramMode = cfg.paramMode || 'batch';
     } catch (e) {
-      console.warn('[FlowHUDHost] Failed to load initial state', e);
+      logger.warn('[FlowHUDHost] Failed to load initial state', e);
     }
 
     // 3. Load initial queue from storage
@@ -151,7 +154,7 @@ export class FlowHUDHost {
         });
       }
     } catch (err) {
-      console.warn('[FlowHUDHost] Failed to recover stale batch state', err);
+      logger.warn('[FlowHUDHost] Failed to recover stale batch state', err);
     }
   }
 
@@ -171,7 +174,7 @@ export class FlowHUDHost {
                 ing.dataUrl = URL.createObjectURL(record.blob || record.file);
               }
             } catch (err) {
-              console.warn('[FlowHUDHost] Failed to hydrate ingredient preview', err);
+              logger.warn('[FlowHUDHost] Failed to hydrate ingredient preview', err);
             }
           }
         }
@@ -187,7 +190,7 @@ export class FlowHUDHost {
                 frame.dataUrl = URL.createObjectURL(record.blob || record.file);
               }
             } catch (err) {
-              console.warn('[FlowHUDHost] Failed to hydrate frame preview', err);
+              logger.warn('[FlowHUDHost] Failed to hydrate frame preview', err);
             }
           }
         }
@@ -318,9 +321,6 @@ export class FlowHUDHost {
         this.queueItems.forEach(item => {
           item.selected = isChecked;
         });
-        this.shadow.querySelectorAll('.row-select-checkbox').forEach(cb => {
-          cb.checked = isChecked;
-        });
         this.updateSelectionUI();
       });
     }
@@ -329,7 +329,13 @@ export class FlowHUDHost {
     if (btnBulkDelete) {
       btnBulkDelete.addEventListener('click', async () => {
         const toDelete = this.queueItems.filter(it => it.selected);
-        if (toDelete.length === 0) return;
+        if (toDelete.length === 0) {
+          if (this.paramMode === 'single' && this.activeRowIdx !== null && this.queueItems[this.activeRowIdx]) {
+            toDelete.push(this.queueItems[this.activeRowIdx]);
+          } else {
+            return;
+          }
+        }
 
         // Clean up FlowImageDB records for deleted items
         for (const item of toDelete) {
@@ -350,7 +356,9 @@ export class FlowHUDHost {
         }
 
         // Remove deleted items from queue
-        this.queueItems = this.queueItems.filter(it => !it.selected);
+        this.queueItems = this.queueItems.filter(it => !toDelete.includes(it));
+        this.activeRowIdx = null;
+        this.lastSelectedIdx = null;
 
         // Re-render and update UI
         this.renderQueueContent();
@@ -362,6 +370,7 @@ export class FlowHUDHost {
     const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
       btnToggleSort.addEventListener('click', () => {
+        if (this.queueItems.some(it => it.selected)) return;
         this.isSortMode = !this.isSortMode;
         btnToggleSort.classList.toggle('active', this.isSortMode);
         this.renderQueueContent();
@@ -384,11 +393,20 @@ export class FlowHUDHost {
     if (selMode) {
       selMode.addEventListener('change', async (e) => {
         const mode = e.target.value;
+        const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+        const normModel = isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro';
+        const normRes = isVideo ? '1080p' : '2K';
+
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
           if (selected.length > 0) {
             selected.forEach(it => {
               it.mode = mode;
+              const wasVideo = it.model ? !it.model.includes('Banana') : true;
+              if (isVideo !== wasVideo) {
+                it.model = normModel;
+                it.resolution = normRes;
+              }
             });
             this.syncModeUI(mode);
             this.renderQueueContent();
@@ -396,7 +414,12 @@ export class FlowHUDHost {
           }
         } else {
           this.activeMode = mode;
-          await saveConfig({ mode: this.activeMode });
+          await saveConfig({
+            mode: this.activeMode,
+            model: normModel,
+            videoResolution: isVideo ? '1080p' : undefined,
+            imageResolution: !isVideo ? '2K' : undefined
+          });
           this.syncModeUI(this.activeMode);
           this.renderQueueContent();
         }
@@ -481,7 +504,12 @@ export class FlowHUDHost {
             await this.saveCurrentQueue();
           }
         } else {
-          saveConfig({ videoResolution: val, imageResolution: val }).catch(() => {});
+          const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
+          if (isVideo) {
+            saveConfig({ videoResolution: val }).catch(() => {});
+          } else {
+            saveConfig({ imageResolution: val }).catch(() => {});
+          }
         }
       });
     }
@@ -513,7 +541,7 @@ export class FlowHUDHost {
           try {
             await queueManager.stop();
           } catch (err) {
-            console.error('[FlowHUDHost] Failed to stop queue', err);
+            logger.error('[FlowHUDHost] Failed to stop queue', err);
           } finally {
             btnStart.disabled = false;
           }
@@ -530,7 +558,7 @@ export class FlowHUDHost {
           try {
             await queueManager.start();
           } catch (err) {
-            console.error('[FlowHUDHost] Failed to start queue', err);
+            logger.error('[FlowHUDHost] Failed to start queue', err);
             btnStart.disabled = false;
           }
         }
@@ -601,16 +629,6 @@ export class FlowHUDHost {
           badge.textContent = 'INJECTING (10%)';
         } else {
           badge.textContent = status.toUpperCase();
-        }
-
-        if (payload.error) {
-          let errEl = row.querySelector('.row-error-hint');
-          if (!errEl) {
-            errEl = document.createElement('div');
-            errEl.className = 'row-error-hint';
-            row.querySelector('.row-input-wrapper')?.appendChild(errEl);
-          }
-          errEl.textContent = payload.error;
         }
       }
 
@@ -697,47 +715,59 @@ export class FlowHUDHost {
     if (!container) return;
 
     // 1. Textarea prompt changes and focus activation
+    // 1. Prompt input changes and focus
     container.querySelectorAll('.row-prompt-input').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = Number(e.target.dataset.idx);
         if (this.queueItems[idx]) {
           this.queueItems[idx].prompt = e.target.value;
+          if (this.paramMode === 'single' && (this.activeRowIdx === idx || this.queueItems[idx].selected)) {
+            this.updateSidebarParamModeUI();
+          }
         }
       });
 
       input.addEventListener('focus', (e) => {
         const idx = Number(e.target.dataset.idx);
+        this.activeRowIdx = idx;
         if (this.paramMode === 'single') {
-          this.activateSingleRow(idx);
-        }
-      });
-    });
-
-    // 2. Row selection checkbox changes
-    container.querySelectorAll('.row-select-checkbox').forEach(cb => {
-      cb.addEventListener('change', (e) => {
-        const idx = Number(e.target.dataset.idx);
-        if (this.queueItems[idx]) {
-          if (this.paramMode === 'single') {
-            if (e.target.checked) {
-              this.activateSingleRow(idx);
-            } else {
-              this.queueItems[idx].selected = false;
-              const parentRow = cb.closest('.hud-queue-row');
-              if (parentRow) parentRow.classList.remove('row-active');
-              this.updateSidebarParamModeUI();
-            }
+          const selectedCount = this.queueItems.filter(it => it.selected).length;
+          if (selectedCount <= 1) {
+            this.selectSingleRow(idx);
           } else {
-            this.queueItems[idx].selected = e.target.checked;
-            const parentRow = cb.closest('.hud-queue-row');
-            if (parentRow) parentRow.classList.toggle('row-active', e.target.checked);
             this.updateSidebarParamModeUI();
           }
         }
       });
     });
 
-    // 3. Row container click activation for Single Mode
+    // 2. Row selection checkbox changes
+    container.querySelectorAll('.row-select-checkbox').forEach(cb => {
+      cb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = Number(cb.dataset.idx);
+        if (this.isSortMode) return;
+
+        if (e.shiftKey && this.lastSelectedIdx !== null) {
+          // Range selection
+          const start = Math.min(this.lastSelectedIdx, idx);
+          const end = Math.max(this.lastSelectedIdx, idx);
+          this.queueItems.forEach((it, i) => {
+            if (i >= start && i <= end) it.selected = true;
+          });
+          this.activeRowIdx = idx;
+        } else {
+          if (this.queueItems[idx]) {
+            this.queueItems[idx].selected = cb.checked;
+          }
+          this.activeRowIdx = idx;
+          this.lastSelectedIdx = idx;
+        }
+        this.updateSelectionUI();
+      });
+    });
+
+    // 3. Row container click engine (Direct Click, Shift+Click, Ctrl+Click)
     container.querySelectorAll('.hud-queue-row').forEach(row => {
       row.addEventListener('click', (e) => {
         // Ignore clicks on actionable child elements
@@ -752,10 +782,34 @@ export class FlowHUDHost {
           return;
         }
 
+        if (this.isSortMode) return;
+
         const idx = Number(row.dataset.idx);
-        if (this.paramMode === 'single') {
-          this.activateSingleRow(idx);
+        if (isNaN(idx) || !this.queueItems[idx]) return;
+
+        if (e.shiftKey && this.lastSelectedIdx !== null) {
+          // Shift + Click: Range Selection
+          const start = Math.min(this.lastSelectedIdx, idx);
+          const end = Math.max(this.lastSelectedIdx, idx);
+          this.queueItems.forEach((it, i) => {
+            if (i >= start && i <= end) it.selected = true;
+          });
+          this.activeRowIdx = idx;
+        } else if (e.ctrlKey || e.metaKey) {
+          // Ctrl / Cmd + Click: Toggle Selection
+          this.queueItems[idx].selected = !this.queueItems[idx].selected;
+          this.activeRowIdx = idx;
+          this.lastSelectedIdx = idx;
+        } else {
+          // Normal Click: Single Selection
+          this.queueItems.forEach((it, i) => {
+            it.selected = (i === idx);
+          });
+          this.activeRowIdx = idx;
+          this.lastSelectedIdx = idx;
         }
+
+        this.updateSelectionUI();
       });
     });
 
@@ -853,7 +907,7 @@ export class FlowHUDHost {
               }
             });
           } catch (err) {
-            console.error('[FlowHUDHost] Failed to save image to FlowImageDB', err);
+            logger.error('[FlowHUDHost] Failed to save image to FlowImageDB', err);
           }
         });
       }
@@ -874,7 +928,7 @@ export class FlowHUDHost {
             }
           });
         } catch (err) {
-          console.error('[FlowHUDHost] Failed to save dropped image to FlowImageDB', err);
+          logger.error('[FlowHUDHost] Failed to save dropped image to FlowImageDB', err);
         }
       });
     });
@@ -923,7 +977,7 @@ export class FlowHUDHost {
                 }
               });
             } catch (err) {
-              console.error('[FlowHUDHost] Failed to save frame to FlowImageDB', err);
+              logger.error('[FlowHUDHost] Failed to save frame to FlowImageDB', err);
             }
           });
         }
@@ -945,7 +999,7 @@ export class FlowHUDHost {
               }
             });
           } catch (err) {
-            console.error('[FlowHUDHost] Failed to save dropped frame to FlowImageDB', err);
+            logger.error('[FlowHUDHost] Failed to save dropped frame to FlowImageDB', err);
           }
         });
       });
@@ -1043,7 +1097,7 @@ export class FlowHUDHost {
       this.renderQueueContent();
       await this.saveCurrentQueue();
     } catch (err) {
-      console.warn('[FlowHUDHost] Clipboard read permission denied or failed', err);
+      logger.warn('[FlowHUDHost] Clipboard read permission denied or failed', err);
     }
   }
 
@@ -1072,7 +1126,7 @@ export class FlowHUDHost {
             this.saveCurrentQueue().catch(() => {});
           });
         } catch (err) {
-          console.error('[FlowHUDHost] Failed to save bulk image to FlowImageDB', err);
+          logger.error('[FlowHUDHost] Failed to save bulk image to FlowImageDB', err);
         }
       }
     }
@@ -1143,7 +1197,7 @@ export class FlowHUDHost {
 
   /**
    * Updates selection counters, checkbox indeterminate state, bulk delete button,
-   * and single-mode parameter sidebar.
+   * sort button disabled state, DOM row selection classes, and parameter sidebar.
    */
   updateSelectionUI() {
     const totalCount = this.queueItems.length;
@@ -1159,50 +1213,92 @@ export class FlowHUDHost {
     // 2. Bulk Delete Button Visibility
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
-      btnBulkDelete.style.display = selectedCount > 0 ? 'inline-flex' : 'none';
+      btnBulkDelete.style.display = (selectedCount > 0 || (this.paramMode === 'single' && this.activeRowIdx !== null)) ? 'inline-flex' : 'none';
     }
 
-    // 3. Sidebar Parameters vs Placeholder
+    // 3. Sort Button Conditional Disabled State
+    const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
+    if (btnToggleSort) {
+      const isSortDisabled = selectedCount > 0;
+      btnToggleSort.disabled = isSortDisabled;
+      btnToggleSort.classList.toggle('is-disabled', isSortDisabled);
+      if (isSortDisabled) {
+        btnToggleSort.setAttribute('title', 'Deselect items to enable reordering');
+      } else {
+        btnToggleSort.setAttribute('title', this.isSortMode ? 'Done sorting' : 'Toggle sort mode');
+      }
+    }
+
+    // 4. Synchronize DOM rows and checkboxes to queueItems state
+    const container = this.shadow.getElementById('hudQueueContent');
+    if (container) {
+      container.querySelectorAll('.hud-queue-row').forEach((row, i) => {
+        const isSelected = Boolean(this.queueItems[i]?.selected);
+        row.classList.toggle('row-active', isSelected);
+        const cb = row.querySelector('.row-select-checkbox');
+        if (cb && cb.checked !== isSelected) {
+          cb.checked = isSelected;
+        }
+      });
+    }
+
+    // 5. Update Sidebar Parameters UI & Header Banner
     this.updateSidebarParamModeUI();
   }
 
   /**
-   * Activates a single row for Single Mode parameter inspection & editing.
+   * Selects an individual row exclusively.
    */
-  activateSingleRow(idx) {
+  selectSingleRow(idx) {
     if (idx < 0 || idx >= this.queueItems.length) return;
 
     this.queueItems.forEach((it, i) => {
       it.selected = (i === idx);
     });
-
-    const container = this.shadow.getElementById('hudQueueContent');
-    if (container) {
-      container.querySelectorAll('.hud-queue-row').forEach((row, i) => {
-        row.classList.toggle('row-active', i === idx);
-        const cb = row.querySelector('.row-select-checkbox');
-        if (cb) cb.checked = (i === idx);
-      });
-    }
+    this.activeRowIdx = idx;
+    this.lastSelectedIdx = idx;
 
     this.updateSelectionUI();
   }
 
   /**
+   * Activates a single row for Single Mode parameter inspection & editing (alias).
+   */
+  activateSingleRow(idx) {
+    this.selectSingleRow(idx);
+  }
+
+  /**
    * Updates sidebar visibility and controls based on paramMode ('batch' vs 'single')
-   * and current selection.
+   * and current selection. Dynamically renders the sidebar mode banner and clamps prompt preview.
    */
   updateSidebarParamModeUI() {
     const placeholder = this.shadow.getElementById('sidebarSinglePlaceholder');
     const controls = this.shadow.getElementById('sidebarControls');
+    const badge = this.shadow.getElementById('sidebarBannerBadge');
+    const desc = this.shadow.getElementById('sidebarBannerDesc');
     if (!placeholder || !controls) return;
+
+    const totalCount = this.queueItems.length;
+    const selectedItems = this.queueItems.filter(it => it.selected);
+    const selectedCount = selectedItems.length;
 
     if (this.paramMode === 'batch') {
       placeholder.style.display = 'none';
       controls.style.display = '';
+
+      if (badge) {
+        badge.className = 'sidebar-banner-badge';
+        badge.textContent = 'BATCH PARAMETERS';
+      }
+      if (desc) {
+        desc.textContent = totalCount > 0
+          ? `Applies to all ${totalCount} rows in queue`
+          : 'Applies to all rows in queue';
+        desc.title = desc.textContent;
+      }
     } else {
       // Single Mode
-      const selectedCount = this.queueItems.filter(it => it.selected).length;
       if (selectedCount === 0) {
         placeholder.style.display = 'flex';
         controls.style.display = 'none';
@@ -1210,9 +1306,40 @@ export class FlowHUDHost {
         placeholder.style.display = 'none';
         controls.style.display = '';
 
-        const firstSelected = this.queueItems.find(it => it.selected);
-        if (firstSelected) {
-          this.syncSidebarControlsToItem(firstSelected);
+        if (selectedCount === 1) {
+          const targetItem = selectedItems[0];
+          const targetIdx = this.queueItems.indexOf(targetItem);
+          const rawPrompt = (targetItem.prompt || '').trim();
+          let promptPreview = 'No prompt text';
+          if (rawPrompt) {
+            const maxChars = 38;
+            promptPreview = rawPrompt.length > maxChars
+              ? rawPrompt.substring(0, maxChars).trim() + '...'
+              : rawPrompt;
+          }
+
+          if (badge) {
+            badge.className = 'sidebar-banner-badge badge-single';
+            badge.textContent = `ITEM #${targetIdx + 1}`;
+          }
+          if (desc) {
+            desc.textContent = `"${promptPreview}"`;
+            desc.title = rawPrompt || 'No prompt text';
+          }
+
+          this.syncSidebarControlsToItem(targetItem);
+        } else {
+          // Multi-Selection (> 1 item)
+          if (badge) {
+            badge.className = 'sidebar-banner-badge badge-single';
+            badge.textContent = `MULTI-SELECTION (${selectedCount})`;
+          }
+          if (desc) {
+            desc.textContent = `Changes apply to ${selectedCount} selected rows`;
+            desc.title = `${selectedCount} rows selected`;
+          }
+
+          this.syncSidebarControlsToItem(selectedItems[0]);
         }
       }
     }

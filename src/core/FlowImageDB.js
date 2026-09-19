@@ -11,6 +11,8 @@
  * Ported and refined from legacy v2.x proven architecture (origin/legacy:panel/sidepanel.js).
  */
 
+import { logger } from '../services/LoggerService.js';
+
 const DB_NAME = 'vflowImageDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'images';
@@ -114,7 +116,7 @@ export class FlowImageDB {
         tx.onabort = () => reject(new Error('[FlowImageDB] Transaction aborted'));
       });
     } catch (err) {
-      console.error('[FlowImageDB] saveImage failed:', err);
+      logger.error('[FlowImageDB] saveImage failed:', err);
       throw err;
     }
   }
@@ -141,7 +143,7 @@ export class FlowImageDB {
         request.onerror = (e) => reject(request.error || e.target.error);
       });
     } catch (err) {
-      console.warn('[FlowImageDB] getImage error:', err);
+      logger.warn('[FlowImageDB] getImage error:', err);
       return null;
     }
   }
@@ -175,7 +177,7 @@ export class FlowImageDB {
         tx.onerror = (e) => reject(tx.error || e.target.error);
       });
     } catch (err) {
-      console.warn('[FlowImageDB] deleteImage error:', err);
+      logger.warn('[FlowImageDB] deleteImage error:', err);
       return false;
     }
   }
@@ -196,7 +198,7 @@ export class FlowImageDB {
         tx.onerror = (e) => reject(tx.error || e.target.error);
       });
     } catch (err) {
-      console.warn('[FlowImageDB] clearImages error:', err);
+      logger.warn('[FlowImageDB] clearImages error:', err);
       return false;
     }
   }
@@ -217,7 +219,7 @@ export class FlowImageDB {
         request.onerror = (e) => reject(request.error || e.target.error);
       });
     } catch (err) {
-      console.warn('[FlowImageDB] getAllImageIds error:', err);
+      logger.warn('[FlowImageDB] getAllImageIds error:', err);
       return [];
     }
   }
@@ -242,7 +244,7 @@ export class FlowImageDB {
 
       return purgedCount;
     } catch (err) {
-      console.warn('[FlowImageDB] cleanupUnreferenced error:', err);
+      logger.warn('[FlowImageDB] cleanupUnreferenced error:', err);
       return 0;
     }
   }

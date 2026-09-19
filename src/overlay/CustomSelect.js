@@ -98,6 +98,13 @@ export class CustomSelect {
     return instance;
   }
 
+  static _isOptionVisible(opt) {
+    if (!opt) return false;
+    if (opt.hidden || opt.style.display === 'none') return false;
+    if (opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' && opt.parentElement.style.display === 'none') return false;
+    return true;
+  }
+
   /**
    * Rebuilds option items inside the custom dropdown.
    * @private
@@ -106,12 +113,20 @@ export class CustomSelect {
     const { selectEl, dropdown, triggerText, trigger } = instance;
     dropdown.innerHTML = '';
 
-    const selectedIndex = selectEl.selectedIndex;
+    // If current selected option is hidden or in hidden optgroup, auto-fallback to first visible
+    let selectedIndex = selectEl.selectedIndex;
+    const currentOpt = selectEl.options[selectedIndex];
+    if (!CustomSelect._isOptionVisible(currentOpt)) {
+      const firstVisibleIdx = Array.from(selectEl.options).findIndex(opt => CustomSelect._isOptionVisible(opt) && !opt.disabled);
+      if (firstVisibleIdx !== -1) {
+        selectEl.selectedIndex = firstVisibleIdx;
+        selectedIndex = firstVisibleIdx;
+      }
+    }
 
     Array.from(selectEl.options).forEach((opt, idx) => {
       // Respect hidden options or options in hidden optgroups
-      if (opt.hidden || opt.style.display === 'none') return;
-      if (opt.parentElement && opt.parentElement.tagName === 'OPTGROUP' && opt.parentElement.style.display === 'none') return;
+      if (!CustomSelect._isOptionVisible(opt)) return;
 
       const optEl = document.createElement('div');
       optEl.className = 'rj-select-option';

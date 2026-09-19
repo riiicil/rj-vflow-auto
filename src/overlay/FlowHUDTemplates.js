@@ -96,6 +96,14 @@ export function renderStudioLayout() {
 
           <!-- Parameter Controls Scroll Container -->
           <div class="hud-sidebar-scroll" id="sidebarControls">
+            <!-- Sidebar Mode Indicator Banner -->
+            <div class="sidebar-mode-banner" id="sidebarModeBanner">
+              <div class="sidebar-banner-header">
+                <span class="sidebar-banner-badge" id="sidebarBannerBadge">BATCH PARAMETERS</span>
+              </div>
+              <div class="sidebar-banner-desc" id="sidebarBannerDesc">Applies to all rows in queue</div>
+            </div>
+
             <!-- Parameter 1: Generation Mode -->
             <div class="rj-field-group">
               <label class="rj-field-label" for="selGenerationMode">
@@ -178,14 +186,14 @@ export function renderStudioLayout() {
               </label>
               <select class="rj-select" id="selResolution">
                 <optgroup label="Video Resolutions" id="grpVideoRes">
-                  <option value="4K">4K (Upscaled)</option>
-                  <option value="1080p" selected>1080p (FHD)</option>
-                  <option value="720p">720p (HD)</option>
+                  <option value="720p">720p (Original size)</option>
+                  <option value="1080p" selected>1080p (Upscaled)</option>
+                  <option value="4K">4k (Upscaled)</option>
                 </optgroup>
                 <optgroup label="Image Resolutions" id="grpImageRes" style="display: none;">
-                  <option value="4K">4K (Max)</option>
-                  <option value="2K" selected>2K (QHD)</option>
-                  <option value="1K">1K (Standard)</option>
+                  <option value="1K">1k (Original size)</option>
+                  <option value="2K" selected>2k (Upscaled)</option>
+                  <option value="4K">4k (Upscaled)</option>
                 </optgroup>
               </select>
             </div>
@@ -335,7 +343,6 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       <div class="row-input-wrapper">
         <textarea class="row-prompt-input" data-idx="${index}" rows="1" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
         ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
-        ${item.error ? `<div class="row-error-hint">${item.error}</div>` : ''}
       </div>
     </div>
   `;

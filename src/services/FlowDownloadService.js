@@ -21,6 +21,8 @@ import {
   sleep
 } from '../core/FlowDOM.js';
 
+import { logger } from './LoggerService.js';
+
 export class FlowDownloadService {
   /**
    * Opens the card's 'More options' context menu (ligature: more_vert).
@@ -117,7 +119,7 @@ export class FlowDownloadService {
             // If requested resolution (e.g. 4K) is locked or not found, fall back to highest available enabled option
             if (!chosenOption) {
               const fallback = availableOptions[availableOptions.length - 1];
-              console.warn(`[FlowDownloadService] Requested resolution '${targetResolution}' is locked or unavailable. Falling back to highest available enabled: ${fallback.label}`);
+              logger.warn(`[FlowDownloadService] Requested resolution '${targetResolution}' is locked or unavailable. Falling back to highest available enabled: ${fallback.label}`);
               chosenOption = fallback;
             }
           }
@@ -171,7 +173,7 @@ export class FlowDownloadService {
       await this.triggerMenuDownload(menuPanel, targetResolution);
       return true;
     } catch (err) {
-      console.warn('[FlowDownloadService] Context menu download failed, attempting direct fallback', err);
+      logger.warn('[FlowDownloadService] Context menu download failed, attempting direct fallback', err);
 
       // Extract media source for fallback download
       const media = tileElement.querySelector(SELECTORS.CARD_MEDIA);

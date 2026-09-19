@@ -179,10 +179,10 @@ svg.rj-icon,
 .rj-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 15px;
-  height: 15px;
-  min-width: 15px;
-  min-height: 15px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   border: 1px solid var(--rj-border-hairline, #242728);
   border-radius: var(--rj-radius-sm, 4px);
   background-color: var(--rj-bg-card, #121212);
@@ -193,6 +193,7 @@ svg.rj-icon,
   justify-content: center;
   position: relative;
   margin: 0;
+  padding: 0;
   transition: all 0.15s ease;
   flex-shrink: 0;
   box-sizing: border-box;
@@ -206,8 +207,8 @@ svg.rj-icon,
 .rj-checkbox:checked {
   background-color: var(--rj-accent-cyan, #079183);
   border-color: var(--rj-accent-cyan, #079183);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-  background-size: 11px 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3.5 8.5 6.5 11.5 12.5 4.5'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: 14px 14px;
   background-position: center;
   background-repeat: no-repeat;
 }
@@ -215,14 +216,21 @@ svg.rj-icon,
 .rj-checkbox:indeterminate {
   background-color: var(--rj-accent-cyan, #079183);
   border-color: var(--rj-accent-cyan, #079183);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='12' x2='19' y2='12'%3E%3C/line%3E%3C/svg%3E");
-  background-size: 11px 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='3.5' y1='8' x2='12.5' y2='8'%3E%3C/line%3E%3C/svg%3E");
+  background-size: 14px 14px;
   background-position: center;
   background-repeat: no-repeat;
 }
 
 .rj-checkbox:focus-visible {
   box-shadow: 0 0 0 2px rgba(7, 145, 131, 0.35);
+}
+
+.rj-btn:disabled,
+.rj-btn.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
 }
 
 /* Queue Action Toolbar */
@@ -779,6 +787,51 @@ svg.rj-icon,
   color: var(--rj-text-muted, #a2a8b5);
   line-height: 1.4;
   max-width: 190px;
+}
+
+/* Sidebar Mode Indicator Banner */
+.sidebar-mode-banner {
+  margin-bottom: 2px;
+  padding: 8px 10px;
+  background-color: var(--rj-bg-card, #121212);
+  border: 1px solid var(--rj-border-hairline, #242728);
+  border-radius: var(--rj-radius-md, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sidebar-banner-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 180, 164, 0.15);
+  color: var(--rj-accent-cyan, #00b4a4);
+  width: fit-content;
+}
+
+.sidebar-banner-badge.badge-single {
+  background: rgba(87, 193, 255, 0.15);
+  color: #57c1ff;
+}
+
+.sidebar-banner-desc {
+  font-size: 11px;
+  color: var(--rj-text-muted, #a2a8b5);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hud-sidebar-scroll {
