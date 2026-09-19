@@ -14,7 +14,7 @@ export const SELECTORS = {
   OVERLAY_PANE: 'div.cdk-overlay-pane',
   GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
   GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button',
-  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane button[name="clear-prompt-on-submit"], div.cdk-overlay-pane button[role="switch"]',
+  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane mat-slide-toggle:has-text("Clear prompt") button[role="switch"], div.cdk-overlay-pane button[name="clear-prompt-on-submit"]',
 
   // Prompt Box & Creative Agent Suppression
   PROMPT_BOX_CONTAINER: 'flow-prompt-box.prompt-box-container',
@@ -322,6 +322,37 @@ export function isCardGenerationFailed(tileElement) {
 }
 
 /**
+ * Resolves the primary generated media element (video or image) from a card tile.
+ * Robust against empty thumbnail placeholders, video sources, and overlay avatars.
+ */
+export function getTileMediaSource(tileElement) {
+  if (!tileElement) return null;
+
+  // 1. Check <video> elements first (for video generation)
+  const videos = queryAll('video', tileElement);
+  for (const video of videos) {
+    const src = video.getAttribute('src') || video.currentSrc || video.querySelector('source')?.getAttribute('src') || '';
+    if (src && !src.startsWith('data:image/svg') && !src.includes('placeholder')) {
+      return { element: video, type: 'video', src };
+    }
+  }
+
+  // 2. Check <img> elements (for image generation & poster thumbnails)
+  const images = queryAll('img.image, img.thumbnail, img', tileElement);
+  for (const img of images) {
+    if (img.closest('mat-icon') || img.classList.contains('avatar') || img.classList.contains('user-avatar')) {
+      continue;
+    }
+    const src = img.getAttribute('src') || img.currentSrc || '';
+    if (src && !src.startsWith('data:image/svg') && !src.includes('placeholder')) {
+      return { element: img, type: 'image', src };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Evaluates whether an asset card completed successfully (ADR-006).
  * Google Flow does NOT produce toasts for moderation blocks or quota limits;
  * failed tiles remain blurred with error badges and no valid playable media source.
@@ -336,21 +367,31 @@ export function isCardGenerationSuccess(tileElement) {
   if (tileElement.querySelector('flow-pending-tile')) {
     return false;
   }
-  if (tileElement.querySelector('.progress-bar, .progress-bar-fill')) {
-    return false;
+
+  // 2. Active visible progress bar check
+  const progressBar = tileElement.querySelector('.progress-bar, .progress-bar-fill');
+  if (progressBar) {
+    let isVisible = true;
+    if (typeof window !== 'undefined' && window.getComputedStyle) {
+      const style = window.getComputedStyle(progressBar);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        isVisible = false;
+      }
+    }
+    if (progressBar.offsetWidth === 0 && progressBar.offsetHeight === 0 && progressBar.getClientRects().length === 0) {
+      isVisible = false;
+    }
+    if (isVisible) return false;
   }
 
-  // 2. Definitive failure check
+  // 3. Definitive failure check
   if (isCardGenerationFailed(tileElement)) {
     return false;
   }
 
-  // 3. Must contain a valid rendered media element with active source
-  const media = tileElement.querySelector(SELECTORS.CARD_MEDIA);
-  if (!media) return false;
-
-  const src = media.getAttribute('src') || media.currentSrc || '';
-  if (!src || src.trim() === '' || src.startsWith('data:image/svg') || src.includes('placeholder')) {
+  // 4. Must contain a valid rendered media element with active source
+  const media = getTileMediaSource(tileElement);
+  if (!media || !media.src || media.src.trim() === '') {
     return false;
   }
 

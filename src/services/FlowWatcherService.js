@@ -13,7 +13,8 @@ import {
   queryAll,
   waitForCondition,
   isCardGenerationSuccess,
-  isCardGenerationFailed
+  isCardGenerationFailed,
+  getTileMediaSource
 } from '../core/FlowDOM.js';
 import { logger } from './LoggerService.js';
 
@@ -28,48 +29,60 @@ export class FlowWatcherService {
    * so monitoring is strictly bound to index 0 (:first-child).
    */
   getTopBatchContainer() {
-    return query(SELECTORS.TOP_BATCH_CONTAINER) ||
+    // 1. Direct flow-tile-container at top index 0 (batch or grid mode container)
+    const directBatch = query(SELECTORS.TOP_BATCH_CONTAINER) ||
+      query('flow-grid-tile-container flow-tile-container:first-of-type') ||
+      query(`${SELECTORS.GRID_CONTAINER} > flow-tile-container:first-child`) ||
       query(`${SELECTORS.GRID_CONTAINER} > :first-child`);
+    if (directBatch) return directBatch;
+
+    // 2. Direct top tile fallback (if flat tiles inside grid view)
+    const topTile = query('flow-grid-tile-container flow-video-tile, flow-grid-tile-container flow-image-tile, flow-grid-tile-container flow-pending-tile');
+    if (topTile) {
+      return topTile.closest('flow-tile-container') || topTile;
+    }
+
+    return null;
   }
 
   /**
    * Returns all tile elements within a given batch container.
    */
-  getBatchTileElements(batchContainer) {
+  getBatchTileElements(batchContainer, expectedCount = null) {
     if (!batchContainer) return [];
-    return queryAll('flow-video-tile, flow-image-tile, flow-pending-tile', batchContainer);
+    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile, flow-pending-tile')) {
+      return [batchContainer];
+    }
+    const tiles = queryAll('flow-video-tile, flow-image-tile, flow-pending-tile', batchContainer);
+    if (expectedCount && tiles.length > expectedCount && batchContainer.tagName && batchContainer.tagName.toLowerCase() === 'flow-grid-tile-container') {
+      return tiles.slice(0, expectedCount);
+    }
+    return tiles;
   }
 
   /**
    * Evaluates the lifecycle state of a single tile card using the 4-State Protocol:
-   * 1. PENDING_RENDERING: progress bar, pending tile, or percent text active.
-   * 2. BLANK_TRANSITION: rendering finished, no media src yet, no error tile (10s grace period).
-   * 3. DEFINITIVE_SUCCESS: isCardGenerationSuccess === true.
-   * 4. DEFINITIVE_FAILURE: isCardGenerationFailed === true or grace period exceeded (>10s).
+   * 1. DEFINITIVE_SUCCESS: isCardGenerationSuccess === true.
+   * 2. DEFINITIVE_FAILURE: isCardGenerationFailed === true.
+   * 3. PENDING_RENDERING: progress bar, pending tile, or percent text active.
+   * 4. BLANK_TRANSITION: rendering finished, no media src yet, no error tile (10s grace period).
    */
   getTileStatus(tileElement) {
     if (!tileElement) {
       return { status: 'unknown', isRendering: false, isSuccess: false, isFailed: true };
     }
 
-    const isPending = (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') ||
-      Boolean(tileElement.querySelector('flow-pending-tile'));
-    const isProgressActive = Boolean(tileElement.querySelector('.progress-bar, .progress-bar-fill'));
-    const hasPercentText = Array.from(tileElement.querySelectorAll('div, span')).some(
-      el => /^\d+%$/.test((el.textContent || '').trim())
-    );
-    const isRendering = isPending || isProgressActive || hasPercentText;
-
+    // 1. Definitive Success and Definitive Failure checked first
     const isSuccess = isCardGenerationSuccess(tileElement);
     const hasDefinitiveFailure = isCardGenerationFailed(tileElement);
 
     let mediaType = 'unknown';
     let mediaSrc = '';
 
-    const mediaEl = tileElement.querySelector(SELECTORS.CARD_MEDIA);
-    if (mediaEl) {
-      mediaType = mediaEl.tagName.toLowerCase() === 'video' ? 'video' : 'image';
-      mediaSrc = mediaEl.getAttribute('src') || mediaEl.currentSrc || '';
+    const media = getTileMediaSource(tileElement);
+    if (media) {
+      mediaType = media.type;
+      mediaSrc = media.src;
     }
 
     // Definitive Success
@@ -100,7 +113,31 @@ export class FlowWatcherService {
       };
     }
 
-    // Active Rendering (progress bar, pending tile, or percentage ticker)
+    // 2. Active Rendering indicators: pending tile, visible progress bar, or percentage ticker
+    const isPending = (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') ||
+      Boolean(tileElement.querySelector('flow-pending-tile'));
+
+    const progressBar = tileElement.querySelector('.progress-bar, .progress-bar-fill, .hover-overlay-has-progress-bar');
+    let isProgressActive = false;
+    if (progressBar) {
+      let isVisible = true;
+      if (typeof window !== 'undefined' && window.getComputedStyle) {
+        const style = window.getComputedStyle(progressBar);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+          isVisible = false;
+        }
+      }
+      if (progressBar.offsetWidth === 0 && progressBar.offsetHeight === 0 && progressBar.getClientRects().length === 0) {
+        isVisible = false;
+      }
+      isProgressActive = isVisible;
+    }
+
+    const hasPercentText = Array.from(tileElement.querySelectorAll('div, span')).some(
+      el => /^\d+%$/.test((el.textContent || '').trim())
+    );
+    const isRendering = isPending || isProgressActive || hasPercentText;
+
     if (isRendering) {
       this.blankTransitionTimers.delete(tileElement);
       return {
@@ -114,7 +151,7 @@ export class FlowWatcherService {
       };
     }
 
-    // Transient Blank Transition Phase (!isRendering && !isSuccess && !hasDefinitiveFailure)
+    // 3. Transient Blank Transition Phase (!isRendering && !isSuccess && !hasDefinitiveFailure)
     // Between progress bar vanishing and media mounting (300ms–2000ms, with 10s grace timeout)
     const now = Date.now();
     let transitionStart = this.blankTransitionTimers.get(tileElement);
@@ -167,6 +204,16 @@ export class FlowWatcherService {
         return currentTop;
       }
 
+      // Or if the batch container has an active pending tile or progress bar
+      const tiles = this.getBatchTileElements(currentTop);
+      const isAnyRendering = tiles.some(t => {
+        const st = this.getTileStatus(t);
+        return st.isRendering;
+      });
+      if (isAnyRendering) {
+        return currentTop;
+      }
+
       return false;
     }, { timeout, interval: 300 });
   }
@@ -174,7 +221,7 @@ export class FlowWatcherService {
   /**
    * Watches an active batch container until all child tiles complete or fail.
    */
-  async watchBatchProgress(batchContainer, onProgress = null, { timeout = 180000, pollInterval = 1000 } = {}) {
+  async watchBatchProgress(batchContainer, onProgress = null, { timeout = 180000, pollInterval = 1000, expectedCount = 1 } = {}) {
     if (!batchContainer) {
       throw new Error('[FlowWatcherService] Invalid batch container provided to watchBatchProgress');
     }
@@ -195,7 +242,7 @@ export class FlowWatcherService {
           return reject(new Error('[FlowWatcherService] Active batch container disconnected from DOM'));
         }
 
-        const tiles = this.getBatchTileElements(batchContainer);
+        const tiles = this.getBatchTileElements(batchContainer, expectedCount);
         if (tiles.length === 0) {
           // Still initializing tiles inside container
           return;
@@ -270,7 +317,7 @@ export class FlowWatcherService {
     logger.step('watcher', 'New batch detected, monitoring generation progress...');
 
     // 2. Poll until all tiles in the batch resolve (success or failure)
-    const result = await this.watchBatchProgress(newBatch, onProgress, { timeout });
+    const result = await this.watchBatchProgress(newBatch, onProgress, { timeout, expectedCount });
 
     return result;
   }

@@ -5,12 +5,11 @@
 ---
 
 ## 1. Immediate Operational State
-
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `feat(queue): implement conditional batch vs single parameter orchestration and header setup`
+- **Latest Commit**: Pending (`fix(engine): resolve header switch mismatch settings popover bypass and tile generation watcher timeout`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, and Batch vs Single parameter orchestration verified via automated test suite
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, Batch vs Single parameter orchestration verified via automated test suite, header switch isolation verified, unconditional settings popover inspection verified, and video/image media resolver verified.
 
 ---
 
@@ -48,8 +47,12 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
    - `src/overlay/FlowHUDHost.js`: Wired multi-select bulk delete (`#chkSelectAllQueue`, `.row-select-checkbox`, `#btnBulkDeleteQueue`) with automatic `FlowImageDB` cascading image binary deletion. Implemented sort mode HTML5 drag-and-drop reordering with `#btnToggleSortMode`, `.is-sorting` states, and precision array splicing. Wired `Set params:` parameter mode switching between `Batch` (global controls) and `Single` mode (hiding sidebar controls when 0 rows checked to show `#sidebarSinglePlaceholder`, and synchronizing controls specifically to selected row objects). Purged obsolete toolbar paste, CSV import, quick paste, and individual row delete listeners.
    - `src/overlay/FlowHUDTemplates.js`: Purged dead `#btnQuickPasteClipboard` button from `renderEmptyDropzone()`.
    - `src/core/FlowStorage.js`: Added `paramMode: 'batch'` default to `DEFAULT_CONFIG` and `migrateSchema`.
-10. **Commit 7 Complete (Session 23, `HEAD`)**:
-   - `src/core/QueueManager.js`: Executed `setupHeaderGridAndClearPrompt()` and `ensureAgentModeOff()` strictly **once** at the beginning of `QueueManager.runLoop()`. Orchestrated parameter branching: in `Batch` mode, `applySettings(batchConfig)` runs once before the loop and prompt settings popover is skipped during item iterations; in `Single` mode, each item's specific configuration is read and applied on every loop cycle. Added pure text ingredient clearing to prevent cross-prompt contamination, and item-specific resolution downloads passing `item.resolution || cfg.targetResolution || defaultRes` to `downloadBatchTiles()`.
+10. **Commit 7 Complete (Session 23, `be187e7`)**:
+    - `src/core/QueueManager.js`: Executed `setupHeaderGridAndClearPrompt()` and `ensureAgentModeOff()` strictly **once** at the beginning of `QueueManager.runLoop()`. Orchestrated parameter branching: in `Batch` mode, `applySettings(batchConfig)` runs once before the loop and prompt settings popover is skipped during item iterations; in `Single` mode, each item's specific configuration is read and applied on every loop cycle. Added pure text ingredient clearing to prevent cross-prompt contamination, and item-specific resolution downloads passing `item.resolution || cfg.targetResolution || defaultRes` to `downloadBatchTiles()`.
+11. **Session 24 Fix Complete (Commit 8, `HEAD`)**:
+    - `src/core/FlowDOM.js`: Refactored `CLEAR_PROMPT_SWITCH` to eliminate generic switch fallback. Implemented `getTileMediaSource(tileElement)` prioritizing `<video>` element blob sources over empty thumbnail image placeholders. Enhanced `isCardGenerationSuccess(tileElement)` with visible progress bar evaluation and definitive media verification.
+    - `src/services/FlowSettingsService.js`: Refactored `findClearPromptSwitch()` with text matching, `ink_eraser` ligature matching, and positional 4th-switch targeting to eliminate accidental "Sound on hover" activation. Completely removed fast-path bypass (`isSettingsMatching()`) from `applySettings()` to unconditionally inspect and apply settings inside the popover. Enhanced `selectMediaMode()` with resilient Image/Video button queries and auto-aligned mode with target model family (`IMAGE_MODELS` -> `TEXT_TO_IMAGE`, `VIDEO_MODELS` -> `TEXT_TO_VIDEO`) to prevent model lookup failures like "Nano Banana Pro not found in menu".
+    - `src/services/FlowWatcherService.js`: Integrated `getTileMediaSource()`, prioritized definitive success evaluation, added progress bar visibility checks, and supported flat tiles in Grid view to resolve the 180s generation timeout issue.
 
 ---
 

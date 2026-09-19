@@ -27,7 +27,9 @@ import {
   MODELS,
   MEDIA_MODES,
   ASPECT_RATIOS,
-  VIDEO_DURATIONS
+  VIDEO_DURATIONS,
+  IMAGE_MODELS,
+  VIDEO_MODELS
 } from '../core/FlowStorage.js';
 
 import { logger } from './LoggerService.js';
@@ -39,8 +41,52 @@ export class FlowSettingsService {
   isToggleChecked(button) {
     if (!button) return false;
     if (button.getAttribute('aria-pressed') === 'true') return true;
+    if (button.getAttribute('aria-checked') === 'true') return true;
+    if (button.classList.contains('mat-button-toggle-checked') ||
+        button.classList.contains('active') ||
+        button.classList.contains('selected')) return true;
     const parentToggle = button.closest('mat-button-toggle');
-    return parentToggle ? parentToggle.classList.contains('mat-button-toggle-checked') : false;
+    if (parentToggle) {
+      if (parentToggle.classList.contains('mat-button-toggle-checked')) return true;
+      if (parentToggle.getAttribute('aria-checked') === 'true') return true;
+      const input = parentToggle.querySelector('input[type="radio"], button');
+      if (input && (input.checked || input.getAttribute('aria-pressed') === 'true' || input.getAttribute('aria-checked') === 'true')) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Specifically locates the 'Clear prompt on submit' toggle switch.
+   * Strictly avoids other switches in the header popover (e.g. Sound on hover, Silent videos).
+   */
+  findClearPromptSwitch(pane = document) {
+    // 1. Mat-slide-toggle containing text "Clear prompt"
+    const toggles = queryAll('mat-slide-toggle, .mat-mdc-slide-toggle', pane);
+    for (const toggle of toggles) {
+      if (toggle.textContent && toggle.textContent.toLowerCase().includes('clear prompt')) {
+        return toggle.querySelector('button[role="switch"]') || toggle.querySelector('button') || toggle;
+      }
+    }
+
+    // 2. Element by ligature ink_eraser (icon in the Clear prompt row)
+    const icon = queryIcon('ink_eraser', pane) ||
+      queryIcon('cleaning_services', pane) ||
+      queryIcon('edit_off', pane);
+    if (icon) {
+      const parentRow = icon.closest('mat-slide-toggle, div') || icon.parentElement;
+      if (parentRow) {
+        return parentRow.querySelector('button[role="switch"], button');
+      }
+    }
+
+    // 3. Positional fallback: in Google Flow header overlay, Clear prompt on submit is the 4th/last switch
+    const switchButtons = queryAll('button[role="switch"]', pane);
+    if (switchButtons.length >= 4) {
+      return switchButtons[switchButtons.length - 1];
+    }
+
+    // 4. Fallback: query with SELECTORS.CLEAR_PROMPT_SWITCH
+    return query(SELECTORS.CLEAR_PROMPT_SWITCH, pane);
   }
 
   /**
@@ -87,11 +133,17 @@ export class FlowSettingsService {
         await sleep(300);
       }
 
-      // 3. Clear prompt switch
-      const clearSwitch = query(SELECTORS.CLEAR_PROMPT_SWITCH, pane);
-      if (clearSwitch && clearSwitch.getAttribute('aria-checked') !== 'true') {
-        simulateClick(clearSwitch);
-        await sleep(300);
+      // 3. Clear prompt switch (TARGET ONLY Clear Prompt on submit, never Sound on hover!)
+      const clearSwitch = this.findClearPromptSwitch(pane);
+      if (clearSwitch) {
+        const isChecked = clearSwitch.getAttribute('aria-checked') === 'true' ||
+          Boolean(clearSwitch.closest('.mat-mdc-slide-toggle-checked, .mat-slide-toggle-checked'));
+        if (!isChecked) {
+          simulateClick(clearSwitch);
+          await sleep(300);
+        }
+      } else {
+        logger.info('[FlowSettingsService] Clear prompt switch not found, keeping existing setting');
       }
 
       return true;
@@ -129,7 +181,12 @@ export class FlowSettingsService {
    * Checks whether the prompt settings popover is currently open.
    */
   isPopoverOpen() {
-    return Boolean(query(SELECTORS.SETTINGS_POPOVER));
+    const pop = query(SELECTORS.SETTINGS_POPOVER);
+    if (!pop) return false;
+    if (typeof window !== 'undefined' && window.getComputedStyle) {
+      return window.getComputedStyle(pop).display !== 'none';
+    }
+    return true;
   }
 
   /**
@@ -188,77 +245,63 @@ export class FlowSettingsService {
   }
 
   /**
-   * Evaluates if requested settings already match current UI state (Fast-Path).
-   */
-  isSettingsMatching(targetSettings = {}) {
-    const { model, aspectRatio, outputCount, outputs } = targetSettings;
-    const finalOutputs = outputCount || outputs;
-    const summaryText = this.getSettingsSummaryText();
-
-    // Check aspect ratio ligature in summary
-    if (aspectRatio) {
-      const ratioLigatureMap = {
-        '16:9': LIGATURES.ASPECT_16_9,
-        '9:16': LIGATURES.ASPECT_9_16,
-        '4:3': LIGATURES.ASPECT_LANDSCAPE,
-        '1:1': LIGATURES.ASPECT_SQUARE
-      };
-      const expectedLigature = ratioLigatureMap[aspectRatio];
-      if (expectedLigature && !summaryText.includes(expectedLigature)) {
-        return false;
-      }
-    }
-
-    // Check output count multiplier in summary (e.g. 'x1', 'x2')
-    if (finalOutputs && !summaryText.includes(`x${finalOutputs}`)) {
-      return false;
-    }
-
-    // Check model display if popover is open or visible
-    if (model) {
-      const modelDisplay = query(SELECTORS.MODEL_SELECT_TRIGGER);
-      if (modelDisplay && modelDisplay.textContent.trim() !== model) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
    * Selects a model family from the dropdown menu.
    */
   async selectModel(targetModel, popover = document) {
     if (!targetModel) return;
 
-    const modelTrigger = query(SELECTORS.MODEL_SELECT_TRIGGER, popover);
+    let modelTrigger = query(SELECTORS.MODEL_SELECT_TRIGGER, popover) ||
+      query('span.model-select-trigger-content', popover) ||
+      query('flow-prompt-box-settings button[aria-haspopup="menu"]', popover) ||
+      query('button:has(mat-icon:has-text("arrow_drop_down"))', popover);
+
     if (!modelTrigger) {
       console.warn('[FlowSettingsService] Model select trigger not found');
       return;
     }
-
-    // If model is already selected, bypass
-    if (modelTrigger.textContent && modelTrigger.textContent.trim() === targetModel) {
+    // Normalized fast-path: if model is already selected in trigger label, bypass opening menu
+    const currentTriggerText = (modelTrigger.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const targetNorm = targetModel.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (currentTriggerText && targetNorm && (currentTriggerText.includes(targetNorm) || targetNorm.includes(currentTriggerText))) {
       return;
     }
 
     // Click trigger button
-    const triggerBtn = modelTrigger.closest('button');
-    if (!triggerBtn) return;
+    const triggerBtn = modelTrigger.closest('button') || modelTrigger;
     simulateClick(triggerBtn);
-    await sleep(350);
+    await sleep(400);
 
     // Wait for dropdown menu panel to appear
-    const menuPanel = await waitForElement(SELECTORS.MENU_PANEL, { timeout: 4000 });
+    const menuPanel = await waitForElement(SELECTORS.MENU_PANEL, { timeout: 4000 }).catch(() => null);
+    if (!menuPanel) {
+      console.warn('[FlowSettingsService] Menu panel did not appear after clicking model trigger');
+      return;
+    }
 
     // Find target model menu item
-    const targetItem = queryByText(SELECTORS.MENU_ITEM_BUTTON, targetModel, menuPanel) ||
-      queryByTextContains(SELECTORS.MENU_ITEM_BUTTON, targetModel, menuPanel);
+    const menuButtonsSelector = `${SELECTORS.MENU_ITEM_BUTTON}, button[role="menuitem"], .mat-mdc-menu-item`;
+    let targetItem = queryByText(menuButtonsSelector, targetModel, menuPanel) ||
+      queryByTextContains(menuButtonsSelector, targetModel, menuPanel);
+
+    // Flexible fallback: match without punctuation/hyphens
+    if (!targetItem) {
+      const allItems = queryAll(menuButtonsSelector, menuPanel);
+      for (const item of allItems) {
+        const normItem = (item.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normItem.includes(targetNorm) || targetNorm.includes(normItem)) {
+          targetItem = item;
+          break;
+        }
+      }
+    }
 
     if (!targetItem) {
+      const allItems = queryAll(menuButtonsSelector, menuPanel);
+      const available = allItems.map(i => i.textContent.trim()).filter(Boolean);
+      console.warn(`[FlowSettingsService] Available models in menu: [${available.join(', ')}]`);
       // Close menu if item not found
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
-      throw new Error(`[FlowSettingsService] Target model item "${targetModel}" not found in menu`);
+      throw new Error(`[FlowSettingsService] Target model item "${targetModel}" not found in menu (available: ${available.join(', ')})`);
     }
 
     simulateClick(targetItem);
@@ -272,23 +315,69 @@ export class FlowSettingsService {
   async selectMediaMode(mode, subMode = null, popover = document) {
     if (!mode) return;
 
-    if (mode === MEDIA_MODES.TEXT_TO_VIDEO || mode === MEDIA_MODES.IMAGE_TO_VIDEO || mode === MEDIA_MODES.FRAMES_TO_VIDEO) {
-      const videoBtn = queryButtonByIcon(LIGATURES.VIDEOCAM, popover);
+    const isVideo = mode === MEDIA_MODES.TEXT_TO_VIDEO ||
+      mode === MEDIA_MODES.IMAGE_TO_VIDEO ||
+      mode === MEDIA_MODES.FRAMES_TO_VIDEO ||
+      (typeof mode === 'string' && mode.includes('video'));
+
+    const isImage = !isVideo && (
+      mode === MEDIA_MODES.TEXT_TO_IMAGE ||
+      mode === MEDIA_MODES.EDIT_IMAGE ||
+      mode === 'text-to-image' ||
+      (typeof mode === 'string' && mode.includes('image'))
+    );
+
+    if (isVideo) {
+      const videoBtn = queryButtonByIcon(LIGATURES.VIDEOCAM, popover) ||
+        queryButtonByIcon('videocam', popover) ||
+        queryByText('mat-button-toggle button', 'Video', popover) ||
+        queryByTextContains('mat-button-toggle button', 'Video', popover) ||
+        query('mat-button-toggle:has(mat-icon:has-text("videocam")) button', popover) ||
+        query('mat-button-toggle-group:first-of-type mat-button-toggle:nth-of-type(2) button', popover) ||
+        query('mat-button-toggle-group mat-button-toggle:nth-of-type(2) button', popover);
       if (videoBtn && !this.isToggleChecked(videoBtn)) {
         simulateClick(videoBtn);
-        await sleep(300);
+        const parentToggle = videoBtn.closest('mat-button-toggle');
+        if (parentToggle && !this.isToggleChecked(videoBtn)) {
+          simulateClick(parentToggle);
+        }
+        await sleep(400);
       }
-    } else if (mode === MEDIA_MODES.TEXT_TO_IMAGE || mode === 'text-to-image') {
-      const imageBtn = queryButtonByIcon(LIGATURES.IMAGE, popover);
+    } else if (isImage) {
+      const imageBtn = queryButtonByIcon(LIGATURES.IMAGE, popover) ||
+        queryButtonByIcon('photo', popover) ||
+        queryByText('mat-button-toggle button', 'Image', popover) ||
+        queryByTextContains('mat-button-toggle button', 'Image', popover) ||
+        query('mat-button-toggle:has(mat-icon:has-text("image")) button', popover) ||
+        query('mat-button-toggle:has(mat-icon:has-text("photo")) button', popover) ||
+        query('mat-button-toggle-group:first-of-type mat-button-toggle:first-of-type button', popover) ||
+        query('mat-button-toggle-group mat-button-toggle:nth-of-type(1) button', popover);
       if (imageBtn && !this.isToggleChecked(imageBtn)) {
         simulateClick(imageBtn);
-        await sleep(300);
+        const parentToggle = imageBtn.closest('mat-button-toggle');
+        if (parentToggle && !this.isToggleChecked(imageBtn)) {
+          simulateClick(parentToggle);
+        }
+        await sleep(400);
       }
     }
 
-    // Sub-mode: Frames toggle
-    if (subMode === 'frames' || mode === MEDIA_MODES.FRAMES_TO_VIDEO) {
-      const framesBtn = queryButtonByIcon(LIGATURES.FRAMES, popover);
+    // Sub-mode: Ingredients vs Frames (Video mode)
+    if (mode === MEDIA_MODES.IMAGE_TO_VIDEO || subMode === 'ingredients') {
+      const ingBtn = queryButtonByIcon('shopping_bag', popover) ||
+        queryButtonByIcon('auto_awesome', popover) ||
+        queryByText('mat-button-toggle button', 'Ingredients', popover) ||
+        queryByTextContains('mat-button-toggle button', 'Ingredients', popover) ||
+        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(2) button', popover);
+      if (ingBtn && !this.isToggleChecked(ingBtn)) {
+        simulateClick(ingBtn);
+        await sleep(300);
+      }
+    } else if (subMode === 'frames' || mode === MEDIA_MODES.FRAMES_TO_VIDEO) {
+      const framesBtn = queryButtonByIcon(LIGATURES.FRAMES, popover) ||
+        queryByText('mat-button-toggle button', 'Frames', popover) ||
+        queryByTextContains('mat-button-toggle button', 'Frames', popover) ||
+        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(1) button', popover);
       if (framesBtn && !this.isToggleChecked(framesBtn)) {
         simulateClick(framesBtn);
         await sleep(300);
@@ -318,7 +407,8 @@ export class FlowSettingsService {
 
     // Fallback: search by text token
     if (!targetBtn) {
-      targetBtn = queryByText(SELECTORS.BUTTON_TOGGLE, ratio, popover);
+      targetBtn = queryByText(SELECTORS.BUTTON_TOGGLE, ratio, popover) ||
+        queryByTextContains(SELECTORS.BUTTON_TOGGLE, ratio, popover);
     }
 
     if (targetBtn && !this.isToggleChecked(targetBtn)) {
@@ -333,7 +423,8 @@ export class FlowSettingsService {
   async selectDuration(duration, popover = document) {
     if (!duration) return;
 
-    const durationBtn = queryByText(SELECTORS.BUTTON_TOGGLE, duration, popover);
+    const durationBtn = queryByText(SELECTORS.BUTTON_TOGGLE, duration, popover) ||
+      queryByTextContains(SELECTORS.BUTTON_TOGGLE, duration, popover);
     if (durationBtn && !this.isToggleChecked(durationBtn)) {
       simulateClick(durationBtn);
       await sleep(300);
@@ -347,7 +438,8 @@ export class FlowSettingsService {
     if (!count) return;
 
     const token = `x${count}`;
-    const outputBtn = queryByText(SELECTORS.BUTTON_TOGGLE, token, popover);
+    const outputBtn = queryByText(SELECTORS.BUTTON_TOGGLE, token, popover) ||
+      queryByTextContains(SELECTORS.BUTTON_TOGGLE, token, popover);
     if (outputBtn && !this.isToggleChecked(outputBtn)) {
       simulateClick(outputBtn);
       await sleep(300);
@@ -356,8 +448,7 @@ export class FlowSettingsService {
 
   /**
    * Main orchestrator: Applies all target configuration parameters.
-   * Leverages fast-path bypass whenever active settings already match.
-   * Allows passing row-specific parameter objects directly: applySettings(itemParams).
+   * Directly opens the popover, validates/applies all controls, and cleanly closes it.
    */
   async applySettings(config = {}) {
     // 1. Always enforce Creative Agent Mode is disabled
@@ -373,43 +464,47 @@ export class FlowSettingsService {
       outputCount: config.outputCount || config.outputs
     };
 
-    // 2. Check Fast-Path: if already matching, skip opening popover
-    if (this.isSettingsMatching(target)) {
-      return { bypassed: true, applied: false };
+    // Auto-align mode with model family if mismatched
+    if (target.model && IMAGE_MODELS.includes(target.model) && (!target.mode || target.mode.includes('video'))) {
+      target.mode = MEDIA_MODES.TEXT_TO_IMAGE;
+    } else if (target.model && VIDEO_MODELS.includes(target.model) && (!target.mode || target.mode.includes('image'))) {
+      target.mode = MEDIA_MODES.TEXT_TO_VIDEO;
     }
 
-    // 3. Open settings popover (includes 450ms pacing delay)
+    logger.step('settings', `Configuring popover: ${target.mode || 'video'} | ${target.model || 'default'} | ratio: ${target.aspectRatio || '16:9'}`);
+
+    // Always open settings popover and inspect/apply controls directly
     const popover = await this.openSettingsPopover();
 
     try {
-      // 4. Apply Media Mode (includes 300ms pacing delay)
+      // 2. Apply Media Mode (video / image) (includes 400ms pacing delay)
       if (target.mode) {
         await this.selectMediaMode(target.mode, target.subMode, popover);
       }
 
-      // 5. Apply Model Family (includes 350ms trigger + 350ms selection pacing delay)
+      // 3. Apply Model Family (includes 400ms trigger + 350ms selection pacing delay)
       if (target.model) {
         await this.selectModel(target.model, popover);
       }
 
-      // 6. Apply Aspect Ratio (includes 300ms pacing delay)
+      // 4. Apply Aspect Ratio (includes 300ms pacing delay)
       if (target.aspectRatio) {
         await this.selectAspectRatio(target.aspectRatio, popover);
       }
 
-      // 7. Apply Duration (if applicable for Omni, includes 300ms pacing delay)
-      if (target.duration && target.model === MODELS.OMNI_FLASH) {
+      // 5. Apply Duration (if applicable for Omni, includes 300ms pacing delay)
+      if (target.duration && (!target.model || target.model === MODELS.OMNI_FLASH)) {
         await this.selectDuration(target.duration, popover);
       }
 
-      // 8. Apply Output Multiplier (includes 300ms pacing delay)
+      // 6. Apply Output Multiplier (includes 300ms pacing delay)
       if (target.outputCount) {
         await this.selectOutputCount(target.outputCount, popover);
       }
 
       return { bypassed: false, applied: true };
     } finally {
-      // 9. Always ensure popover is closed cleanly (includes 250ms settle + 400ms close pacing delay)
+      // 7. Always ensure popover is closed cleanly
       await this.closeSettingsPopover();
     }
   }
