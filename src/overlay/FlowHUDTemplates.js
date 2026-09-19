@@ -326,7 +326,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       : 'Enter prompt text here...';
 
   return `
-    <div class="hud-queue-row ${statusClass} ${isSortMode ? 'is-sorting' : ''}" data-id="${item.id}" data-idx="${index}" ${isSortMode ? 'draggable="true"' : ''}>
+    <div class="hud-queue-row ${statusClass} ${isChecked ? 'row-active' : ''} ${isSortMode ? 'is-sorting' : ''}" data-id="${item.id}" data-idx="${index}" ${isSortMode ? 'draggable="true"' : ''}>
       <div class="row-select-handle">
         <input type="checkbox" class="rj-checkbox row-select-checkbox" data-idx="${index}" ${isChecked ? 'checked' : ''} title="Select row" style="${isSortMode ? 'display: none;' : ''}">
         <span class="row-drag-handle" title="Drag to reorder" style="${isSortMode ? 'display: inline-flex;' : 'display: none;'}">${ICONS.GRIP_VERTICAL}</span>

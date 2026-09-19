@@ -7,7 +7,7 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending (`fix(engine): resolve header switch mismatch settings popover bypass and tile generation watcher timeout`)
+- **Latest Commit**: `8e706fb` (`fix(engine): live percentage tracking ingredient upload verification download fallback and single row selection`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
 - **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, Batch vs Single parameter orchestration verified via automated test suite, header switch isolation verified, unconditional settings popover inspection verified, and video/image media resolver verified.
 
@@ -53,6 +53,11 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
     - `src/core/FlowDOM.js`: Refactored `CLEAR_PROMPT_SWITCH` to eliminate generic switch fallback. Implemented `getTileMediaSource(tileElement)` prioritizing `<video>` element blob sources over empty thumbnail image placeholders. Enhanced `isCardGenerationSuccess(tileElement)` with visible progress bar evaluation and definitive media verification.
     - `src/services/FlowSettingsService.js`: Refactored `findClearPromptSwitch()` with text matching, `ink_eraser` ligature matching, and positional 4th-switch targeting to eliminate accidental "Sound on hover" activation. Completely removed fast-path bypass (`isSettingsMatching()`) from `applySettings()` to unconditionally inspect and apply settings inside the popover. Enhanced `selectMediaMode()` with resilient Image/Video button queries and auto-aligned mode with target model family (`IMAGE_MODELS` -> `TEXT_TO_IMAGE`, `VIDEO_MODELS` -> `TEXT_TO_VIDEO`) to prevent model lookup failures like "Nano Banana Pro not found in menu".
     - `src/services/FlowWatcherService.js`: Integrated `getTileMediaSource()`, prioritized definitive success evaluation, added progress bar visibility checks, and supported flat tiles in Grid view to resolve the 180s generation timeout issue.
+12. **Session 25 Fix Complete (Commit 9, `HEAD`)**:
+    - `src/services/FlowWatcherService.js` & `src/core/QueueManager.js`: Parsed live generation percentage from `<div class="loading-percentage">XX%</div>` inside `<flow-pending-tile>`. Refactored `getBatchTileElements()` to isolate primary card tiles and avoid counting nested `<flow-pending-tile>` children as separate tiles. Computed batch aggregate percentage averaging across all tiles when output count > 1 (`Math.min(100, Math.round(sumTilePercent / total))`).
+    - `src/services/FlowIngredientService.js`: Eliminated unwanted popover menu triggers by removing synthetic clicks on `button.empty-chip` / add triggers. Ingested references via native paste/drop events and verified upload completion via `<flow-soupy-overlay>` removal, `aria-busy === 'false'`, and valid `img.chip-image` URL before generation.
+    - `src/services/FlowDownloadService.js`: Refactored resolution selection to match against `span.label` (`1080p`, `4K`, `720p`, etc.) ignoring captions. Implemented locked option detection and fallback to the highest available enabled resolution (e.g. 1080p for video, 2K for image) on free accounts. Enabled sequential batch downloading across all successful output tiles with 1000ms pacing and HUD progress updates (`DOWNLOADING (1/4)`).
+    - `src/overlay/FlowHUDHost.js`, `src/overlay/FlowHUDTemplates.js`, `src/overlay/overlay.css`: Added container click and textarea focus row activation for Single Mode with `.row-active` cyan accent styling. Elevated dark mode contrast tokens (canvas `#0c0e12`, surface `#12151b`, elevated `#161920`, card `#1a1e26`, border `#262c36`, body `#e3e6ec`) and increased typography sizes (textarea 13.5px, badges 10px, labels 12px).
 
 ---
 

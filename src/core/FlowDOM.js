@@ -331,7 +331,7 @@ export function getTileMediaSource(tileElement) {
   // 1. Check <video> elements first (for video generation)
   const videos = queryAll('video', tileElement);
   for (const video of videos) {
-    const src = video.getAttribute('src') || video.currentSrc || video.querySelector('source')?.getAttribute('src') || '';
+    const src = video.getAttribute('src') || video.currentSrc || video.querySelector('source')?.getAttribute('src') || video.poster || '';
     if (src && !src.startsWith('data:image/svg') && !src.includes('placeholder')) {
       return { element: video, type: 'video', src };
     }
@@ -389,13 +389,24 @@ export function isCardGenerationSuccess(tileElement) {
     return false;
   }
 
-  // 4. Must contain a valid rendered media element with active source
+  // 4. Hotbar presence indicates generation completion
+  const hasHotbar = Boolean(
+    tileElement.querySelector('flow-hotbar-container') ||
+    queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
+    queryIcon(LIGATURES.MORE_OPTIONS, tileElement)
+  );
+
+  // 5. Must contain a valid rendered media element with active source OR hotbar
   const media = getTileMediaSource(tileElement);
-  if (!media || !media.src || media.src.trim() === '') {
-    return false;
+  if (media && media.src && media.src.trim() !== '') {
+    return true;
   }
 
-  return true;
+  if (hasHotbar) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

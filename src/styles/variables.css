@@ -6,27 +6,27 @@
 :root,
 :host {
   /* Surfaces */
-  --rj-bg-canvas: #07080a;
-  --rj-bg-surface: #0d0d0d;
-  --rj-bg-elevated: #101111;
-  --rj-bg-card: #121212;
-  --rj-bg-input: #18191a;
+  --rj-bg-canvas: #0c0e12;
+  --rj-bg-surface: #12151b;
+  --rj-bg-elevated: #161920;
+  --rj-bg-card: #1a1e26;
+  --rj-bg-input: #14171d;
 
   /* Borders & Dividers */
-  --rj-border-hairline: #242728;
-  --rj-border-soft: rgba(255, 255, 255, 0.08);
-  --rj-border-strong: rgba(255, 255, 255, 0.16);
+  --rj-border-hairline: #262c36;
+  --rj-border-soft: rgba(255, 255, 255, 0.10);
+  --rj-border-strong: rgba(255, 255, 255, 0.20);
 
   /* Typography */
   --rj-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --rj-text-primary: #ffffff;
-  --rj-text-body: #cdcdcd;
-  --rj-text-muted: #9c9c9d;
-  --rj-text-ash: #6a6b6c;
+  --rj-text-body: #e3e6ec;
+  --rj-text-muted: #a2a8b5;
+  --rj-text-ash: #727a8a;
 
   /* Accent Colors */
-  --rj-accent-cyan: #079183;
-  --rj-accent-cyan-soft: rgba(7, 145, 131, 0.18);
+  --rj-accent-cyan: #00b4a4;
+  --rj-accent-cyan-soft: rgba(0, 180, 164, 0.18);
   --rj-accent-green: #59d499;
   --rj-accent-green-soft: rgba(89, 212, 153, 0.15);
   --rj-accent-yellow: #ffc533;

@@ -50,10 +50,18 @@ export class FlowWatcherService {
    */
   getBatchTileElements(batchContainer, expectedCount = null) {
     if (!batchContainer) return [];
-    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile, flow-pending-tile')) {
+    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile')) {
       return [batchContainer];
     }
-    const tiles = queryAll('flow-video-tile, flow-image-tile, flow-pending-tile', batchContainer);
+    // Query primary card tiles
+    let tiles = queryAll('flow-video-tile, flow-image-tile', batchContainer);
+    // If no video or image tiles mounted yet, check for pending tiles that are top-level
+    if (tiles.length === 0) {
+      tiles = queryAll('flow-pending-tile', batchContainer);
+    }
+    // Filter out any child tile whose ancestor is already included in tiles
+    tiles = tiles.filter(t => !tiles.some(parent => parent !== t && parent.contains(t)));
+
     if (expectedCount && tiles.length > expectedCount && batchContainer.tagName && batchContainer.tagName.toLowerCase() === 'flow-grid-tile-container') {
       return tiles.slice(0, expectedCount);
     }
@@ -76,6 +84,17 @@ export class FlowWatcherService {
     const isSuccess = isCardGenerationSuccess(tileElement);
     const hasDefinitiveFailure = isCardGenerationFailed(tileElement);
 
+    // Extract live percentage from DOM if rendered (e.g. <div class="loading-percentage">53%</div>)
+    let livePercent = 0;
+    const percentEl = tileElement.querySelector('.loading-percentage') ||
+      Array.from(tileElement.querySelectorAll('div, span')).find(el => /^\d+%$/.test((el.textContent || '').trim()));
+    if (percentEl) {
+      const match = (percentEl.textContent || '').trim().match(/(\d+)%/);
+      if (match) {
+        livePercent = parseInt(match[1], 10);
+      }
+    }
+
     let mediaType = 'unknown';
     let mediaSrc = '';
 
@@ -94,6 +113,7 @@ export class FlowWatcherService {
         isRendering: false,
         isSuccess: true,
         isFailed: false,
+        percent: 100,
         mediaType,
         mediaSrc
       };
@@ -108,6 +128,7 @@ export class FlowWatcherService {
         isRendering: false,
         isSuccess: false,
         isFailed: true,
+        percent: 0,
         mediaType,
         mediaSrc
       };
@@ -133,7 +154,7 @@ export class FlowWatcherService {
       isProgressActive = isVisible;
     }
 
-    const hasPercentText = Array.from(tileElement.querySelectorAll('div, span')).some(
+    const hasPercentText = livePercent > 0 || Array.from(tileElement.querySelectorAll('div, span')).some(
       el => /^\d+%$/.test((el.textContent || '').trim())
     );
     const isRendering = isPending || isProgressActive || hasPercentText;
@@ -146,6 +167,7 @@ export class FlowWatcherService {
         isRendering: true,
         isSuccess: false,
         isFailed: false,
+        percent: livePercent,
         mediaType,
         mediaSrc
       };
@@ -170,6 +192,7 @@ export class FlowWatcherService {
         isRendering: false,
         isSuccess: false,
         isFailed: true,
+        percent: 0,
         mediaType,
         mediaSrc
       };
@@ -183,6 +206,7 @@ export class FlowWatcherService {
       isTransitioning: true,
       isSuccess: false,
       isFailed: false,
+      percent: livePercent,
       mediaType,
       mediaSrc
     };
@@ -251,6 +275,7 @@ export class FlowWatcherService {
         let completedCount = 0;
         let failedCount = 0;
         let renderingCount = 0;
+        let sumTilePercent = 0;
         const tileStatuses = [];
 
         for (const tile of tiles) {
@@ -259,16 +284,20 @@ export class FlowWatcherService {
 
           if (st.isSuccess) {
             completedCount++;
+            sumTilePercent += 100;
           } else if (st.isFailed) {
             failedCount++;
+            sumTilePercent += 100;
           } else {
             renderingCount++;
+            sumTilePercent += (st.percent || 0);
           }
         }
 
         const total = tiles.length;
         const isDone = (completedCount + failedCount) === total;
-        const estimatedPercent = Math.min(100, Math.round(((completedCount + failedCount) / total) * 100));
+        // Real-time aggregate percentage calculated across all tiles in the batch
+        const estimatedPercent = total > 0 ? Math.min(100, Math.round(sumTilePercent / total)) : 0;
 
         if (typeof onProgress === 'function') {
           try {

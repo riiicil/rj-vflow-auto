@@ -590,9 +590,13 @@ export class FlowHUDHost {
         badge.className = `row-status-badge status-${status}`;
 
         if (status === 'generating') {
-          badge.textContent = `GENERATING (${payload.percent || 25}%)`;
+          badge.textContent = `GENERATING (${payload.percent || 1}%)`;
         } else if (status === 'downloading') {
-          badge.textContent = `DOWNLOADING (${payload.percent || 85}%)`;
+          if (payload.downloadProgress && payload.downloadProgress.total > 1) {
+            badge.textContent = `DOWNLOADING (${payload.downloadProgress.current}/${payload.downloadProgress.total})`;
+          } else {
+            badge.textContent = `DOWNLOADING (${payload.percent || 90}%)`;
+          }
         } else if (status === 'injecting') {
           badge.textContent = 'INJECTING (10%)';
         } else {
@@ -692,12 +696,19 @@ export class FlowHUDHost {
     const container = this.shadow.getElementById('hudQueueContent');
     if (!container) return;
 
-    // 1. Textarea prompt changes
+    // 1. Textarea prompt changes and focus activation
     container.querySelectorAll('.row-prompt-input').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = Number(e.target.dataset.idx);
         if (this.queueItems[idx]) {
           this.queueItems[idx].prompt = e.target.value;
+        }
+      });
+
+      input.addEventListener('focus', (e) => {
+        const idx = Number(e.target.dataset.idx);
+        if (this.paramMode === 'single') {
+          this.activateSingleRow(idx);
         }
       });
     });
@@ -707,9 +718,44 @@ export class FlowHUDHost {
       cb.addEventListener('change', (e) => {
         const idx = Number(e.target.dataset.idx);
         if (this.queueItems[idx]) {
-          this.queueItems[idx].selected = e.target.checked;
+          if (this.paramMode === 'single') {
+            if (e.target.checked) {
+              this.activateSingleRow(idx);
+            } else {
+              this.queueItems[idx].selected = false;
+              const parentRow = cb.closest('.hud-queue-row');
+              if (parentRow) parentRow.classList.remove('row-active');
+              this.updateSidebarParamModeUI();
+            }
+          } else {
+            this.queueItems[idx].selected = e.target.checked;
+            const parentRow = cb.closest('.hud-queue-row');
+            if (parentRow) parentRow.classList.toggle('row-active', e.target.checked);
+            this.updateSidebarParamModeUI();
+          }
         }
-        this.updateSelectionUI();
+      });
+    });
+
+    // 3. Row container click activation for Single Mode
+    container.querySelectorAll('.hud-queue-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        // Ignore clicks on actionable child elements
+        if (e.target && (
+          e.target.closest('.row-select-checkbox') ||
+          e.target.closest('.row-media-slot') ||
+          e.target.closest('.row-file-input') ||
+          e.target.closest('.row-remove-thumb-btn') ||
+          e.target.closest('.row-swap-frames-btn') ||
+          e.target.closest('.row-prompt-input')
+        )) {
+          return;
+        }
+
+        const idx = Number(row.dataset.idx);
+        if (this.paramMode === 'single') {
+          this.activateSingleRow(idx);
+        }
       });
     });
 
@@ -1118,6 +1164,28 @@ export class FlowHUDHost {
 
     // 3. Sidebar Parameters vs Placeholder
     this.updateSidebarParamModeUI();
+  }
+
+  /**
+   * Activates a single row for Single Mode parameter inspection & editing.
+   */
+  activateSingleRow(idx) {
+    if (idx < 0 || idx >= this.queueItems.length) return;
+
+    this.queueItems.forEach((it, i) => {
+      it.selected = (i === idx);
+    });
+
+    const container = this.shadow.getElementById('hudQueueContent');
+    if (container) {
+      container.querySelectorAll('.hud-queue-row').forEach((row, i) => {
+        row.classList.toggle('row-active', i === idx);
+        const cb = row.querySelector('.row-select-checkbox');
+        if (cb) cb.checked = (i === idx);
+      });
+    }
+
+    this.updateSelectionUI();
   }
 
   /**

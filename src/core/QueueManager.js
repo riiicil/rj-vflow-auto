@@ -353,7 +353,7 @@ export class QueueManager {
 
       // 5. Stage: GENERATING — Watch batch resolution
       await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, percent: 25 });
+      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, percent: 1 });
 
       const watchResult = await flowWatcherService.waitForGeneration(
         previousTopBatch,
@@ -362,7 +362,7 @@ export class QueueManager {
           this.notifyProgress({
             itemId,
             status: QUEUE_STATUS.GENERATING,
-            percent: 25 + Math.round((progress.percent || 0) * 0.5),
+            percent: Math.max(1, Math.min(99, progress.percent || 1)),
             progress
           });
         },
@@ -374,17 +374,34 @@ export class QueueManager {
       const shouldDownload = item.autoDownload !== undefined ? item.autoDownload : cfg.autoDownload;
 
       if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
-        await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.DOWNLOADING, percent: 85 });
+        const successfulTiles = watchResult.tiles.filter(t => t.isSuccess);
+        if (successfulTiles.length > 0) {
+          await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
+          this.notifyProgress({
+            itemId,
+            status: QUEUE_STATUS.DOWNLOADING,
+            percent: 90,
+            downloadProgress: { current: 1, total: successfulTiles.length }
+          });
 
-        const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
-        const defaultRes = isImage ? (cfg.imageResolution || '2K') : (cfg.videoResolution || '1080p');
-        const targetRes = item.resolution || cfg.targetResolution || defaultRes;
-        logger.step('download', `Downloading ${watchResult.tiles.length} asset(s) at ${targetRes}`);
-        await flowDownloadService.downloadBatchTiles(watchResult.tiles, {
-          targetResolution: targetRes,
-          delayBetweenMs: 1000
-        });
+          const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
+          const defaultRes = isImage ? (cfg.imageResolution || '2K') : (cfg.videoResolution || '1080p');
+          const targetRes = item.resolution || cfg.targetResolution || defaultRes;
+          logger.step('download', `Downloading ${successfulTiles.length} asset(s) at ${targetRes}`);
+          await flowDownloadService.downloadBatchTiles(successfulTiles, {
+            targetResolution: targetRes,
+            delayBetweenMs: 1000,
+            onProgress: (current, total) => {
+              const dlPercent = Math.min(99, Math.round(90 + (current / total) * 9));
+              this.notifyProgress({
+                itemId,
+                status: QUEUE_STATUS.DOWNLOADING,
+                percent: dlPercent,
+                downloadProgress: { current, total }
+              });
+            }
+          });
+        }
       }
 
       // 7. Stage: COMPLETED or FAILED

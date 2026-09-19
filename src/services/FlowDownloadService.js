@@ -65,26 +65,69 @@ export class FlowDownloadService {
     }
 
     simulateClick(downloadBtn);
-    await sleep(300);
+    await sleep(350);
 
-    // Check if resolution sub-items appear
+    // Check if resolution sub-items appear in any open menu panel
     try {
-      const resolutionBtn = await waitForElement(`div.mat-mdc-menu-content flow-menu-item button`, { timeout: 1500 });
-      if (resolutionBtn) {
-        // Look for matching resolution button (e.g. '1080p', '4K', '720p', '2K')
-        const allMenuPanels = queryAll(SELECTORS.MENU_PANEL);
-        let targetResBtn = null;
+      await waitForElement(`div.mat-mdc-menu-content flow-menu-item button`, { timeout: 2000 });
+      
+      const menuItems = Array.from(document.querySelectorAll('div.mat-mdc-menu-content flow-menu-item'));
+      if (menuItems.length > 0) {
+        const parsedOptions = [];
 
-        for (const panel of allMenuPanels) {
-          targetResBtn = queryByText('flow-menu-item button', targetResolution, panel);
-          if (targetResBtn) break;
+        for (const item of menuItems) {
+          const btn = item.querySelector('button[role="menuitem"]') || item.querySelector('button');
+          if (!btn) continue;
+
+          const labelEl = item.querySelector('span.label');
+          const labelText = labelEl ? labelEl.textContent.trim() : (btn.textContent || '').trim();
+          const captionEl = item.querySelector('span.caption');
+          const captionText = captionEl ? captionEl.textContent.trim() : '';
+
+          const isDisabled = btn.disabled || 
+            btn.getAttribute('disabled') === 'true' || 
+            btn.getAttribute('aria-disabled') === 'true' ||
+            btn.classList.contains('mat-mdc-menu-item-disabled');
+          const hasUpgradeAction = Boolean(item.querySelector('.flow-menu-item-actions, a[href*="upgrade"], a[href*="explore-plan"]'));
+          const isLocked = isDisabled || hasUpgradeAction;
+
+          parsedOptions.push({
+            item,
+            btn,
+            label: labelText,
+            caption: captionText,
+            isLocked
+          });
         }
 
-        if (targetResBtn) {
-          simulateClick(targetResBtn);
-        } else {
-          // Fallback: click first resolution item available
-          simulateClick(resolutionBtn);
+        const availableOptions = parsedOptions.filter(o => !o.isLocked);
+        let chosenOption = null;
+
+        if (availableOptions.length > 0) {
+          const normTarget = String(targetResolution).toLowerCase();
+
+          if (normTarget === 'max') {
+            chosenOption = availableOptions[availableOptions.length - 1];
+          } else {
+            chosenOption = availableOptions.find(o => {
+              const l = o.label.toLowerCase();
+              return l === normTarget || l.includes(normTarget);
+            });
+
+            // If requested resolution (e.g. 4K) is locked or not found, fall back to highest available enabled option
+            if (!chosenOption) {
+              const fallback = availableOptions[availableOptions.length - 1];
+              console.warn(`[FlowDownloadService] Requested resolution '${targetResolution}' is locked or unavailable. Falling back to highest available enabled: ${fallback.label}`);
+              chosenOption = fallback;
+            }
+          }
+        } else if (parsedOptions.length > 0) {
+          chosenOption = parsedOptions[0];
+        }
+
+        if (chosenOption && chosenOption.btn) {
+          simulateClick(chosenOption.btn);
+          await sleep(500);
         }
       }
     } catch (e) {
@@ -144,7 +187,7 @@ export class FlowDownloadService {
   /**
    * Downloads all successful tiles in a batch sequentially with safe pacing delay (800ms - 1000ms).
    */
-  async downloadBatchTiles(tiles, { targetResolution = '1080p', delayBetweenMs = 1000 } = {}) {
+  async downloadBatchTiles(tiles, { targetResolution = '1080p', delayBetweenMs = 1000, onProgress = null } = {}) {
     if (!Array.isArray(tiles) || tiles.length === 0) return 0;
 
     // Enforce strict 800ms - 1000ms pacing delay between downloads
@@ -154,6 +197,12 @@ export class FlowDownloadService {
     for (let i = 0; i < tiles.length; i++) {
       const tileObj = tiles[i];
       const element = tileObj.element || tileObj;
+
+      if (typeof onProgress === 'function') {
+        try {
+          onProgress(i + 1, tiles.length);
+        } catch (_) {}
+      }
 
       const success = await this.downloadTile(element, {
         targetResolution,

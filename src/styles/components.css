@@ -13,16 +13,16 @@
 }
 
 .rj-field-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--rj-text-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rj-text-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .rj-field-hint {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--rj-text-muted);
   font-weight: 400;
 }

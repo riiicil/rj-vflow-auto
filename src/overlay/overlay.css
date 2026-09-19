@@ -250,9 +250,9 @@ svg.rj-icon,
 }
 
 .toolbar-param-mode .toolbar-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--rj-text-muted, #9c9c9d);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rj-text-body, #e3e6ec);
   white-space: nowrap;
 }
 
@@ -474,16 +474,23 @@ svg.rj-icon,
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
 }
 
 .hud-queue-row:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.hud-queue-row.row-active {
+  border-color: var(--rj-accent-cyan, #00b4a4) !important;
+  background-color: rgba(0, 180, 164, 0.08);
+  box-shadow: 0 0 0 1px rgba(0, 180, 164, 0.28);
 }
 
 .hud-queue-row.status-generating {
-  border-color: rgba(7, 145, 131, 0.5);
-  background-color: rgba(7, 145, 131, 0.05);
+  border-color: rgba(0, 180, 164, 0.6);
+  background-color: rgba(0, 180, 164, 0.06);
 }
 
 .hud-queue-row.status-completed {
@@ -660,25 +667,26 @@ svg.rj-icon,
   border-radius: var(--rj-radius-sm, 6px);
   color: var(--rj-text-primary, #ffffff);
   font-family: inherit;
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 6px 8px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 6px 9px;
   resize: vertical;
-  min-height: 28px;
+  min-height: 30px;
   max-height: 80px;
   outline: none;
   transition: border-color 0.15s ease;
 }
 
 .row-prompt-input:focus {
-  border-color: var(--rj-accent-cyan, #079183);
+  border-color: var(--rj-accent-cyan, #00b4a4);
 }
 
 .row-status-badge {
   align-self: flex-start;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 1px 5px;
+  padding: 2px 7px;
+  letter-spacing: 0.3px;
   border-radius: var(--rj-radius-pill, 9999px);
   background-color: var(--rj-bg-elevated, #101111);
   color: var(--rj-text-muted, #9c9c9d);
@@ -759,18 +767,18 @@ svg.rj-icon,
 }
 
 .sidebar-placeholder-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--rj-text-muted, #9c9c9d);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--rj-text-body, #e3e6ec);
   line-height: 1.4;
-  max-width: 190px;
+  max-width: 200px;
 }
 
 .sidebar-placeholder-sub {
-  font-size: 10px;
-  color: var(--rj-text-ash, #6a6b6c);
+  font-size: 11px;
+  color: var(--rj-text-muted, #a2a8b5);
   line-height: 1.4;
-  max-width: 180px;
+  max-width: 190px;
 }
 
 .hud-sidebar-scroll {
