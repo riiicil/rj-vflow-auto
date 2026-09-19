@@ -2,7 +2,7 @@
 
 *Last Updated: 2026-09-19*<br>
 *Active Branch: `task/dual-mode-ui`*<br>
-*Current Milestone: Phase 3 (Dual-Mode UI Implementation) — [IN_PROGRESS]*
+*Current Milestone: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]*
 
 ---
 
@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping; Commit 4 complete: FlowImageDB IndexedDB binary storage engine, storage sanitization, and synchronous file upload crash fix; Commit 5 complete: Studio HUD queue toolbar redesign, multi-select checkboxes, sort controls, and single mode sidebar placeholder; Commit 6 complete: HUD event orchestration, multi-select bulk delete with IndexedDB cascade, sort mode HTML5 drag-and-drop reordering, and Single vs Batch parameter bindings)
+- **Phase 3 — Dual-Mode UI Implementation**: [COMPLETE] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support; Commit 3 complete: UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping; Commit 4 complete: FlowImageDB IndexedDB binary storage engine, storage sanitization, and synchronous file upload crash fix; Commit 5 complete: Studio HUD queue toolbar redesign, multi-select checkboxes, sort controls, and single mode sidebar placeholder; Commit 6 complete: HUD event orchestration, multi-select bulk delete with IndexedDB cascade, sort mode HTML5 drag-and-drop reordering, and Single vs Batch parameter bindings; Commit 7 complete: conditional batch vs single parameter orchestration, one-time header setup, and item-specific resolution downloads)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -64,7 +64,7 @@
   - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, pseudo `:has-text` support, MutationObserver waiters, 4-state lifecycle validators (`isCardGenerationSuccess`, `isCardGenerationFailed`), and centralized `sleep(ms)` pacing utility.
   - `src/core/FlowImageDB.js` — IndexedDB binary storage engine (`vflowImageDB`, store `images`) storing raw Blob/File binaries locally under unique UUIDs, bypassing Chrome's 5MB `chrome.storage.local` quota limit.
   - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, `sanitizeQueueForStorage` quota protection, and reactive change listeners.
-  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle with direct IndexedDB binary ingestion and 1000ms download pacing.
+  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating one-time header setup, conditional Batch vs Single parameter orchestration, direct IndexedDB binary ingestion, pure text prompt hygiene, and item-specific resolution downloads with 1000ms pacing.
 - **Specialized Automation Services (`src/services/`):**
   - `src/services/LoggerService.js` — Unified colorized console logging engine with `[RJ V-Flow Auto]` prefix and methods (`banner`, `item`, `step`, `info`, `success`, `warn`, `error`) matching RJ AIO Metadata standard.
   - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, creative agent mode suppression, `setupHeaderGridAndClearPrompt()` header automation, sequential pacing delays, and `applySettings(itemParams)` row parameter support.
@@ -103,7 +103,7 @@
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
   - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 12).
-  - `docs/agent-logs/2026-09-19.md` — Granular daily audit trail (Session Entries 1, 2, and 3).
+  - `docs/agent-logs/2026-09-19.md` — Granular daily audit trail (Session Entries 1 through 7).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `bahan/new note vflow.md` — Architectural defect analysis, UI redesign, and 7-commit execution roadmap.
@@ -150,11 +150,12 @@
 - UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping verified syntax-valid.
 - Redesigned queue toolbar templates, multi-select checkboxes, sort mode handles, and single mode placeholder verified syntax-valid.
 - Multi-select bulk delete, HTML5 drag-and-drop sort reordering, and Single vs Batch parameter mode bindings verified syntax-valid and functionally tested.
+- Conditional Batch vs Single parameter orchestration, one-time header setup, item-specific resolution downloads, and pure text ingredient hygiene verified syntax-valid and functionally tested via comprehensive automated test suite.
 - Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed with **Commit 7: QueueManager Orchestration & Execution Branching** (`src/core/QueueManager.js`).
+- Phase 3 is [COMPLETE]. Proceed with **Phase 4: End-to-End Integration & Multi-Language Stress Testing** on `flow.google.com` (Sub-phase 4.1: Text-to-Image & Text-to-Video Batch Validation).
 

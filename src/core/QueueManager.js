@@ -180,10 +180,49 @@ export class QueueManager {
     this.isLoopActive = true;
 
     try {
+      const queue = await getQueue();
+      const pendingItems = queue.filter(it => it.status === QUEUE_STATUS.PENDING);
+
+      if (!pendingItems || pendingItems.length === 0) {
+        logger.info('No pending queue items found. Automation idle.');
+        this.setState(QUEUE_STATES.IDLE);
+        await saveConfig({
+          activeBatch: { isRunning: false, isPaused: false, activeItemId: null }
+        });
+        return;
+      }
+
+      const cfg = await getConfig();
+      const paramMode = cfg.paramMode || 'batch';
+      logger.info(`QueueManager loop initiated with ${pendingItems.length} pending item(s) in [${paramMode.toUpperCase()}] mode`);
+
+      // 1. One-Time Page Setup Execution: Grid layout, size M, auto-clear prompt, and agent mode suppression
+      logger.step('header setup', 'Executing one-time page setup (grid layout, size M, auto-clear prompt)');
+      try {
+        await flowSettingsService.setupHeaderGridAndClearPrompt();
+        await flowSettingsService.ensureAgentModeOff();
+      } catch (setupErr) {
+        logger.warn('[QueueManager] One-time header setup warning', setupErr);
+      }
+
+      // 2. Parameter Branching Orchestration:
+      // If paramMode === 'batch': call applySettings(batchConfig) once before loop
+      if (paramMode === 'batch') {
+        const isVideo = cfg.mode !== 'text-to-image' && cfg.mode !== 'edit-image';
+        logger.step('batch settings', `${cfg.mode || 'text-to-video'} | ${cfg.model || 'default'} | ratio: ${cfg.aspectRatio || '16:9'}`);
+        await flowSettingsService.applySettings({
+          mode: cfg.mode,
+          model: cfg.model,
+          aspectRatio: cfg.aspectRatio,
+          duration: cfg.duration,
+          outputCount: isVideo ? 1 : (cfg.outputCount || 1)
+        });
+      }
+
       while (this.state === QUEUE_STATES.RUNNING) {
-        const queue = await getQueue();
-        const pendingItems = queue.filter(it => it.status === QUEUE_STATUS.PENDING);
-        const nextItem = pendingItems[0];
+        const currentQueue = await getQueue();
+        const currentPending = currentQueue.filter(it => it.status === QUEUE_STATUS.PENDING);
+        const nextItem = currentPending[0];
 
         if (!nextItem) {
           logger.success('All queue items processed. Automation idle.');
@@ -195,8 +234,8 @@ export class QueueManager {
           break;
         }
 
-        const totalItems = queue.length;
-        const currentIdx = queue.findIndex(it => it.id === nextItem.id) + 1;
+        const totalItems = currentQueue.length;
+        const currentIdx = currentQueue.findIndex(it => it.id === nextItem.id) + 1;
         logger.item(currentIdx, totalItems, nextItem.prompt);
 
         this.activeItemId = nextItem.id;
@@ -204,11 +243,13 @@ export class QueueManager {
           activeBatch: { activeItemId: nextItem.id }
         });
 
-        await this.processItem(nextItem);
+        // Pass active paramMode to processItem
+        const currentCfg = await getConfig();
+        const activeParamMode = currentCfg.paramMode || paramMode;
+        await this.processItem(nextItem, activeParamMode);
 
         // Cooldown between prompts
-        const cfg = await getConfig();
-        const cooldownMs = (cfg.settings && cfg.settings.cooldownMs) || 2500;
+        const cooldownMs = (currentCfg.settings && currentCfg.settings.cooldownMs) || 2500;
         if (this.state === QUEUE_STATES.RUNNING && cooldownMs > 0) {
           logger.step('cooldown', `${cooldownMs}ms`);
           await new Promise(r => setTimeout(r, cooldownMs));
@@ -223,22 +264,37 @@ export class QueueManager {
   /**
    * Executes the complete generation lifecycle for an individual queue item.
    */
-  async processItem(item) {
+  async processItem(item, paramMode = 'batch') {
     const itemId = item.id;
 
     try {
       // 1. Stage: INJECTING — Apply settings & parameters
       await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, percent: 10 });
-      logger.step('parameters', `${item.mode || 'video'} | ${item.model || 'default'} | ratio: ${item.aspectRatio || '16:9'}`);
 
-      await flowSettingsService.applySettings({
-        mode: item.mode,
-        model: item.model,
-        aspectRatio: item.aspectRatio,
-        duration: item.duration,
-        outputCount: item.outputs || 1
-      });
+      // Parameter Branching:
+      // If Single mode: read nextItem configuration and call applySettings(nextItem) on every iteration
+      // If Batch mode: skip opening prompt settings popover; reuse pre-configured settings
+      if (paramMode === 'single') {
+        const cfg = await getConfig();
+        const mode = item.mode || cfg.mode || 'text-to-video';
+        const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+        const model = item.model || cfg.model || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro');
+        const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
+        const duration = item.duration || cfg.duration || '6s';
+        const outputCount = isVideo ? 1 : (item.outputs || item.outputCount || cfg.outputCount || 1);
+
+        logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio}`);
+        await flowSettingsService.applySettings({
+          mode,
+          model,
+          aspectRatio,
+          duration,
+          outputCount
+        });
+      } else {
+        logger.step('parameters (batch)', 'Batch mode active: utilizing pre-configured settings (skipping settings popover)');
+      }
 
       // 2. Prepare Reference Ingredients / Frames
       if (item.ingredients && item.ingredients.length > 0) {
@@ -283,6 +339,9 @@ export class QueueManager {
           }
           await flowIngredientService.setFrameSlot('end', endPayload, endName);
         }
+      } else {
+        // Pure text prompt: ensure no residual chips remain
+        await flowIngredientService.clearIngredients();
       }
 
       // 3. Capture baseline top batch before submission
@@ -298,7 +357,7 @@ export class QueueManager {
 
       const watchResult = await flowWatcherService.waitForGeneration(
         previousTopBatch,
-        item.outputs || 1,
+        item.outputs || item.outputCount || 1,
         (progress) => {
           this.notifyProgress({
             itemId,
@@ -318,7 +377,9 @@ export class QueueManager {
         await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
         this.notifyProgress({ itemId, status: QUEUE_STATUS.DOWNLOADING, percent: 85 });
 
-        const targetRes = item.resolution || (item.mode && item.mode.includes('image') ? cfg.imageResolution : cfg.videoResolution);
+        const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
+        const defaultRes = isImage ? (cfg.imageResolution || '2K') : (cfg.videoResolution || '1080p');
+        const targetRes = item.resolution || cfg.targetResolution || defaultRes;
         logger.step('download', `Downloading ${watchResult.tiles.length} asset(s) at ${targetRes}`);
         await flowDownloadService.downloadBatchTiles(watchResult.tiles, {
           targetResolution: targetRes,

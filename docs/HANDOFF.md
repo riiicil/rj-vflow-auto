@@ -6,11 +6,11 @@
 
 ## 1. Immediate Operational State
 
-- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation & Realignment) — [IN_PROGRESS]
+- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `feat(hud): wire multi-select bulk delete sort reordering and single param mode bindings`
+- **Latest Commit**: `feat(queue): implement conditional batch vs single parameter orchestration and header setup`
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified
+- **Build / Test State**: Verified healthy, all 18 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowImageDB.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, multi-select & drag-and-drop sort reordering verified, and Batch vs Single parameter orchestration verified via automated test suite
 
 ---
 
@@ -34,35 +34,33 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
    - `src/styles/components.css`: Refactored `.rj-segment-btn.active` to use `color: #14b8a6;` and aligned `.rj-platform-link:hover`. Enforced `line-height: 1;` on `.rj-btn` and child spans, `display: block;` on button SVGs, and adjusted `.rj-segment-btn` padding to `0 10px; height: 28px; line-height: 1;` for exact vertical font dead-centering.
    - `src/overlay/overlay.css`: Standardized toolbar icon hover strokes to `var(--rj-accent-cyan, #079183)`. Standardized `#btnSaveQueue` and `#btnStartQueue` in HUD footer to identical geometry (`height: 30px; min-width: 78px; box-sizing: border-box; border-radius: var(--rj-radius-sm, 6px);`).
    - `src/overlay/CustomSelect.js`: Evaluated available space against `.hud-sidebar-scroll` or `.hud-window` container, triggering upward `.dropup` when `spaceBelow < 170px`, eliminating menu clipping at the bottom of the Studio HUD sidebar.
-7. **Commit 4 Complete (Session 20)**:
+7. **Commit 4 Complete (Session 20, `d608e5e`)**:
    - `src/core/FlowImageDB.js`: Implemented native IndexedDB storage engine (`vflowImageDB`, store `images`) with `saveImage()`, `getImage()`, `getImageBlob()`, `deleteImage()`, `clearImages()`, and `cleanupUnreferenced()`. Stores high-resolution image binaries locally under unique UUIDs, immune to Chrome's 5MB `chrome.storage.local` quota.
    - `src/core/FlowStorage.js`: Added `sanitizeQueueForStorage()` to strip heavy Base64 data URLs when `imageId` is present, protecting extension storage integrity.
    - `src/overlay/FlowHUDHost.js`: Fixed Chromium asynchronous event nullification bug (`TypeError: Cannot read properties of null (reading 'files')`) by capturing `file` and `fileName` synchronously in change/drop handlers. Persisted images to `flowImageDB`, implemented database deletion cleanup on row/thumbnail removal, and hydrated previews on `init()` using `URL.createObjectURL`.
    - `src/core/QueueManager.js`: Resolved raw `Blob`/`File` binaries directly from `flowImageDB.getImage(imageId)` during `processItem()`.
    - `src/overlay/FlowHUDTemplates.js`: Handled frame slot objects `{ imageId, dataUrl }` safely in `renderQueueRow`.
 
-8. **Commit 5 Complete (Session 21)**:
+8. **Commit 5 Complete (Session 21, `e66a385`)**:
    - `src/overlay/FlowHUDTemplates.js`: Purged Close (`x`) button from window header controls, keeping only Minimize (`—`). Redesigned queue toolbar with Select All checkbox (`#chkSelectAllQueue`), `Set params:` parameter mode custom select (`Batch` vs `Single`), conditional bulk delete trash button (`#btnBulkDeleteQueue`, default `display: none`), sort mode toggle button (`#btnToggleSortMode`), and primary `+ Add Row` button (`#btnAddQueueRow`). Purged `Paste`, `Import CSV`, file input, and `Clear All`. Updated empty dropzone copy to *"Drop images or prompt TXT here"*. Redesigned queue row items: replaced row numbers with `.row-select-handle` (`.row-select-checkbox` and `.row-drag-handle`), completely removed individual row delete buttons. Added `#sidebarSinglePlaceholder` in `.hud-col-right` for Single mode empty row selection.
    - `src/overlay/overlay.css`: Implemented Raycast Dark Precision `.rj-checkbox` (15x15px, `#079183` accent check/indeterminate mark), styled toolbar param mode dropdown (`height: 26px`), bulk trash button, sort mode active state (`#14b8a6` color and soft cyan background), row select handle, grab/dragging visual states, and single mode sidebar placeholder.
-9. **Commit 6 Complete (Session 22)**:
+9. **Commit 6 Complete (Session 22, `a4430e2`)**:
    - `src/overlay/FlowHUDHost.js`: Wired multi-select bulk delete (`#chkSelectAllQueue`, `.row-select-checkbox`, `#btnBulkDeleteQueue`) with automatic `FlowImageDB` cascading image binary deletion. Implemented sort mode HTML5 drag-and-drop reordering with `#btnToggleSortMode`, `.is-sorting` states, and precision array splicing. Wired `Set params:` parameter mode switching between `Batch` (global controls) and `Single` mode (hiding sidebar controls when 0 rows checked to show `#sidebarSinglePlaceholder`, and synchronizing controls specifically to selected row objects). Purged obsolete toolbar paste, CSV import, quick paste, and individual row delete listeners.
    - `src/overlay/FlowHUDTemplates.js`: Purged dead `#btnQuickPasteClipboard` button from `renderEmptyDropzone()`.
    - `src/core/FlowStorage.js`: Added `paramMode: 'batch'` default to `DEFAULT_CONFIG` and `migrateSchema`.
+10. **Commit 7 Complete (Session 23, `HEAD`)**:
+   - `src/core/QueueManager.js`: Executed `setupHeaderGridAndClearPrompt()` and `ensureAgentModeOff()` strictly **once** at the beginning of `QueueManager.runLoop()`. Orchestrated parameter branching: in `Batch` mode, `applySettings(batchConfig)` runs once before the loop and prompt settings popover is skipped during item iterations; in `Single` mode, each item's specific configuration is read and applied on every loop cycle. Added pure text ingredient clearing to prevent cross-prompt contamination, and item-specific resolution downloads passing `item.resolution || cfg.targetResolution || defaultRes` to `downloadBatchTiles()`.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Commit 7: QueueManager Orchestration & Execution Branching**:
-   - Target files: `src/core/QueueManager.js`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/agent-logs/2026-09-19.md`.
-   - Execute `setupHeaderGridAndClearPrompt()` and `ensureAgentModeOff()` strictly **once** at the beginning of `QueueManager.start()` / `runLoop()`.
-   - Parameter Branching Orchestration:
-     - If `paramMode === 'batch'`: call `applySettings(batchConfig)` once before the generation loop; inside the loop skip opening prompt settings popover and traverse directly to media ingestion, prompt injection, and generation.
-     - If `paramMode === 'single'`: read each `nextItem` configuration inside the loop and call `applySettings(nextItem)` before media and prompt injection.
-   - Pass `item.resolution || cfg.targetResolution` to `downloadBatchTiles()`.
-   - Verify syntax with `node --check`.
-2. **Phase 4: End-to-End Integration & Multi-Language Stress Testing**:
-   - Proceed with multi-language and batch execution testing on `flow.google.com`.
+1. **Phase 4: End-to-End Integration & Multi-Language Stress Testing**:
+   - Target branch: `task/e2e-integration-testing` (branched from `dev` after merging `task/dual-mode-ui`).
+   - Sub-phase 4.1: Text-to-Image & Text-to-Video batch validation across Omni 1.1 Flash and Veo 3.1 models.
+   - Sub-phase 4.2: Image-to-Video & Frames-to-Video multi-asset injection.
+   - Sub-phase 4.3: In-card failure recovery and moderation error handling validation.
+   - Sub-phase 4.4: Multi-language locale verification on non-English interfaces (ID, ES, JA, DE, FR).
 
 ---
 
@@ -83,7 +81,8 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 22 | 2026-09-19 | `task/dual-mode-ui` | `HEAD` | Wire multi-select bulk delete, sort reordering, and single param mode bindings | Commit 7: QueueManager Orchestration & Execution Branching |
+| 23 | 2026-09-19 | `task/dual-mode-ui` | `be187e7` | Implement conditional batch vs single parameter orchestration and header setup (Commit 7) | Phase 4: E2E Integration & Stress Testing |
+| 22 | 2026-09-19 | `task/dual-mode-ui` | `a4430e2` | Wire multi-select bulk delete, sort reordering, and single param mode bindings | Commit 7: QueueManager Orchestration & Execution Branching |
 | 21 | 2026-09-19 | `task/dual-mode-ui` | `e66a385` | Redesign queue toolbar, row items with multi-select, sort controls, and sidebar placeholder | Commit 6: HUD Event Orchestration & Interactive Handlers |
 | 20 | 2026-09-19 | `task/dual-mode-ui` | `f965737` | Implement FlowImageDB via indexedDB and fix asynchronous file upload crash | Commit 5: Studio HUD Templates & Row Redesign |
 | 19 | 2026-09-19 | `task/dual-mode-ui` | `6cde988` | Standardize accent tokens, vertical centering, button sizes, and dropdown clipping | Commit 4: IndexedDB Storage & Image Upload Crash Fix |
