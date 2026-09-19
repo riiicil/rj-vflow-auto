@@ -478,19 +478,21 @@ svg.rj-icon,
   background-color: var(--rj-bg-surface, #0d0d0d);
   border: 1px solid var(--rj-border-hairline, #242728);
   border-radius: var(--rj-radius-md, 8px);
-  padding: 8px 10px;
+  padding: 10px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .hud-queue-row:hover {
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-.hud-queue-row.row-active {
+.hud-queue-row.row-active,
+.hud-queue-row.row-checked {
   border-color: var(--rj-accent-cyan, #00b4a4) !important;
   background-color: rgba(0, 180, 164, 0.08);
   box-shadow: 0 0 0 1px rgba(0, 180, 164, 0.28);
@@ -517,6 +519,7 @@ svg.rj-icon,
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 6px;
 }
 
 .row-drag-handle {
@@ -675,14 +678,15 @@ svg.rj-icon,
   border-radius: var(--rj-radius-sm, 6px);
   color: var(--rj-text-primary, #ffffff);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.45;
-  padding: 6px 9px;
+  padding: 7px 9px;
   resize: vertical;
-  min-height: 30px;
-  max-height: 80px;
+  min-height: 54px;
+  max-height: 130px;
   outline: none;
   transition: border-color 0.15s ease;
+  box-sizing: border-box;
 }
 
 .row-prompt-input:focus {

@@ -341,7 +341,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       </div>
       ${mediaSlotHtml}
       <div class="row-input-wrapper">
-        <textarea class="row-prompt-input" data-idx="${index}" rows="1" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
+        <textarea class="row-prompt-input" data-idx="${index}" rows="2" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
         ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
       </div>
     </div>

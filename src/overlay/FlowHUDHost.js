@@ -329,13 +329,7 @@ export class FlowHUDHost {
     if (btnBulkDelete) {
       btnBulkDelete.addEventListener('click', async () => {
         const toDelete = this.queueItems.filter(it => it.selected);
-        if (toDelete.length === 0) {
-          if (this.paramMode === 'single' && this.activeRowIdx !== null && this.queueItems[this.activeRowIdx]) {
-            toDelete.push(this.queueItems[this.activeRowIdx]);
-          } else {
-            return;
-          }
-        }
+        if (toDelete.length === 0) return;
 
         // Clean up FlowImageDB records for deleted items
         for (const item of toDelete) {
@@ -399,8 +393,11 @@ export class FlowHUDHost {
 
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
-          if (selected.length > 0) {
-            selected.forEach(it => {
+          const targetItems = selected.length > 0
+            ? selected
+            : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+          if (targetItems.length > 0) {
+            targetItems.forEach(it => {
               it.mode = mode;
               const wasVideo = it.model ? !it.model.includes('Banana') : true;
               if (isVideo !== wasVideo) {
@@ -432,8 +429,11 @@ export class FlowHUDHost {
         const val = e.target.value;
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
-          if (selected.length > 0) {
-            selected.forEach(it => {
+          const targetItems = selected.length > 0
+            ? selected
+            : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+          if (targetItems.length > 0) {
+            targetItems.forEach(it => {
               it.model = val;
             });
             this.syncModelUI(val);
@@ -450,8 +450,11 @@ export class FlowHUDHost {
     this.setupSegmentGroup('segDuration', async (val) => {
       if (this.paramMode === 'single') {
         const selected = this.queueItems.filter(it => it.selected);
-        if (selected.length > 0) {
-          selected.forEach(it => {
+        const targetItems = selected.length > 0
+          ? selected
+          : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+        if (targetItems.length > 0) {
+          targetItems.forEach(it => {
             it.duration = val;
           });
           await this.saveCurrentQueue();
@@ -464,8 +467,11 @@ export class FlowHUDHost {
     this.setupSegmentGroup('segAspectRatio', async (val) => {
       if (this.paramMode === 'single') {
         const selected = this.queueItems.filter(it => it.selected);
-        if (selected.length > 0) {
-          selected.forEach(it => {
+        const targetItems = selected.length > 0
+          ? selected
+          : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+        if (targetItems.length > 0) {
+          targetItems.forEach(it => {
             it.aspectRatio = val;
           });
           await this.saveCurrentQueue();
@@ -479,8 +485,11 @@ export class FlowHUDHost {
       const count = Number(val);
       if (this.paramMode === 'single') {
         const selected = this.queueItems.filter(it => it.selected);
-        if (selected.length > 0) {
-          selected.forEach(it => {
+        const targetItems = selected.length > 0
+          ? selected
+          : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+        if (targetItems.length > 0) {
+          targetItems.forEach(it => {
             it.outputs = count;
             it.outputCount = count;
           });
@@ -497,8 +506,11 @@ export class FlowHUDHost {
         const val = e.target.value;
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
-          if (selected.length > 0) {
-            selected.forEach(it => {
+          const targetItems = selected.length > 0
+            ? selected
+            : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
+          if (targetItems.length > 0) {
+            targetItems.forEach(it => {
               it.resolution = val;
             });
             await this.saveCurrentQueue();
@@ -730,14 +742,7 @@ export class FlowHUDHost {
       input.addEventListener('focus', (e) => {
         const idx = Number(e.target.dataset.idx);
         this.activeRowIdx = idx;
-        if (this.paramMode === 'single') {
-          const selectedCount = this.queueItems.filter(it => it.selected).length;
-          if (selectedCount <= 1) {
-            this.selectSingleRow(idx);
-          } else {
-            this.updateSidebarParamModeUI();
-          }
-        }
+        this.updateSelectionUI();
       });
     });
 
@@ -787,6 +792,8 @@ export class FlowHUDHost {
         const idx = Number(row.dataset.idx);
         if (isNaN(idx) || !this.queueItems[idx]) return;
 
+        const currentSelectedCount = this.queueItems.filter(it => it.selected).length;
+
         if (e.shiftKey && this.lastSelectedIdx !== null) {
           // Shift + Click: Range Selection
           const start = Math.min(this.lastSelectedIdx, idx);
@@ -801,12 +808,20 @@ export class FlowHUDHost {
           this.activeRowIdx = idx;
           this.lastSelectedIdx = idx;
         } else {
-          // Normal Click: Single Selection
-          this.queueItems.forEach((it, i) => {
-            it.selected = (i === idx);
-          });
-          this.activeRowIdx = idx;
-          this.lastSelectedIdx = idx;
+          // Normal Click:
+          if (currentSelectedCount > 0) {
+            // When items are already checked, clicking another row container checks this row too
+            this.queueItems[idx].selected = true;
+            this.activeRowIdx = idx;
+            this.lastSelectedIdx = idx;
+          } else {
+            // When no items are checked, clicking container activates/focuses row WITHOUT checking its checkbox
+            this.queueItems.forEach(it => {
+              it.selected = false;
+            });
+            this.activeRowIdx = idx;
+            this.lastSelectedIdx = idx;
+          }
         }
 
         this.updateSelectionUI();
@@ -1210,10 +1225,10 @@ export class FlowHUDHost {
       chkSelectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
     }
 
-    // 2. Bulk Delete Button Visibility
+    // 2. Bulk Delete Button Visibility (Strictly visible only when 1 or more rows are checked)
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
-      btnBulkDelete.style.display = (selectedCount > 0 || (this.paramMode === 'single' && this.activeRowIdx !== null)) ? 'inline-flex' : 'none';
+      btnBulkDelete.style.display = selectedCount > 0 ? 'inline-flex' : 'none';
     }
 
     // 3. Sort Button Conditional Disabled State
@@ -1234,7 +1249,9 @@ export class FlowHUDHost {
     if (container) {
       container.querySelectorAll('.hud-queue-row').forEach((row, i) => {
         const isSelected = Boolean(this.queueItems[i]?.selected);
-        row.classList.toggle('row-active', isSelected);
+        const isActive = (this.activeRowIdx === i);
+        row.classList.toggle('row-active', isSelected || isActive);
+        row.classList.toggle('row-checked', isSelected);
         const cb = row.querySelector('.row-select-checkbox');
         if (cb && cb.checked !== isSelected) {
           cb.checked = isSelected;
@@ -1247,7 +1264,17 @@ export class FlowHUDHost {
   }
 
   /**
-   * Selects an individual row exclusively.
+   * Activates a single row for parameter inspection & editing without checking its checkbox.
+   */
+  activateSingleRow(idx) {
+    if (idx < 0 || idx >= this.queueItems.length) return;
+    this.activeRowIdx = idx;
+    this.lastSelectedIdx = idx;
+    this.updateSelectionUI();
+  }
+
+  /**
+   * Selects an individual row exclusively (checking its checkbox).
    */
   selectSingleRow(idx) {
     if (idx < 0 || idx >= this.queueItems.length) return;
@@ -1259,13 +1286,6 @@ export class FlowHUDHost {
     this.lastSelectedIdx = idx;
 
     this.updateSelectionUI();
-  }
-
-  /**
-   * Activates a single row for Single Mode parameter inspection & editing (alias).
-   */
-  activateSingleRow(idx) {
-    this.selectSingleRow(idx);
   }
 
   /**
@@ -1299,17 +1319,30 @@ export class FlowHUDHost {
       }
     } else {
       // Single Mode
-      if (selectedCount === 0) {
+      if (selectedCount === 0 && (this.activeRowIdx === null || !this.queueItems[this.activeRowIdx])) {
         placeholder.style.display = 'flex';
         controls.style.display = 'none';
       } else {
         placeholder.style.display = 'none';
         controls.style.display = '';
 
-        if (selectedCount === 1) {
-          const targetItem = selectedItems[0];
+        if (selectedCount > 1) {
+          // Multi-Selection (> 1 item checked)
+          if (badge) {
+            badge.className = 'sidebar-banner-badge badge-single';
+            badge.textContent = `MULTI-SELECTION (${selectedCount})`;
+          }
+          if (desc) {
+            desc.textContent = `Changes apply to ${selectedCount} selected rows`;
+            desc.title = `${selectedCount} rows selected`;
+          }
+
+          this.syncSidebarControlsToItem(selectedItems[0]);
+        } else {
+          // Either 1 item checked, OR 0 items checked with 1 active row!
+          const targetItem = selectedCount === 1 ? selectedItems[0] : this.queueItems[this.activeRowIdx];
           const targetIdx = this.queueItems.indexOf(targetItem);
-          const rawPrompt = (targetItem.prompt || '').trim();
+          const rawPrompt = (targetItem?.prompt || '').trim();
           let promptPreview = 'No prompt text';
           if (rawPrompt) {
             const maxChars = 38;
@@ -1327,19 +1360,9 @@ export class FlowHUDHost {
             desc.title = rawPrompt || 'No prompt text';
           }
 
-          this.syncSidebarControlsToItem(targetItem);
-        } else {
-          // Multi-Selection (> 1 item)
-          if (badge) {
-            badge.className = 'sidebar-banner-badge badge-single';
-            badge.textContent = `MULTI-SELECTION (${selectedCount})`;
+          if (targetItem) {
+            this.syncSidebarControlsToItem(targetItem);
           }
-          if (desc) {
-            desc.textContent = `Changes apply to ${selectedCount} selected rows`;
-            desc.title = `${selectedCount} rows selected`;
-          }
-
-          this.syncSidebarControlsToItem(selectedItems[0]);
         }
       }
     }
