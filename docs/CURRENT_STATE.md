@@ -10,7 +10,7 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; active engineering realigning HUD controls, 4-state generation failure resolution, and header grid setup)
+- **Phase 3 — Dual-Mode UI Implementation**: [IN_PROGRESS] (Sub-phases 3.1 through 3.4 complete; Commit 1 complete: 4-state lifecycle and resilient selectors; Commit 2 complete: header grid setup, sequential interaction pacing delays, and itemParams support)
 - **Phase 4 — End-to-End Integration & Multi-Language Stress Testing**: [PLANNED]
 - **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
 
@@ -61,16 +61,17 @@
   - `LICENSE` — MIT License (2026 Riiicil).
   - `icons/` — Optimized branding icons (`icon16.png`, `icon48.png`, `icon128.png`, `logo_rj.png`).
 - **Core Automation Engine (`src/core/`):**
-  - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, pseudo `:has-text` support, MutationObserver waiters, and 4-state lifecycle validators (`isCardGenerationSuccess`, `isCardGenerationFailed`).
+  - `src/core/FlowDOM.js` — Language-resilient DOM engine with ligature queries, pseudo `:has-text` support, MutationObserver waiters, 4-state lifecycle validators (`isCardGenerationSuccess`, `isCardGenerationFailed`), and centralized `sleep(ms)` pacing utility.
   - `src/core/FlowStorage.js` — Persistent storage engine with schema version 3, debounced persistence, queue CRUD operations, and reactive change listeners.
-  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services.
+  - `src/core/QueueManager.js` — Master batch automation orchestrator state machine (`IDLE`, `RUNNING`, `PAUSED`, `STOPPED`) coordinating full generation lifecycle across Phase 2 services with 1000ms download pacing.
 - **Specialized Automation Services (`src/services/`):**
   - `src/services/LoggerService.js` — Unified colorized console logging engine with `[RJ V-Flow Auto]` prefix and methods (`banner`, `item`, `step`, `info`, `success`, `warn`, `error`) matching RJ AIO Metadata standard.
-  - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, and creative agent mode suppression.
+  - `src/services/FlowSettingsService.js` — Prompt settings popover automation, model family selector, aspect ratio, duration, output multipliers, creative agent mode suppression, `setupHeaderGridAndClearPrompt()` header automation, sequential pacing delays, and `applySettings(itemParams)` row parameter support.
   - `src/services/FlowIngredientService.js` — Reference media clipboard ingestion, upload consent auto-agreement, frame slot triggers, and ingredient chip clearing.
-  - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, and generate button trigger.
+  - `src/services/FlowPromptService.js` — Zero-CDP ProseMirror text injection, prompt clearing, generate button readiness trigger, and sequential 350ms pre-submit / 600ms post-generate pacing delays.
   - `src/services/FlowWatcherService.js` — Virtual-scroll safe top-batch monitoring, progress polling, 4-state lifecycle failure detection with 10s transient blank grace timer (ADR-006/008), pending state detection (`flow-pending-tile`), and asset metadata extraction.
-  - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`) and direct download fallback.
+  - `src/services/FlowDownloadService.js` — Automated card context menu upscaled downloads (`more_vert` -> `download` -> `1080p`/`4K`), direct download fallback, and strict 800ms - 1000ms sequential download pacing.
+  - `src/services/FlowActionService.js` — Service alias re-exporting `FlowDownloadService` / `flowDownloadService`.
 - **Design System Tokens (`src/styles/`):**
   - `src/styles/variables.css` — Raycast Dark Precision design tokens (canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, input `#18191a`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent yellow `#ffc533`, accent red `#ff6161`) pierced through `:root, :host`.
   - `src/styles/components.css` — Raycast Dark Precision component styling (cards, status badges, platform warnings, field groups, inputs, buttons, custom selects, segmented groups, active/inactive states) ported from RJ AIO Metadata.
@@ -101,8 +102,10 @@
   - `docs/CURRENT_STATE.md` — Living project dashboard and inventory (this file).
   - `docs/HANDOFF.md` — Operational continuity briefing and trap register.
   - `docs/agent-logs/2026-09-17.md` — Granular daily audit trail (Session Entries 1 through 12).
+  - `docs/agent-logs/2026-09-19.md` — Granular daily audit trail (Session Entries 17 and 18).
 - **Engineering Baseline:**
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
+  - `bahan/new note vflow.md` — Architectural defect analysis, UI redesign, and 7-commit execution roadmap.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
 
 ---
@@ -127,7 +130,9 @@
 - `src/services/FlowPromptService.js` verified valid syntax via `node --check`.
 - `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
 - `src/services/FlowDownloadService.js` verified valid syntax via `node --check`.
-- All 8 core automation engine and service modules verified syntax-valid (0 errors).
+- `src/services/FlowActionService.js` verified valid syntax via `node --check`.
+- `src/services/LoggerService.js` verified valid syntax via `node --check`.
+- All 10 core automation engine and service modules verified syntax-valid (0 errors).
 - `src/styles/variables.css` and `src/styles/components.css` verified valid CSS tokens.
 - `src/popup/popup.html` and `src/popup/popup.css` verified.
 - `src/popup/popup.js` verified valid syntax via `node --check`.
@@ -138,14 +143,15 @@
 - `src/content/content_loader.js` verified valid syntax via `node --check`.
 - `src/content/content_main.js` verified valid syntax via `node --check`.
 - `src/background/service_worker.js` verified valid syntax via `node --check`.
+- All 17 JS modules across `src/` verified passing `node --check` (0 errors).
 - `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
-- 4-State generation lifecycle and master resilient selectors verified syntax-valid and functional.
+- Header grid setup, sequential interaction pacing delays, and itemParams support verified syntax-valid.
 - Working tree active on branch `task/dual-mode-ui`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Proceed with **Commit 2: Automation Services Pacing & Header Grid Setup** (`setupHeaderGridAndClearPrompt()` and sequential pacing delays in `FlowSettingsService.js`, `FlowPromptService.js`, `FlowDownloadService.js`).
+- Proceed with **Commit 3: UI Tokens, Vertical Alignment & Dropdown Clipping** (`src/styles/components.css`, `src/overlay/overlay.css`, `src/overlay/CustomSelect.js`).
 

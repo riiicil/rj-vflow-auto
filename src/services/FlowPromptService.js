@@ -15,7 +15,8 @@ import {
   waitForElement,
   waitForCondition,
   simulateClick,
-  simulateEnter
+  simulateEnter,
+  sleep
 } from '../core/FlowDOM.js';
 
 export class FlowPromptService {
@@ -132,6 +133,8 @@ export class FlowPromptService {
     }
 
     simulateClick(btn);
+    // Pacing delay: allows Google Flow canvas to initiate generation request
+    await sleep(600);
     return true;
   }
 
@@ -146,6 +149,10 @@ export class FlowPromptService {
 
     this.setPrompt(promptText);
     await this.waitForGenerateButtonReady(timeout);
+
+    // Pacing delay: ensures InputEvent has settled before triggering Generate
+    await sleep(350);
+
     return await this.triggerGenerate();
   }
 }

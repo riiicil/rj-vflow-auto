@@ -8,7 +8,7 @@
 
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation & Realignment) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `e3e2adc` (`fix(watcher): resolve false generation failure with 4-state lifecycle and update resilient selectors`)
+- **Latest Commit**: `7271caa` (`feat(services): implement header grid setup and sequential interaction pacing delays`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
 - **Build / Test State**: Verified healthy, all 15 JS modules (`LoggerService.js`, `FlowDOM.js`, `FlowStorage.js`, `FlowWatcherService.js`, `QueueManager.js`, `CustomSelect.js`, `FlowHUDHost.js`, `FlowHUDTemplates.js`, `content_loader.js`, `content_main.js`, `service_worker.js`, `popup.js`, etc.) passing syntax validation (`node --check`), 4-state lifecycle verified
 
@@ -22,18 +22,24 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 1. **Sub-phase 3.1 & 3.2 Complete (`ce3a4cb`, `7750ffe`)**: Design tokens, minimalist popup, Shadow DOM HUD host, and draggable floating pill.
 2. **Sub-phase 3.3 & 3.4 Complete (`f808156`, `bbd613a`)**: Two-column studio layout, QueueManager controls, and reactive telemetry.
 3. **Session 14–16 Blueprint Realignment Complete (`06f1cbd`, `768870f`, `83c66a4`)**: Exact blueprint popup, unified start/stop button, and high-contrast styling.
-4. **Commit 1 Complete (Session 17)**:
+4. **Commit 1 Complete (Session 17, `3dbba27`)**:
    - `src/core/FlowDOM.js`: Added master resilient selectors (`SETTINGS_2_BUTTON`, `GRID_LAYOUT_TOGGLE`, `GRID_SIZE_M_TOGGLE`, `CLEAR_PROMPT_SWITCH`, `ERROR_TILE`) and ligatures (`WARNING`, `DELETE`, `DASHBOARD`). Enhanced `query()` and `queryAll()` with safe `:has-text("...")` pseudo-selector resolution. Implemented `isCardGenerationFailed()` identifying genuine failure elements (`<flow-error-tile>`, `warning` ligature, `.error-tile`, `.failed`, `.blurred-error`).
    - `src/services/FlowWatcherService.js`: Implemented the 4-State Lifecycle protocol (`PENDING_RENDERING`, `BLANK_TRANSITION`, `DEFINITIVE_SUCCESS`, `DEFINITIVE_FAILURE`). Fixed false generation failure bug by introducing a 10-second grace timer for the transient blank phase between progress bar disappearance and media element attachment.
+5. **Commit 2 Complete (Session 18)**:
+   - `src/services/FlowSettingsService.js`: Implemented `setupHeaderGridAndClearPrompt()` automating `settings_2` popover, Grid mode, Size M, and clear-prompt switch verification with dedicated pacing delays. Added sequential pacing pauses across `applySettings()` (mode, model, aspect ratio, duration, output multiplier, popover open/close). Supported row-specific parameters directly via `applySettings(itemParams)`.
+   - `src/services/FlowPromptService.js`: Added 350ms pre-submit settle delay and 600ms post-generate pacing delay.
+   - `src/services/FlowDownloadService.js` & `src/services/FlowActionService.js`: Enforced strict 800ms - 1000ms delay between batch tile downloads. Added `FlowActionService.js` alias re-export.
+   - `src/core/FlowDOM.js`: Exported centralized `sleep(ms)` asynchronous pacing utility.
 
 ---
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Commit 2: Automation Services Pacing & Header Grid Setup**:
-   - In `src/services/FlowSettingsService.js`: Implement `setupHeaderGridAndClearPrompt()` automating `settings_2` popover, Grid mode, Size M, and clear-prompt switch verification.
-   - Add sequential interaction pacing delays (`await sleep(ms)`) in `FlowSettingsService.js`, `FlowPromptService.js`, and `FlowActionService.js`.
-2. **Commit 3 through Commit 7**:
+1. **Commit 3: UI Tokens, Vertical Alignment & Dropdown Clipping**:
+   - In `src/styles/components.css`: Replace hardcoded `#57c1ff` with `--rj-accent-cyan: #079183` / `#14b8a6` in `.rj-segment-btn.active`. Enforce `line-height: 1;` on `.rj-btn` and adjust segment button padding to `0 10px;` for exact vertical font centering.
+   - In `src/overlay/overlay.css`: Standardize toolbar icon hover strokes to `var(--rj-accent-cyan)`. Equalize `#btnSaveQueue` and `#btnStartQueue` dimensions (`height: 30px; min-width: 78px;`).
+   - In `src/overlay/CustomSelect.js`: Evaluate boundary space against `.hud-sidebar-scroll` or `.hud-window` instead of global viewport, activating `.dropup` when `spaceBelow < 170px`.
+2. **Commit 4 through Commit 7**:
    - Follow prioritized roadmap in `bahan/new note vflow.md:L900-L1111`.
 
 ---
@@ -55,7 +61,8 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 17 | 2026-09-19 | `task/dual-mode-ui` | `e3e2adc` | Resolve false generation failure with 4-state lifecycle and update resilient selectors | Commit 2: Automation Services Pacing & Header Grid Setup |
+| 18 | 2026-09-19 | `task/dual-mode-ui` | `7271caa` | Implement header grid setup and sequential interaction pacing delays | Commit 3: UI Tokens, Vertical Centering & Dropdown Clipping |
+| 17 | 2026-09-19 | `task/dual-mode-ui` | `3dbba27` | Resolve false generation failure with 4-state lifecycle and update resilient selectors | Commit 2: Automation Services Pacing & Header Grid Setup |
 | 16 | 2026-09-17 | `task/dual-mode-ui` | `83c66a4` | Enforce exact blueprint popup, unify start-stop button, and fix icon visibility | Commit 1: Core Engine Selectors & Watcher False Failure Fix |
 | 15 | 2026-09-17 | `task/dual-mode-ui` | `768870f` | Align popup and overlay HUD with blueprint, add LoggerService, fix in-card generation detection | Enforce blueprint feedback |
 | 14 | 2026-09-17 | `task/dual-mode-ui` | `06f1cbd` | Realign Studio HUD with vflow-note wireframe and RJ AIO Metadata design system | Align popup with blueprint |

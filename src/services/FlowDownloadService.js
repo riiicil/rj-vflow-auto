@@ -17,7 +17,8 @@ import {
   queryByText,
   waitForElement,
   waitForElementGone,
-  simulateClick
+  simulateClick,
+  sleep
 } from '../core/FlowDOM.js';
 
 export class FlowDownloadService {
@@ -64,6 +65,7 @@ export class FlowDownloadService {
     }
 
     simulateClick(downloadBtn);
+    await sleep(300);
 
     // Check if resolution sub-items appear
     try {
@@ -91,6 +93,7 @@ export class FlowDownloadService {
 
     // Wait for context menu to dismiss
     await waitForElementGone(SELECTORS.MENU_PANEL, { timeout: 2000 }).catch(() => {});
+    await sleep(250);
     return true;
   }
 
@@ -139,10 +142,13 @@ export class FlowDownloadService {
   }
 
   /**
-   * Downloads all successful tiles in a batch sequentially with safe pacing delay.
+   * Downloads all successful tiles in a batch sequentially with safe pacing delay (800ms - 1000ms).
    */
-  async downloadBatchTiles(tiles, { targetResolution = '1080p', delayBetweenMs = 800 } = {}) {
+  async downloadBatchTiles(tiles, { targetResolution = '1080p', delayBetweenMs = 1000 } = {}) {
     if (!Array.isArray(tiles) || tiles.length === 0) return 0;
+
+    // Enforce strict 800ms - 1000ms pacing delay between downloads
+    const pacingMs = Math.max(delayBetweenMs, 800);
 
     let downloaded = 0;
     for (let i = 0; i < tiles.length; i++) {
@@ -156,8 +162,8 @@ export class FlowDownloadService {
 
       if (success) downloaded++;
 
-      if (i < tiles.length - 1 && delayBetweenMs > 0) {
-        await new Promise(r => setTimeout(r, delayBetweenMs));
+      if (i < tiles.length - 1 && pacingMs > 0) {
+        await sleep(pacingMs);
       }
     }
 

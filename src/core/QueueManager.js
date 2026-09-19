@@ -294,7 +294,7 @@ export class QueueManager {
         logger.step('download', `Downloading ${watchResult.tiles.length} asset(s) at ${targetRes}`);
         await flowDownloadService.downloadBatchTiles(watchResult.tiles, {
           targetResolution: targetRes,
-          delayBetweenMs: 800
+          delayBetweenMs: 1000
         });
       }
 

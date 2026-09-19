@@ -378,3 +378,10 @@ export function simulateEnter(element) {
   element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   return true;
 }
+
+/**
+ * Asynchronous pause utility for pacing DOM events, Angular change detection, and animations.
+ */
+export function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
