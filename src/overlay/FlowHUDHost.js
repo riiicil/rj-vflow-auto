@@ -56,6 +56,8 @@ export class FlowHUDHost {
     this.draggedRowIdx = null;
     this.activeRowIdx = null;
     this.lastSelectedIdx = null;
+    this.selectedSwapSlot = null;
+    this.promptSaveDebounceTimer = null;
   }
 
   /**
@@ -376,6 +378,9 @@ export class FlowHUDHost {
       btnToggleSort.addEventListener('click', () => {
         if (this.queueItems.some(it => it.selected)) return;
         this.isSortMode = !this.isSortMode;
+        if (!this.isSortMode) {
+          this.selectedSwapSlot = null;
+        }
         btnToggleSort.classList.toggle('active', this.isSortMode);
         this.renderQueueContent();
       });
@@ -397,6 +402,7 @@ export class FlowHUDHost {
     if (selMode) {
       selMode.addEventListener('change', async (e) => {
         const mode = e.target.value;
+        const prevMode = this.activeMode;
         const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
         const normModel = isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro';
         const normRes = isVideo ? '1080p' : '2K';
@@ -408,18 +414,35 @@ export class FlowHUDHost {
             : (this.activeRowIdx !== null && this.queueItems[this.activeRowIdx] ? [this.queueItems[this.activeRowIdx]] : []);
           if (targetItems.length > 0) {
             targetItems.forEach(it => {
+              const oldItemMode = it.mode || prevMode;
               it.mode = mode;
               const wasVideo = it.model ? !it.model.includes('Banana') : true;
               if (isVideo !== wasVideo) {
                 it.model = normModel;
                 it.resolution = normRes;
               }
+              // Convert single row media representation if changing between f2v and single ingredient
+              if (mode === 'frames-to-video' && (oldItemMode === 'image-to-video' || oldItemMode === 'edit-image')) {
+                if (it.ingredients && it.ingredients[0]) {
+                  it.frames = it.frames || {};
+                  it.frames.start = it.ingredients[0];
+                  it.ingredients = [];
+                }
+              } else if ((mode === 'image-to-video' || mode === 'edit-image') && oldItemMode === 'frames-to-video') {
+                if (it.frames && (it.frames.start || it.frames.end)) {
+                  it.ingredients = [it.frames.start || it.frames.end];
+                  it.frames = {};
+                }
+              }
             });
             this.syncModeUI(mode);
             this.renderQueueContent();
+            this.updateStartButtonState();
             await this.saveCurrentQueue();
           }
         } else {
+          // Batch mode: convert queue rows between single ingredient and paired frames
+          this.convertQueueBetweenModes(prevMode, mode);
           this.activeMode = mode;
           await saveConfig({
             mode: this.activeMode,
@@ -429,6 +452,8 @@ export class FlowHUDHost {
           });
           this.syncModeUI(this.activeMode);
           this.renderQueueContent();
+          this.updateStartButtonState();
+          await this.saveCurrentQueue();
         }
       });
     }
@@ -565,11 +590,18 @@ export class FlowHUDHost {
           } catch (err) {
             logger.error('[FlowHUDHost] Failed to stop queue', err);
           } finally {
-            btnStart.disabled = false;
+            this.updateStartButtonState();
           }
         } else {
-          if (this.queueItems.length === 0) {
-            this.addQueueRow();
+          const totalRows = this.queueItems.length;
+          const allPromptsFilled = totalRows > 0 && this.queueItems.every(it => Boolean(it.prompt && it.prompt.trim().length > 0));
+
+          if (!allPromptsFilled) {
+            if (totalRows === 0) {
+              this.addQueueRow();
+            } else {
+              this.updateStartButtonState();
+            }
             return;
           }
 
@@ -577,11 +609,12 @@ export class FlowHUDHost {
           await this.saveCurrentQueue();
 
           btnStart.disabled = true;
+          btnStart.classList.add('is-disabled');
           try {
             await queueManager.start();
           } catch (err) {
             logger.error('[FlowHUDHost] Failed to start queue', err);
-            btnStart.disabled = false;
+            this.updateStartButtonState();
           }
         }
       });
@@ -593,7 +626,7 @@ export class FlowHUDHost {
 
       if (state === QUEUE_STATES.RUNNING) {
         if (bStart) {
-          bStart.classList.remove('rj-btn-accent');
+          bStart.classList.remove('rj-btn-accent', 'is-disabled');
           bStart.classList.add('rj-btn-danger', 'rj-btn-stop');
           bStart.innerHTML = `${ICONS.STOP} <span id="btnStartQueueText">Stop</span>`;
           bStart.title = 'Stop running generation';
@@ -605,21 +638,19 @@ export class FlowHUDHost {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
-          bStart.title = 'Start batch generation';
-          bStart.disabled = false;
         }
         this.updateTicker('Stopped', 'stopped');
         this.syncQueueFromStorage().catch(() => {});
+        this.updateStartButtonState();
       } else {
         if (bStart) {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
-          bStart.title = 'Start batch generation';
-          bStart.disabled = false;
         }
         this.updateTicker('Idle', 'idle');
         this.syncQueueFromStorage().catch(() => {});
+        this.updateStartButtonState();
       }
     });
 
@@ -683,6 +714,7 @@ export class FlowHUDHost {
       container.innerHTML = renderEmptyDropzone();
       this.bindEmptyDropzoneEvents();
       this.updateSelectionUI();
+      this.updateStartButtonState();
       return;
     }
 
@@ -691,8 +723,16 @@ export class FlowHUDHost {
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
       return renderQueueRow(it, idx, rowMode, this.isSortMode);
     }).join('');
+
+    if (this.isSortMode && this.selectedSwapSlot) {
+      const { rowIdx, slotType } = this.selectedSwapSlot;
+      const activeSlot = container.querySelector(`.row-media-slot[data-idx="${rowIdx}"][data-slot="${slotType}"]`);
+      if (activeSlot) activeSlot.classList.add('swap-source');
+    }
+
     this.bindRowEvents();
     this.updateSelectionUI();
+    this.updateStartButtonState();
   }
 
   /**
@@ -736,8 +776,7 @@ export class FlowHUDHost {
     const container = this.shadow.getElementById('hudQueueContent');
     if (!container) return;
 
-    // 1. Textarea prompt changes and focus activation
-    // 1. Prompt input changes and focus
+    // 1. Textarea prompt changes, validation, and debounced auto-save
     container.querySelectorAll('.row-prompt-input').forEach(input => {
       input.addEventListener('input', (e) => {
         const idx = Number(e.target.dataset.idx);
@@ -746,7 +785,18 @@ export class FlowHUDHost {
           if (this.paramMode === 'single' && (this.activeRowIdx === idx || this.queueItems[idx].selected)) {
             this.updateSidebarParamModeUI();
           }
+          this.updateStartButtonState();
+
+          clearTimeout(this.promptSaveDebounceTimer);
+          this.promptSaveDebounceTimer = setTimeout(() => {
+            this.saveCurrentQueue().catch(() => {});
+          }, 500);
         }
+      });
+
+      input.addEventListener('blur', () => {
+        clearTimeout(this.promptSaveDebounceTimer);
+        this.saveCurrentQueue().catch(() => {});
       });
 
       input.addEventListener('focus', (e) => {
@@ -973,6 +1023,11 @@ export class FlowHUDHost {
 
       slot.addEventListener('click', (e) => {
         if (e.target.closest('.row-remove-thumb-btn')) return;
+        if (this.isSortMode) {
+          e.stopPropagation();
+          this.handleSlotSwapClick(idx, 'single', slot);
+          return;
+        }
         if (fileInp) fileInp.click();
       });
 
@@ -1042,6 +1097,11 @@ export class FlowHUDHost {
 
         slot.addEventListener('click', (e) => {
           if (e.target.closest('.row-remove-thumb-btn')) return;
+          if (this.isSortMode) {
+            e.stopPropagation();
+            this.handleSlotSwapClick(idx, slotType, slot);
+            return;
+          }
           if (fileInp) fileInp.click();
         });
 
@@ -1154,6 +1214,7 @@ export class FlowHUDHost {
     this.queueItems.push(newItem);
     this.renderQueueContent();
     this.updateSelectionUI();
+    this.updateStartButtonState();
     this.saveCurrentQueue().catch(() => {});
 
     // Focus the newly added prompt textarea
@@ -1179,6 +1240,7 @@ export class FlowHUDHost {
         });
       }
       this.renderQueueContent();
+      this.updateStartButtonState();
       await this.saveCurrentQueue();
     } catch (err) {
       logger.warn('[FlowHUDHost] Clipboard read permission denied or failed', err);
@@ -1186,33 +1248,128 @@ export class FlowHUDHost {
   }
 
   /**
-   * Handles multi-file ingestion from dropzone or file input.
+   * Handles multi-file ingestion from dropzone or file input with smart mode detection:
+   * - 1 image -> image-to-video (or edit-image if current mode is edit-image)
+   * - 2 images -> frames-to-video (creates 1 row with start & end frames)
+   * - >2 images -> image-to-video (or edit-image) with N rows
+   * - Prompts are strictly empty ('') for dropped images (Issue 3 & 4)
    */
   async handleBulkFiles(files) {
     if (!files || files.length === 0) return;
 
+    const textFiles = [];
+    const imageFiles = [];
+
     for (const file of files) {
       const name = file.name.toLowerCase();
       if (name.endsWith('.txt') || name.endsWith('.csv')) {
-        await this.importFile(file);
+        textFiles.push(file);
       } else if (file.type.startsWith('image/')) {
+        imageFiles.push(file);
+      }
+    }
+
+    // 1. Process text/csv files
+    for (const file of textFiles) {
+      await this.importFile(file);
+    }
+
+    // 2. Process image files with smart mode detection
+    if (imageFiles.length > 0) {
+      const loadedImages = [];
+      for (const file of imageFiles) {
         const fileName = file.name;
         try {
           const imageId = await flowImageDB.saveImage(file, fileName);
-          this.readFileAsDataUrl(file, (dataUrl) => {
-            this.queueItems.push({
-              id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-              prompt: fileName.replace(/\.[^/.]+$/, ''),
-              status: 'pending',
-              ingredients: [{ imageId, dataUrl, name: fileName }]
-            });
-            this.renderQueueContent();
-            this.saveCurrentQueue().catch(() => {});
+          const dataUrl = await new Promise((resolve) => {
+            this.readFileAsDataUrl(file, resolve);
           });
+          loadedImages.push({ imageId, dataUrl, name: fileName });
         } catch (err) {
-          logger.error('[FlowHUDHost] Failed to save bulk image to FlowImageDB', err);
+          logger.error('[FlowHUDHost] Failed to save image to FlowImageDB', err);
         }
       }
+
+      if (loadedImages.length === 0) return;
+
+      let targetMode = this.activeMode;
+
+      if (loadedImages.length === 1) {
+        // Drop 1 image: automatically go to i2v or edit-image
+        targetMode = this.activeMode === 'edit-image' ? 'edit-image' : 'image-to-video';
+        const isVideo = targetMode === 'image-to-video';
+        this.queueItems.push({
+          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          prompt: '',
+          status: 'pending',
+          selected: false,
+          mode: targetMode,
+          model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+          aspectRatio: '16:9',
+          duration: '6s',
+          outputs: 1,
+          resolution: isVideo ? '1080p' : '2K',
+          ingredients: [loadedImages[0]],
+          frames: {}
+        });
+      } else if (loadedImages.length === 2) {
+        // Drop 2 images: automatically go to frames-to-video (f2v)
+        targetMode = 'frames-to-video';
+        this.queueItems.push({
+          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          prompt: '',
+          status: 'pending',
+          selected: false,
+          mode: targetMode,
+          model: 'Omni 1.1 Flash',
+          aspectRatio: '16:9',
+          duration: '6s',
+          outputs: 1,
+          resolution: '1080p',
+          ingredients: [],
+          frames: {
+            start: loadedImages[0],
+            end: loadedImages[1]
+          }
+        });
+      } else {
+        // Drop >2 images (e.g. 10 images):
+        // Automatically go to i2v or edit-image with N rows
+        targetMode = this.activeMode === 'edit-image' ? 'edit-image' : 'image-to-video';
+        const isVideo = targetMode === 'image-to-video';
+
+        for (const img of loadedImages) {
+          this.queueItems.push({
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            prompt: '',
+            status: 'pending',
+            selected: false,
+            mode: targetMode,
+            model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+            aspectRatio: '16:9',
+            duration: '6s',
+            outputs: 1,
+            resolution: isVideo ? '1080p' : '2K',
+            ingredients: [img],
+            frames: {}
+          });
+        }
+      }
+
+      // Synchronize active mode and UI controls
+      this.activeMode = targetMode;
+      const selMode = this.shadow?.getElementById('selGenerationMode');
+      if (selMode && selMode.value !== targetMode) {
+        selMode.value = targetMode;
+        CustomSelect.refresh(selMode);
+      }
+      this.syncModeUI(targetMode);
+      await saveConfig({ mode: targetMode }).catch(() => {});
+
+      this.renderQueueContent();
+      this.updateSelectionUI();
+      this.updateStartButtonState();
+      await this.saveCurrentQueue();
     }
   }
 
@@ -1237,6 +1394,7 @@ export class FlowHUDHost {
         }
       }
       this.renderQueueContent();
+      this.updateStartButtonState();
       await this.saveCurrentQueue();
     };
     reader.readAsText(file);
@@ -1334,6 +1492,212 @@ export class FlowHUDHost {
 
     // 5. Update Sidebar Parameters UI & Header Banner
     this.updateSidebarParamModeUI();
+
+    // 6. Update Start Button State
+    this.updateStartButtonState();
+  }
+
+  /**
+   * Validates prompts and updates Start button enabled/disabled state and tooltip.
+   * Start button is disabled if any row in the queue has an empty prompt.
+   */
+  updateStartButtonState() {
+    const btnStart = this.shadow?.getElementById('btnStartQueue');
+    if (!btnStart) return;
+
+    const currentState = queueManager.getState();
+    if (currentState === QUEUE_STATES.RUNNING) {
+      btnStart.disabled = false;
+      btnStart.classList.remove('is-disabled');
+      btnStart.title = 'Stop running generation';
+      return;
+    }
+
+    const totalRows = this.queueItems.length;
+    const allPromptsFilled = totalRows > 0 && this.queueItems.every(it => Boolean(it.prompt && it.prompt.trim().length > 0));
+
+    if (!allPromptsFilled) {
+      btnStart.disabled = true;
+      btnStart.classList.add('is-disabled');
+      if (totalRows === 0) {
+        btnStart.title = 'Add at least one row to start generation';
+      } else {
+        btnStart.title = 'Enter prompt for all rows to start generation';
+      }
+    } else {
+      btnStart.disabled = false;
+      btnStart.classList.remove('is-disabled');
+      btnStart.title = 'Start batch generation';
+    }
+  }
+
+  /**
+   * Retrieves media asset from an item slot ('single', 'start', 'end').
+   */
+  getMediaFromSlot(rowIdx, slotType) {
+    const it = this.queueItems[rowIdx];
+    if (!it) return null;
+    if (slotType === 'single') {
+      return (it.ingredients && it.ingredients[0]) || null;
+    } else if (slotType === 'start') {
+      return (it.frames && it.frames.start) || null;
+    } else if (slotType === 'end') {
+      return (it.frames && it.frames.end) || null;
+    }
+    return null;
+  }
+
+  /**
+   * Sets or clears media asset on an item slot ('single', 'start', 'end').
+   */
+  setMediaToSlot(rowIdx, slotType, media) {
+    const it = this.queueItems[rowIdx];
+    if (!it) return;
+    if (slotType === 'single') {
+      it.ingredients = media ? [media] : [];
+    } else if (slotType === 'start') {
+      it.frames = it.frames || {};
+      if (media) {
+        it.frames.start = media;
+      } else {
+        delete it.frames.start;
+      }
+    } else if (slotType === 'end') {
+      it.frames = it.frames || {};
+      if (media) {
+        it.frames.end = media;
+      } else {
+        delete it.frames.end;
+      }
+    }
+  }
+
+  /**
+   * Handles click-to-swap ingredient interaction in Sort Mode.
+   * Works across all modes (image-to-video, edit-image, frames-to-video).
+   */
+  handleSlotSwapClick(rowIdx, slotType, slotEl) {
+    if (!this.selectedSwapSlot) {
+      const media = this.getMediaFromSlot(rowIdx, slotType);
+      if (!media) return; // Cannot initiate swap from empty slot
+      this.selectedSwapSlot = { rowIdx, slotType };
+      slotEl.classList.add('swap-source');
+    } else {
+      const { rowIdx: srcRowIdx, slotType: srcSlotType } = this.selectedSwapSlot;
+      if (srcRowIdx === rowIdx && srcSlotType === slotType) {
+        // Clicked same slot -> cancel selection
+        this.selectedSwapSlot = null;
+        slotEl.classList.remove('swap-source');
+      } else {
+        // Different slot -> execute swap!
+        const mediaSrc = this.getMediaFromSlot(srcRowIdx, srcSlotType);
+        const mediaTarget = this.getMediaFromSlot(rowIdx, slotType);
+
+        this.setMediaToSlot(srcRowIdx, srcSlotType, mediaTarget);
+        this.setMediaToSlot(rowIdx, slotType, mediaSrc);
+
+        this.selectedSwapSlot = null;
+        this.renderQueueContent();
+        this.saveCurrentQueue().catch(() => {});
+      }
+    }
+  }
+
+  /**
+   * Converts existing queue rows when changing between single-ingredient and frames modes:
+   * - Single ingredient -> Frames to Video: pairs ingredients 2-by-2 into Start & End frames.
+   * - Frames to Video -> Single ingredient: unpairs Start & End frames into individual rows.
+   */
+  convertQueueBetweenModes(fromMode, toMode) {
+    if (!Array.isArray(this.queueItems) || this.queueItems.length === 0) return;
+    if (fromMode === toMode) return;
+
+    const isFromSingleIngredient = (fromMode === 'image-to-video' || fromMode === 'edit-image');
+    const isToFrames = (toMode === 'frames-to-video');
+
+    const isFromFrames = (fromMode === 'frames-to-video');
+    const isToSingleIngredient = (toMode === 'image-to-video' || toMode === 'edit-image');
+
+    if (isFromSingleIngredient && isToFrames) {
+      const assets = [];
+      for (const it of this.queueItems) {
+        if (it.ingredients && it.ingredients.length > 0) {
+          for (const ing of it.ingredients) {
+            assets.push({ media: ing, prompt: it.prompt || '' });
+          }
+        }
+      }
+
+      if (assets.length > 0) {
+        const newRows = [];
+        const numNewRows = Math.ceil(assets.length / 2);
+        for (let i = 0; i < numNewRows; i++) {
+          const item1 = assets[i * 2];
+          const item2 = assets[i * 2 + 1];
+          newRows.push({
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            prompt: item1.prompt || (item2 ? item2.prompt : ''),
+            status: 'pending',
+            selected: false,
+            mode: 'frames-to-video',
+            model: 'Omni 1.1 Flash',
+            aspectRatio: '16:9',
+            duration: '6s',
+            outputs: 1,
+            resolution: '1080p',
+            ingredients: [],
+            frames: {
+              start: item1.media,
+              ...(item2 ? { end: item2.media } : {})
+            }
+          });
+        }
+        this.queueItems = newRows;
+      } else {
+        this.queueItems.forEach(it => {
+          it.mode = toMode;
+        });
+      }
+    } else if (isFromFrames && isToSingleIngredient) {
+      const assets = [];
+      for (const it of this.queueItems) {
+        if (it.frames) {
+          if (it.frames.start) {
+            assets.push({ media: it.frames.start, prompt: it.prompt || '' });
+          }
+          if (it.frames.end) {
+            assets.push({ media: it.frames.end, prompt: it.prompt || '' });
+          }
+        }
+      }
+
+      if (assets.length > 0) {
+        const isVideo = toMode === 'image-to-video';
+        const newRows = assets.map(a => ({
+          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          prompt: a.prompt || '',
+          status: 'pending',
+          selected: false,
+          mode: toMode,
+          model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+          aspectRatio: '16:9',
+          duration: '6s',
+          outputs: 1,
+          resolution: isVideo ? '1080p' : '2K',
+          ingredients: [a.media],
+          frames: {}
+        }));
+        this.queueItems = newRows;
+      } else {
+        this.queueItems.forEach(it => {
+          it.mode = toMode;
+        });
+      }
+    } else {
+      this.queueItems.forEach(it => {
+        it.mode = toMode;
+      });
+    }
   }
 
   /**
@@ -1649,6 +2013,9 @@ export class FlowHUDHost {
 
     // Enhance native selects with CustomSelect dropdowns
     CustomSelect.initAll(this.shadow);
+
+    // Synchronize initial start button state
+    this.updateStartButtonState();
   }
 
   setupSegmentGroup(groupId, onChange) {

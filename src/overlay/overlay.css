@@ -583,6 +583,30 @@ svg.rj-icon,
   border-color: var(--rj-border-strong, rgba(255, 255, 255, 0.16));
 }
 
+.row-media-slot.swap-source {
+  border-color: var(--rj-accent-cyan, #00b4a4) !important;
+  box-shadow: 0 0 0 2px var(--rj-accent-cyan, #00b4a4), 0 0 12px rgba(0, 180, 164, 0.45);
+  animation: rj-slot-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes rj-slot-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px var(--rj-accent-cyan, #00b4a4), 0 0 8px rgba(0, 180, 164, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 3px #14b8a6, 0 0 16px rgba(20, 184, 166, 0.6);
+  }
+}
+
+.is-sorting .row-media-slot {
+  cursor: pointer;
+}
+
+.is-sorting .row-media-slot:hover {
+  border-color: var(--rj-accent-cyan, #00b4a4);
+  box-shadow: 0 0 0 1.5px rgba(0, 180, 164, 0.35);
+}
+
 .row-slot-placeholder {
   display: flex;
   flex-direction: column;
@@ -694,7 +718,7 @@ svg.rj-icon,
 }
 
 .row-status-badge {
-  align-self: flex-start;
+  align-self: flex-end;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 7px;
@@ -943,6 +967,14 @@ svg.rj-icon,
 #btnStartQueue.rj-btn-stop:hover,
 #btnStartQueue.rj-btn-danger:hover {
   background-color: #ff7575 !important;
+}
+
+#btnStartQueue:disabled,
+#btnStartQueue.is-disabled {
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
+  pointer-events: auto !important;
+  box-shadow: none !important;
 }
 
 

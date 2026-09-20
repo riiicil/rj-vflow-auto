@@ -274,8 +274,9 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
 
   if (isIngredientMode) {
     const imgSrc = (item.ingredients && item.ingredients[0]?.dataUrl) || (typeof item.ingredients?.[0] === 'string' ? item.ingredients[0] : null);
+    const slotTitle = isSortMode ? 'Click to swap ingredient with another slot' : 'Drop or click to select image';
     mediaSlotHtml = `
-      <div class="row-media-slot ${imgSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="single" title="Drop or click to select image">
+      <div class="row-media-slot ${imgSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="single" title="${slotTitle}">
         <input type="file" class="row-file-input" accept="image/*" style="display: none;">
         ${imgSrc ? `
           <img src="${imgSrc}" class="row-thumb-img" alt="Ref">
@@ -291,10 +292,12 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
   } else if (isFramesMode) {
     const startSrc = (typeof item.frames?.start === 'object' ? item.frames?.start?.dataUrl : item.frames?.start) || null;
     const endSrc = (typeof item.frames?.end === 'object' ? item.frames?.end?.dataUrl : item.frames?.end) || null;
+    const startTitle = isSortMode ? 'Click to swap start frame with another slot' : 'Start Frame';
+    const endTitle = isSortMode ? 'Click to swap end frame with another slot' : 'End Frame';
     mediaSlotHtml = `
       <div class="row-frames-group">
         <!-- Start Frame -->
-        <div class="row-media-slot ${startSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="start" title="Start Frame">
+        <div class="row-media-slot ${startSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="start" title="${startTitle}">
           <input type="file" class="row-file-input" accept="image/*" style="display: none;">
           ${startSrc ? `
             <img src="${startSrc}" class="row-thumb-img" alt="Start">
@@ -307,12 +310,12 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
         </div>
 
         <!-- Swap -->
-        <button class="row-swap-frames-btn" type="button" data-idx="${index}" title="Swap Start & End Frames">
+        <button class="row-swap-frames-btn" type="button" data-idx="${index}" title="Swap Start & End Frames" style="${isSortMode ? 'display: none;' : ''}">
           ${ICONS.SWAP}
         </button>
 
         <!-- End Frame -->
-        <div class="row-media-slot ${endSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="end" title="End Frame">
+        <div class="row-media-slot ${endSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="end" title="${endTitle}">
           <input type="file" class="row-file-input" accept="image/*" style="display: none;">
           ${endSrc ? `
             <img src="${endSrc}" class="row-thumb-img" alt="End">
