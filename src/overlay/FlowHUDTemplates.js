@@ -165,11 +165,10 @@ export function renderStudioLayout() {
               </div>
             </div>
 
-            <!-- Parameter 5: Output Multiplier (Image Mode only) -->
-            <div class="rj-field-group" id="grpMultiplier" style="display: none;">
+            <!-- Parameter 5: Output Multiplier -->
+            <div class="rj-field-group" id="grpMultiplier">
               <label class="rj-field-label">
                 <span>Outputs</span>
-                <span class="rj-field-hint">Image mode</span>
               </label>
               <div class="rj-segment-group" id="segOutputs">
                 <button class="rj-segment-btn active" type="button" data-val="1">x1</button>
@@ -260,12 +259,107 @@ export function renderEmptyDropzone() {
 }
 
 /**
- * State B, C, D: Renders an individual Queue Row based on generation mode.
- * Redesigned with row-select checkbox, sort drag handle, and zero individual delete buttons.
+ * Resolves current row status label and CSS class.
+ * Pre-run rows dynamically evaluate to READY or NOT READY.
  */
-export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode = false) {
-  const status = item.status || 'pending';
-  const statusClass = `status-${status}`;
+export function getRowStatusInfo(item, mode = 'text-to-video') {
+  const rawStatus = (item?.status || 'pending').toLowerCase();
+
+  if (rawStatus === 'completed') {
+    return { label: 'COMPLETED', statusClass: 'status-completed' };
+  }
+  if (rawStatus === 'failed') {
+    return { label: 'FAILED', statusClass: 'status-failed' };
+  }
+  if (rawStatus === 'injecting') {
+    return { label: 'INJECTING', statusClass: 'status-injecting' };
+  }
+  if (rawStatus === 'generating') {
+    return { label: 'GENERATING', statusClass: 'status-generating' };
+  }
+  if (rawStatus === 'downloading') {
+    return { label: 'DOWNLOADING', statusClass: 'status-downloading' };
+  }
+
+  // Pre-run / Pending state: check completeness of prompt and required media
+  const hasPrompt = Boolean(item?.prompt && item.prompt.trim().length > 0);
+  let isMediaReady = true;
+
+  if (mode === 'image-to-video' || mode === 'edit-image') {
+    const imgSrc = (item?.ingredients && item.ingredients[0]?.dataUrl) ||
+      (typeof item?.ingredients?.[0] === 'string' ? item.ingredients[0] : null) ||
+      item?.ingredientImage || item?.media || item?.mediaUrl;
+    isMediaReady = Boolean(imgSrc);
+  } else if (mode === 'frames-to-video') {
+    const startSrc = (typeof item?.frames?.start === 'object' ? item.frames?.start?.dataUrl : item?.frames?.start) || item?.startFrame;
+    const endSrc = (typeof item?.frames?.end === 'object' ? item.frames?.end?.dataUrl : item?.frames?.end) || item?.endFrame;
+    isMediaReady = Boolean(startSrc && endSrc);
+  }
+
+  if (hasPrompt && isMediaReady) {
+    return { label: 'READY', statusClass: 'status-ready' };
+  }
+  return { label: 'NOT READY', statusClass: 'status-not-ready' };
+}
+
+/**
+ * Formats row parameters into a compact badge:
+ * [generation mode · model selector · duration (only if omni) · ar · output · reso]
+ */
+export function formatRowParamsBadge(params) {
+  if (!params) return '';
+  const mode = params.mode || 'text-to-video';
+  const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+
+  // 1. Generation Mode Abbreviation
+  let modeAbbr = 'T2V';
+  if (mode === 'image-to-video') modeAbbr = 'I2V';
+  else if (mode === 'frames-to-video') modeAbbr = 'F2V';
+  else if (mode === 'text-to-image' || mode === 'image') modeAbbr = 'T2I';
+  else if (mode === 'edit-image') modeAbbr = 'EI';
+
+  // 2. Model Selector
+  let modelStr = params.model || (isVideo ? 'Veo 3.1 Lite' : 'Nano Banana 2');
+  if (modelStr === 'Veo 3.1 - Fast') modelStr = 'Veo 3.1 Fast';
+  else if (modelStr === 'Veo 3.1 - Lite') modelStr = 'Veo 3.1 Lite';
+  else if (modelStr === 'Veo 3.1 - Quality') modelStr = 'Veo 3.1 Quality';
+  else if (modelStr === 'Nano Banana 2 Lite' || modelStr === 'Nano Banana Lite') modelStr = 'Nano Banana Lite';
+  else modelStr = modelStr.replace(' - ', ' ').trim();
+
+  // 3. Duration (only if Omni)
+  const isOmni = modelStr.toLowerCase().includes('omni');
+  const durationStr = isOmni ? (params.duration || '6s') : null;
+
+  // 4. Aspect Ratio
+  const arStr = params.aspectRatio || '16:9';
+
+  // 5. Output Multiplier
+  const outCount = params.outputs || params.outputCount || 1;
+  const outStr = `x${outCount}`;
+
+  // 6. Resolution
+  let resStr = params.resolution || (isVideo ? '1080p' : '2K');
+  const lowerRes = resStr.toLowerCase();
+  if (lowerRes === '720p') resStr = '720p';
+  else if (lowerRes === '1080p') resStr = '1080p';
+  else if (lowerRes === '1k') resStr = '1K';
+  else if (lowerRes === '2k') resStr = '2K';
+  else if (lowerRes === '4k') resStr = '4K';
+
+  const tokens = [modeAbbr, modelStr];
+  if (durationStr) {
+    tokens.push(durationStr);
+  }
+  tokens.push(arStr, outStr, resStr);
+
+  return tokens.join(' · ');
+}
+
+/**
+ * State B, C, D: Renders an individual Queue Row based on generation mode.
+ * Redesigned with row-select checkbox, sort drag handle, dual badges (params + status).
+ */
+export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode = false, params = null) {
   const isIngredientMode = mode === 'image-to-video' || mode === 'edit-image';
   const isFramesMode = mode === 'frames-to-video';
   const isChecked = Boolean(item.selected);
@@ -336,8 +430,22 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       ? 'Enter transition / interpolation prompt...'
       : 'Enter prompt text here...';
 
+  const statusInfo = getRowStatusInfo(item, mode);
+  const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+  const effectiveParams = params || {
+    mode,
+    model: item.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2'),
+    aspectRatio: item.aspectRatio || '16:9',
+    duration: item.duration || '6s',
+    outputs: item.outputs || item.outputCount || 1,
+    resolution: item.resolution || (isVideo ? '1080p' : '2K')
+  };
+  const paramsBadgeText = formatRowParamsBadge(effectiveParams);
+
+  const activeStatusClass = item.status && item.status !== 'pending' ? `status-${item.status}` : '';
+
   return `
-    <div class="hud-queue-row ${statusClass} ${isChecked ? 'row-active' : ''} ${isSortMode ? 'is-sorting' : ''}" data-id="${item.id}" data-idx="${index}" ${isSortMode ? 'draggable="true"' : ''}>
+    <div class="hud-queue-row ${activeStatusClass} ${isChecked ? 'row-active' : ''} ${isSortMode ? 'is-sorting' : ''}" data-id="${item.id}" data-idx="${index}" ${isSortMode ? 'draggable="true"' : ''}>
       <div class="row-select-handle">
         <input type="checkbox" class="rj-checkbox row-select-checkbox" data-idx="${index}" ${isChecked ? 'checked' : ''} title="Select row" style="${isSortMode ? 'display: none;' : ''}">
         <span class="row-drag-handle" title="Drag to reorder" style="${isSortMode ? 'display: inline-flex;' : 'display: none;'}">${ICONS.GRIP_VERTICAL}</span>
@@ -345,7 +453,10 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       ${mediaSlotHtml}
       <div class="row-input-wrapper">
         <textarea class="row-prompt-input" data-idx="${index}" rows="2" placeholder="${promptPlaceholder}">${item.prompt || ''}</textarea>
-        ${status !== 'pending' ? `<span class="row-status-badge ${statusClass}">${status.toUpperCase()}</span>` : ''}
+        <div class="row-badges-group">
+          <span class="row-params-badge" data-idx="${index}">${paramsBadgeText}</span>
+          <span class="row-status-badge ${statusInfo.statusClass}" data-idx="${index}">${statusInfo.label}</span>
+        </div>
       </div>
     </div>
   `;

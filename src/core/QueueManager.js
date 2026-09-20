@@ -216,7 +216,7 @@ export class QueueManager {
           model: cfg.model,
           aspectRatio: cfg.aspectRatio,
           duration: cfg.duration,
-          outputCount: isVideo ? 1 : (cfg.outputCount || 1)
+          outputCount: cfg.outputCount || 1
         });
       }
 
@@ -284,7 +284,7 @@ export class QueueManager {
         const model = normalizeModelForMode(mode, rawModel);
         const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
         const duration = item.duration || cfg.duration || '6s';
-        const outputCount = isVideo ? 1 : (item.outputs || item.outputCount || cfg.outputCount || 1);
+        const outputCount = item.outputs || item.outputCount || cfg.outputCount || 1;
 
         logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio}`);
         await flowSettingsService.applySettings({

@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending (`fix(engine): model defaults realignment strict mode normalization sequential f2v frame injection and thumbnail hydration`)
+- **Latest Commit**: Pending (`feat(hud): always visible row status badge parameter badges and video output multiplier support`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), model defaults realignment verified (Nano Banana 2 for images, Veo 3.1 - Lite for videos), mode/model strict normalization verified, popover mode mutation fix verified, sequential 2x frame paste ingestion with expectedChipCount pacing verified, and thumbnail hydration on queue idle/stop verified.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), dual row badges (live params badge + always-visible status badge with pre-run READY vs NOT READY states) verified, percentage progress stripped from badges, and video output multiplier x1-x4 support unhidden across HUD and QueueManager.
 
 ---
 
@@ -81,6 +81,11 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
     - `src/services/FlowSettingsService.js`: Fixed critical popover mode mutation bug in `applySettings()`. Replaced aggressive auto-align logic that forced `edit-image` to `text-to-video` whenever a video model was supplied. Now uses `normalizeModelForMode(target.mode, target.model)` to strictly retain the user's chosen media mode and normalize the model to an image model (`Nano Banana 2`).
     - `src/services/FlowIngredientService.js` & `src/core/QueueManager.js`: Fixed Frame-to-Video (`frames-to-video`) injection failure. Abandoned targeting non-input DOM frame triggers; now dispatches native clipboard paste events directly into Google Flow's `ProseMirror` editor sequentially. 1st paste injection mounts Start Frame (`expectedChipCount = 1`), 2nd paste injection mounts End Frame (`expectedChipCount = 2`). Added 500ms inter-injection settling delays to prevent Angular race conditions.
     - `src/overlay/FlowHUDHost.js`: Realigned model resolution across `addQueueRow`, `handleBulkFiles`, `selMode` change handler, `convertQueueBetweenModes`, `syncSidebarControlsToItem`, and `syncModeUI`. Fixed missing preview hydration bug in `syncQueueFromStorage()` by adding `await this.hydrateQueuePreviews()` so queue row thumbnails never vanish when the queue transitions to idle or stopped.
+15. **Commit 15 Complete (Session 31, `HEAD`)**:
+    - `src/overlay/FlowHUDTemplates.js`: Added `getRowStatusInfo(item, mode)` and `formatRowParamsBadge(params)`. Updated `renderQueueRow` to render dual row badges wrapped in `.row-badges-group` (parameters badge on left, status badge on right). Unhid `#grpMultiplier` by removing `display: none` and image-only hint, restoring output count multiplier (`x1`, `x2`, `x3`, `x4`) for video modes.
+    - `src/overlay/overlay.css`: Added `.row-badges-group` and `.row-params-badge` capsule styles. Expanded `.row-status-badge` with dedicated color stages (`.status-not-ready` warning amber `#ffab3d`, `.status-ready` cyan `#57c1ff`, `.status-injecting` purple `#c084fc`, `.status-generating` teal `#14b8a6`, `.status-downloading`/`.status-completed` green `#59d499`, `.status-failed` red `#ff6161`).
+    - `src/overlay/FlowHUDHost.js`: Implemented `getEffectiveRowParams(item)`, `updateRowBadges(rowIdx)`, and `updateAllRowBadges()`. Wired dynamic badge updates on textarea input, parameter sidebar segment changes, and mode switches. Removed percentage progress strings from badge text in `queueManager.onProgress` (`INJECTING`, `GENERATING`, `DOWNLOADING`). Unlocked output multipliers for video in `syncModeUI()` and `saveCurrentQueue()`. Refactored `updateStartButtonState()` to validate row readiness via `getRowStatusInfo()`.
+    - `src/core/QueueManager.js`: Removed `isVideo ? 1 :` restriction in `runLoop()` batch settings and `processItem()` single settings, allowing video generations to run with user-configured output counts.
 
 ---
 
@@ -112,7 +117,8 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 30 | 2026-09-20 | `task/dual-mode-ui` | Pending | Model defaults realignment (Nano Banana 2 / Veo 3.1 - Lite), strict mode normalization, sequential 2x F2V paste injection, and thumbnail hydration | Phase 4: E2E Integration & Stress Testing |
+| 31 | 2026-09-20 | `task/dual-mode-ui` | Pending | Dual row badges (live params + always-visible status with READY vs NOT READY), stripped progress percentages, and video output multiplier | Phase 4: E2E Integration & Stress Testing |
+| 30 | 2026-09-20 | `task/dual-mode-ui` | `8273579` | Model defaults realignment (Nano Banana 2 / Veo 3.1 - Lite), strict mode normalization, sequential 2x F2V paste injection, and thumbnail hydration | Row status and parameter badges |
 | 29 | 2026-09-20 | `task/dual-mode-ui` | `9ffec65` | Smart image drop, ingredient click-to-swap in sort mode, start button prompt validation, right-aligned status badge, and prompt auto-save | Model defaults and F2V injection hardening |
 | 28 | 2026-09-20 | `task/dual-mode-ui` | `b4e223b` | Container focus toggle, multi-select transition, and uncheck focus clearing | Smart image drop & sort mode swap |
 | 27 | 2026-09-20 | `task/dual-mode-ui` | `8860cd8` | Row container selection, conditional bulk delete trash button, and prompt textarea expansion | Selection focus refinement |

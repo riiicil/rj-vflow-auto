@@ -21,7 +21,14 @@ import {
 } from '../core/FlowStorage.js';
 
 import { queueManager, QUEUE_STATES } from '../core/QueueManager.js';
-import { renderStudioLayout, renderEmptyDropzone, renderQueueRow, ICONS } from './FlowHUDTemplates.js';
+import {
+  renderStudioLayout,
+  renderEmptyDropzone,
+  renderQueueRow,
+  getRowStatusInfo,
+  formatRowParamsBadge,
+  ICONS
+} from './FlowHUDTemplates.js';
 import { CustomSelect } from './CustomSelect.js';
 import { flowImageDB } from '../core/FlowImageDB.js';
 import { logger } from '../services/LoggerService.js';
@@ -58,8 +65,8 @@ export class FlowHUDHost {
     this.draggedRowIdx = null;
     this.activeRowIdx = null;
     this.lastSelectedIdx = null;
-    this.selectedSwapSlot = null;
     this.promptSaveDebounceTimer = null;
+    this.config = null;
   }
 
   /**
@@ -74,6 +81,7 @@ export class FlowHUDHost {
     // 2. Retrieve saved position and minimize state
     try {
       const cfg = await getConfig();
+      this.config = cfg;
       if (cfg.settings && cfg.settings.overlayPosition) {
         this.currentLeft = cfg.settings.overlayPosition.x ?? 24;
         this.currentTop = cfg.settings.overlayPosition.y ?? 24;
@@ -396,6 +404,7 @@ export class FlowHUDHost {
         await saveConfig({ paramMode: this.paramMode });
         this.updateSidebarParamModeUI();
         this.renderQueueContent();
+        this.updateAllRowBadges();
       });
     }
 
@@ -481,6 +490,7 @@ export class FlowHUDHost {
           await saveConfig({ model: val });
           this.syncModelUI(val);
         }
+        this.updateAllRowBadges();
       });
     }
 
@@ -561,6 +571,7 @@ export class FlowHUDHost {
             saveConfig({ imageResolution: val }).catch(() => {});
           }
         }
+        this.updateAllRowBadges();
       });
     }
 
@@ -664,27 +675,46 @@ export class FlowHUDHost {
       const row = this.shadow.querySelector(`.hud-queue-row[data-id="${payload.itemId}"]`);
       if (row) {
         const status = payload.status || 'pending';
-        row.className = `hud-queue-row status-${status}`;
+        const isChecked = row.classList.contains('row-checked');
+        const isActive = row.classList.contains('row-active');
+        row.className = `hud-queue-row status-${status}${isActive ? ' row-active' : ''}${isChecked ? ' row-checked' : ''}`;
 
         let badge = row.querySelector('.row-status-badge');
         if (!badge) {
+          let badgeGroup = row.querySelector('.row-badges-group');
+          if (!badgeGroup) {
+            badgeGroup = document.createElement('div');
+            badgeGroup.className = 'row-badges-group';
+            row.querySelector('.row-input-wrapper')?.appendChild(badgeGroup);
+          }
           badge = document.createElement('span');
-          row.querySelector('.row-input-wrapper')?.appendChild(badge);
+          badgeGroup.appendChild(badge);
         }
-        badge.className = `row-status-badge status-${status}`;
 
         if (status === 'generating') {
-          badge.textContent = `GENERATING (${payload.percent || 1}%)`;
+          badge.className = 'row-status-badge status-generating';
+          badge.textContent = 'GENERATING';
         } else if (status === 'downloading') {
-          if (payload.downloadProgress && payload.downloadProgress.total > 1) {
-            badge.textContent = `DOWNLOADING (${payload.downloadProgress.current}/${payload.downloadProgress.total})`;
-          } else {
-            badge.textContent = `DOWNLOADING (${payload.percent || 90}%)`;
-          }
+          badge.className = 'row-status-badge status-downloading';
+          badge.textContent = 'DOWNLOADING';
         } else if (status === 'injecting') {
-          badge.textContent = 'INJECTING (10%)';
+          badge.className = 'row-status-badge status-injecting';
+          badge.textContent = 'INJECTING';
+        } else if (status === 'completed') {
+          badge.className = 'row-status-badge status-completed';
+          badge.textContent = 'COMPLETED';
+        } else if (status === 'failed') {
+          badge.className = 'row-status-badge status-failed';
+          badge.textContent = 'FAILED';
         } else {
-          badge.textContent = status.toUpperCase();
+          const idx = Number(row.dataset.idx);
+          const it = this.queueItems[idx];
+          if (it) {
+            const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
+            const info = getRowStatusInfo(it, rowMode);
+            badge.className = `row-status-badge ${info.statusClass}`;
+            badge.textContent = info.label;
+          }
         }
       }
 
@@ -724,7 +754,8 @@ export class FlowHUDHost {
     // State B, C, D: Render Rows
     container.innerHTML = this.queueItems.map((it, idx) => {
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
-      return renderQueueRow(it, idx, rowMode, this.isSortMode);
+      const params = this.getEffectiveRowParams(it);
+      return renderQueueRow(it, idx, rowMode, this.isSortMode, params);
     }).join('');
 
     if (this.isSortMode && this.selectedSwapSlot) {
@@ -788,6 +819,7 @@ export class FlowHUDHost {
           if (this.paramMode === 'single' && (this.activeRowIdx === idx || this.queueItems[idx].selected)) {
             this.updateSidebarParamModeUI();
           }
+          this.updateRowBadges(idx);
           this.updateStartButtonState();
 
           clearTimeout(this.promptSaveDebounceTimer);
@@ -1423,11 +1455,9 @@ export class FlowHUDHost {
         duration: (this.paramMode === 'single' && it.duration)
           ? it.duration
           : (cfg.duration || '6s'),
-        outputs: isVideo ? 1 : (
-          (this.paramMode === 'single' && (it.outputs || it.outputCount))
-            ? (it.outputs || it.outputCount)
-            : (cfg.outputCount || 1)
-        ),
+        outputs: (this.paramMode === 'single' && (it.outputs || it.outputCount))
+          ? (it.outputs || it.outputCount)
+          : (cfg.outputCount || 1),
         resolution: (this.paramMode === 'single' && it.resolution)
           ? it.resolution
           : (isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K')),
@@ -1515,15 +1545,19 @@ export class FlowHUDHost {
     }
 
     const totalRows = this.queueItems.length;
-    const allPromptsFilled = totalRows > 0 && this.queueItems.every(it => Boolean(it.prompt && it.prompt.trim().length > 0));
+    const allReady = totalRows > 0 && this.queueItems.every(it => {
+      const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
+      const info = getRowStatusInfo(it, rowMode);
+      return info.label !== 'NOT READY';
+    });
 
-    if (!allPromptsFilled) {
+    if (!allReady) {
       btnStart.disabled = true;
       btnStart.classList.add('is-disabled');
       if (totalRows === 0) {
         btnStart.title = 'Add at least one row to start generation';
       } else {
-        btnStart.title = 'Enter prompt for all rows to start generation';
+        btnStart.title = 'Complete prompt and required images for all rows to start';
       }
     } else {
       btnStart.disabled = false;
@@ -1871,13 +1905,95 @@ export class FlowHUDHost {
   }
 
   /**
+   * Helper to retrieve effective parameters for an item given current mode and sidebar state.
+   */
+  getEffectiveRowParams(item) {
+    if (!item) return null;
+    const isSingle = this.paramMode === 'single';
+    const cfg = this.config || {};
+
+    const selMode = this.shadow?.getElementById('selGenerationMode');
+    const mode = (isSingle && item.mode) ? item.mode : (selMode?.value || this.activeMode || cfg.mode || 'text-to-video');
+    const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+
+    const selModel = this.shadow?.getElementById('selModelFamily');
+    const rawModel = (isSingle && item.model)
+      ? item.model
+      : (selModel?.value || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2'));
+    const model = normalizeModelForMode(mode, rawModel);
+
+    const activeDurationBtn = this.shadow?.querySelector('#segDuration .rj-segment-btn.active');
+    const duration = (isSingle && item.duration)
+      ? item.duration
+      : (activeDurationBtn?.dataset.val || cfg.duration || '6s');
+
+    const activeRatioBtn = this.shadow?.querySelector('#segAspectRatio .rj-segment-btn.active');
+    const aspectRatio = (isSingle && item.aspectRatio)
+      ? item.aspectRatio
+      : (activeRatioBtn?.dataset.val || cfg.aspectRatio || '16:9');
+
+    const activeOutputsBtn = this.shadow?.querySelector('#segOutputs .rj-segment-btn.active');
+    const outputs = (isSingle && (item.outputs || item.outputCount))
+      ? (item.outputs || item.outputCount)
+      : (activeOutputsBtn?.dataset.val || cfg.outputCount || cfg.outputs || 1);
+
+    const selRes = this.shadow?.getElementById('selResolution');
+    const resolution = (isSingle && item.resolution)
+      ? item.resolution
+      : (selRes?.value || (isVideo ? (cfg.videoResolution || '1080p') : (cfg.imageResolution || '2K')));
+
+    return {
+      mode,
+      model,
+      duration,
+      aspectRatio,
+      outputs: Number(outputs) || 1,
+      resolution
+    };
+  }
+
+  /**
+   * Dynamically updates both parameters badge and status badge on a single row without full re-render.
+   */
+  updateRowBadges(rowIdx) {
+    if (rowIdx === null || rowIdx === undefined) return;
+    const item = this.queueItems[rowIdx];
+    if (!item) return;
+
+    const row = this.shadow?.querySelector(`.hud-queue-row[data-idx="${rowIdx}"]`);
+    if (!row) return;
+
+    const rowMode = (this.paramMode === 'single' && item.mode) ? item.mode : this.activeMode;
+    const params = this.getEffectiveRowParams(item);
+    const statusInfo = getRowStatusInfo(item, rowMode);
+
+    const paramsBadge = row.querySelector('.row-params-badge');
+    if (paramsBadge) {
+      paramsBadge.textContent = formatRowParamsBadge(params);
+    }
+
+    const statusBadge = row.querySelector('.row-status-badge');
+    if (statusBadge) {
+      statusBadge.className = `row-status-badge ${statusInfo.statusClass}`;
+      statusBadge.textContent = statusInfo.label;
+    }
+  }
+
+  /**
+   * Refreshes both badges on all rows in the queue.
+   */
+  updateAllRowBadges() {
+    this.queueItems.forEach((_, idx) => this.updateRowBadges(idx));
+  }
+
+  /**
    * Synchronizes right sidebar options when Generation Mode changes.
    */
   syncModeUI(mode) {
     const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
 
     const grpMultiplier = this.shadow.getElementById('grpMultiplier');
-    if (grpMultiplier) grpMultiplier.style.display = isVideo ? 'none' : 'flex';
+    if (grpMultiplier) grpMultiplier.style.display = 'flex';
 
     const grpVideoModels = this.shadow.getElementById('grpVideoModels');
     const grpImageModels = this.shadow.getElementById('grpImageModels');
