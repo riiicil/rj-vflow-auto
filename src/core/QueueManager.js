@@ -283,10 +283,9 @@ export class QueueManager {
         const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
         const model = normalizeModelForMode(mode, rawModel);
         const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
-        const duration = item.duration || cfg.duration || '6s';
-        const outputCount = item.outputs || item.outputCount || cfg.outputCount || 1;
+        const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
 
-        logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio}`);
+        logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
         await flowSettingsService.applySettings({
           mode,
           model,
@@ -362,11 +361,10 @@ export class QueueManager {
 
       // 5. Stage: GENERATING — Watch batch resolution
       await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, percent: 1 });
-
+      const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
       const watchResult = await flowWatcherService.waitForGeneration(
         previousTopBatch,
-        item.outputs || item.outputCount || 1,
+        expectedOutputCount,
         (progress) => {
           this.notifyProgress({
             itemId,

@@ -16,7 +16,7 @@ export const SELECTORS = {
   OVERLAY_PANE: 'div.cdk-overlay-pane',
   GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
   GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button',
-  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane mat-slide-toggle:has-text("Clear prompt") button[role="switch"], div.cdk-overlay-pane button[name="clear-prompt-on-submit"]',
+  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
 
   // Prompt Box & Creative Agent Suppression
   PROMPT_BOX_CONTAINER: 'flow-prompt-box.prompt-box-container',
@@ -33,7 +33,7 @@ export const SELECTORS = {
   MODEL_SELECT_TRIGGER: 'flow-prompt-box-settings span.model-select-trigger-content',
   MENU_PANEL: 'div.mat-mdc-menu-content',
   MENU_ITEM_BUTTON: 'div.mat-mdc-menu-content flow-menu-item button[role="menuitem"]',
-  BUTTON_TOGGLE: 'mat-button-toggle-group mat-button-toggle button',
+  BUTTON_TOGGLE: 'mat-button-toggle-group mat-button-toggle button, mat-button-toggle button, button[role="radio"]',
 
   // Ingredient Bar & Frames
   INGREDIENT_BAR: 'flow-ingredient-bar.prompt-ingredient-bar',
@@ -45,7 +45,7 @@ export const SELECTORS = {
 
   // Gallery & Cards
   GRID_CONTAINER: 'flow-grid-tile-container',
-  TOP_BATCH_CONTAINER: 'flow-grid-tile-container > flow-tile-container:first-child',
+  TOP_BATCH_CONTAINER: 'div.virtual-scroll-container > div.tile-row:first-child flow-grid-tile-container, flow-grid-tile-container:first-of-type, div.tile-row:first-child',
   CARD_MEDIA: 'img.thumbnail, img.image, img, video',
   PROGRESS_BAR: '.progress-bar, .progress-bar-fill, flow-pending-tile',
   CARD_ERROR: '.error-container, .failed-indicator, .error-badge, .error-message',

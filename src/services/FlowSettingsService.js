@@ -61,33 +61,28 @@ export class FlowSettingsService {
    * Strictly avoids other switches in the header popover (e.g. Sound on hover, Silent videos).
    */
   findClearPromptSwitch(pane = document) {
-    // 1. Mat-slide-toggle containing text "Clear prompt"
-    const toggles = queryAll('mat-slide-toggle, .mat-mdc-slide-toggle', pane);
+    // 1. Direct query by exact button name or aria-label (Flow modern MDC switch)
+    let sw = query('button[name="clear-prompt-on-submit"]', pane) ||
+      query('button[aria-label*="Clear prompt on submit" i]', pane) ||
+      query('button[aria-label*="Clear prompt" i]', pane);
+    if (sw) return sw;
+
+    // Search in document if pane was scoped narrowly
+    sw = query('button[name="clear-prompt-on-submit"]', document) ||
+      query('button[aria-label*="Clear prompt on submit" i]', document) ||
+      query('button[aria-label*="Clear prompt" i]', document);
+    if (sw) return sw;
+
+    // 2. Search mat-slide-toggle / mat-mdc-slide-toggle containing text "Clear prompt"
+    const toggles = queryAll('mat-slide-toggle, .mat-mdc-slide-toggle', document);
     for (const toggle of toggles) {
       if (toggle.textContent && toggle.textContent.toLowerCase().includes('clear prompt')) {
         return toggle.querySelector('button[role="switch"]') || toggle.querySelector('button') || toggle;
       }
     }
 
-    // 2. Element by ligature ink_eraser (icon in the Clear prompt row)
-    const icon = queryIcon('ink_eraser', pane) ||
-      queryIcon('cleaning_services', pane) ||
-      queryIcon('edit_off', pane);
-    if (icon) {
-      const parentRow = icon.closest('mat-slide-toggle, div') || icon.parentElement;
-      if (parentRow) {
-        return parentRow.querySelector('button[role="switch"], button');
-      }
-    }
-
-    // 3. Positional fallback: in Google Flow header overlay, Clear prompt on submit is the 4th/last switch
-    const switchButtons = queryAll('button[role="switch"]', pane);
-    if (switchButtons.length >= 4) {
-      return switchButtons[switchButtons.length - 1];
-    }
-
-    // 4. Fallback: query with SELECTORS.CLEAR_PROMPT_SWITCH
-    return query(SELECTORS.CLEAR_PROMPT_SWITCH, pane);
+    // 3. Fallback: query with SELECTORS.CLEAR_PROMPT_SWITCH
+    return query(SELECTORS.CLEAR_PROMPT_SWITCH, pane) || query(SELECTORS.CLEAR_PROMPT_SWITCH, document);
   }
 
   /**
@@ -108,11 +103,18 @@ export class FlowSettingsService {
       return false;
     }
 
-    // Open overlay if not already visible
-    let overlayPane = query(SELECTORS.OVERLAY_PANE);
+    // Open overlay if not already visible/expanded
+    const isExpanded = triggerBtn.getAttribute('aria-expanded') === 'true';
+    let overlayPane = isExpanded
+      ? (query('div.cdk-overlay-pane:has(button[name="clear-prompt-on-submit"])') || query('div.cdk-overlay-pane:has(mat-icon:has-text("dashboard"))'))
+      : null;
+
     if (!overlayPane) {
       simulateClick(triggerBtn);
-      overlayPane = await waitForElement(SELECTORS.OVERLAY_PANE, { timeout }).catch(() => null);
+      overlayPane = await waitForElement(
+        'div.cdk-overlay-pane button[name="clear-prompt-on-submit"], div.cdk-overlay-pane:has(mat-icon:has-text("dashboard")), div.cdk-overlay-pane',
+        { timeout }
+      ).catch(() => null);
     }
     await sleep(450);
 
@@ -121,14 +123,16 @@ export class FlowSettingsService {
 
       // 1. Grid layout toggle (ligature: dashboard)
       const gridBtn = query(SELECTORS.GRID_LAYOUT_TOGGLE, pane) ||
-        queryButtonByIcon(LIGATURES.DASHBOARD, pane);
+        queryButtonByIcon(LIGATURES.DASHBOARD, pane) ||
+        queryButtonByIcon('dashboard', document);
       if (gridBtn && !this.isToggleChecked(gridBtn)) {
         simulateClick(gridBtn);
         await sleep(300);
       }
 
       // 2. Tile size M toggle
-      const sizeMBtn = query(SELECTORS.GRID_SIZE_M_TOGGLE, pane);
+      const sizeMBtn = query(SELECTORS.GRID_SIZE_M_TOGGLE, pane) ||
+        query('mat-button-toggle:has(span:has-text("M")) button', document);
       if (sizeMBtn && !this.isToggleChecked(sizeMBtn)) {
         simulateClick(sizeMBtn);
         await sleep(300);
@@ -138,24 +142,28 @@ export class FlowSettingsService {
       const clearSwitch = this.findClearPromptSwitch(pane);
       if (clearSwitch) {
         const isChecked = clearSwitch.getAttribute('aria-checked') === 'true' ||
-          Boolean(clearSwitch.closest('.mat-mdc-slide-toggle-checked, .mat-slide-toggle-checked'));
+          Boolean(clearSwitch.closest('.mat-mdc-slide-toggle-checked, .mat-slide-toggle-checked')) ||
+          clearSwitch.checked === true;
         if (!isChecked) {
           simulateClick(clearSwitch);
           await sleep(300);
+          logger.info('[FlowSettingsService] Clear prompt on submit switch toggled ON');
+        } else {
+          logger.info('[FlowSettingsService] Clear prompt on submit switch already ON');
         }
       } else {
-        logger.info('[FlowSettingsService] Clear prompt switch not found, keeping existing setting');
+        logger.warn('[FlowSettingsService] Clear prompt switch not found, keeping existing setting');
       }
 
       return true;
     } finally {
-      // 4. Dismiss popover
-      if (triggerBtn) {
+      // 4. Dismiss popover cleanly
+      if (triggerBtn && triggerBtn.getAttribute('aria-expanded') === 'true') {
         simulateClick(triggerBtn);
+      } else {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
       }
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
-      await waitForElementGone(SELECTORS.OVERLAY_PANE, { timeout: 2000 }).catch(() => {});
-      await sleep(400);
+      await sleep(300);
     }
   }
 
@@ -438,12 +446,40 @@ export class FlowSettingsService {
   async selectOutputCount(count, popover = document) {
     if (!count) return;
 
-    const token = `x${count}`;
-    const outputBtn = queryByText(SELECTORS.BUTTON_TOGGLE, token, popover) ||
-      queryByTextContains(SELECTORS.BUTTON_TOGGLE, token, popover);
-    if (outputBtn && !this.isToggleChecked(outputBtn)) {
-      simulateClick(outputBtn);
-      await sleep(300);
+    const num = Number(count) || 1;
+    const token = `x${num}`;
+
+    // Target button in popover by exact text or role="radio"
+    let outputBtn = queryByText('mat-button-toggle button', token, popover) ||
+      queryByText('button[role="radio"]', token, popover) ||
+      queryByText(SELECTORS.BUTTON_TOGGLE, token, popover) ||
+      queryByTextContains('mat-button-toggle button', token, popover);
+
+    if (!outputBtn) {
+      // Search through all mat-button-toggle elements in popover
+      const allToggles = queryAll('mat-button-toggle', popover);
+      for (const tog of allToggles) {
+        const txt = (tog.textContent || '').trim();
+        if (txt === token || txt.replace(/\s+/g, '') === token) {
+          outputBtn = tog.querySelector('button') || tog;
+          break;
+        }
+      }
+    }
+
+    if (outputBtn) {
+      if (!this.isToggleChecked(outputBtn)) {
+        simulateClick(outputBtn);
+        await sleep(200);
+        const parentToggle = outputBtn.closest('mat-button-toggle');
+        if (parentToggle && !this.isToggleChecked(outputBtn)) {
+          simulateClick(parentToggle);
+        }
+        await sleep(300);
+      }
+      logger.info(`[FlowSettingsService] Output multiplier set to ${token} (verified: ${this.isToggleChecked(outputBtn)})`);
+    } else {
+      logger.warn(`[FlowSettingsService] Output multiplier toggle for ${token} not found in popover`);
     }
   }
 
@@ -470,7 +506,7 @@ export class FlowSettingsService {
     // Video modes (text-to-video, image-to-video, frames-to-video) strictly use video models (default: Veo 3.1 - Lite).
     target.model = normalizeModelForMode(target.mode || MEDIA_MODES.TEXT_TO_VIDEO, target.model);
 
-    logger.step('settings', `Configuring popover: ${target.mode || 'video'} | ${target.model || 'default'} | ratio: ${target.aspectRatio || '16:9'}`);
+    logger.step('settings', `Configuring popover: ${target.mode || 'video'} | ${target.model || 'default'} | ratio: ${target.aspectRatio || '16:9'} | outputs: x${target.outputCount || 1}`);
 
     // Always open settings popover and inspect/apply controls directly
     const popover = await this.openSettingsPopover();

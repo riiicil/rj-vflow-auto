@@ -29,17 +29,17 @@ export class FlowWatcherService {
    * so monitoring is strictly bound to index 0 (:first-child).
    */
   getTopBatchContainer() {
-    // 1. Direct flow-tile-container at top index 0 (batch or grid mode container)
+    // 1. Direct flow-grid-tile-container at top index 0 (parent of all tiles in a batch)
     const directBatch = query(SELECTORS.TOP_BATCH_CONTAINER) ||
-      query('flow-grid-tile-container flow-tile-container:first-of-type') ||
-      query(`${SELECTORS.GRID_CONTAINER} > flow-tile-container:first-child`) ||
+      query('div.virtual-scroll-container > div.tile-row:first-child flow-grid-tile-container') ||
+      query('flow-grid-tile-container:first-of-type') ||
       query(`${SELECTORS.GRID_CONTAINER} > :first-child`);
     if (directBatch) return directBatch;
 
     // 2. Direct top tile fallback (if flat tiles inside grid view)
     const topTile = query('flow-grid-tile-container flow-video-tile, flow-grid-tile-container flow-image-tile, flow-grid-tile-container flow-pending-tile');
     if (topTile) {
-      return topTile.closest('flow-tile-container') || topTile;
+      return topTile.closest('flow-grid-tile-container') || topTile.closest('flow-tile-container') || topTile;
     }
 
     return null;
@@ -50,19 +50,29 @@ export class FlowWatcherService {
    */
   getBatchTileElements(batchContainer, expectedCount = null) {
     if (!batchContainer) return [];
-    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile')) {
+    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile, flow-pending-tile')) {
       return [batchContainer];
     }
-    // Query primary card tiles
-    let tiles = queryAll('flow-video-tile, flow-image-tile', batchContainer);
-    // If no video or image tiles mounted yet, check for pending tiles that are top-level
-    if (tiles.length === 0) {
-      tiles = queryAll('flow-pending-tile', batchContainer);
+
+    // In Google Flow, each tile in a batch is wrapped in <flow-tile-container>
+    const tileWrappers = queryAll('flow-tile-container', batchContainer);
+    if (tileWrappers.length > 0) {
+      const result = [];
+      for (const tw of tileWrappers) {
+        const card = tw.querySelector('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile') || tw;
+        result.push(card);
+      }
+      if (expectedCount && result.length > expectedCount) {
+        return result.slice(0, expectedCount);
+      }
+      return result;
     }
-    // Filter out any child tile whose ancestor is already included in tiles
+
+    // Direct card query across rendered and pending cards
+    let tiles = queryAll('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile', batchContainer);
     tiles = tiles.filter(t => !tiles.some(parent => parent !== t && parent.contains(t)));
 
-    if (expectedCount && tiles.length > expectedCount && batchContainer.tagName && batchContainer.tagName.toLowerCase() === 'flow-grid-tile-container') {
+    if (expectedCount && tiles.length > expectedCount) {
       return tiles.slice(0, expectedCount);
     }
     return tiles;
@@ -295,7 +305,12 @@ export class FlowWatcherService {
         }
 
         const total = tiles.length;
-        const isDone = (completedCount + failedCount) === total;
+        const targetCount = expectedCount || 1;
+        // Batch is only done when:
+        // 1. All discovered tiles are finished (completed or failed)
+        // 2. AND we have received at least targetCount tiles (or 15s elapsed since batch start)
+        const hasExpectedTiles = total >= targetCount || (Date.now() - startTime >= 15000);
+        const isDone = hasExpectedTiles && (completedCount + failedCount) === total;
         // Real-time aggregate percentage calculated across all tiles in the batch
         const estimatedPercent = total > 0 ? Math.min(100, Math.round(sumTilePercent / total)) : 0;
 

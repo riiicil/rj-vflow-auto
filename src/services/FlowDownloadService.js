@@ -33,8 +33,15 @@ export class FlowDownloadService {
     }
 
     // Find more options button inside card hotbar
-    const moreBtn = queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
+    let moreBtn = queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
       query('flow-hotbar-container div.hotbar-inner > button:nth-of-type(3)', tileElement);
+
+    if (!moreBtn) {
+      tileElement.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      await sleep(200);
+      moreBtn = queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
+        query('flow-hotbar-container div.hotbar-inner > button:nth-of-type(3)', tileElement);
+    }
 
     if (!moreBtn) {
       throw new Error('[FlowDownloadService] More options button not found in card hotbar');

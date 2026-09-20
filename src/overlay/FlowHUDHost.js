@@ -727,23 +727,51 @@ export class FlowHUDHost {
         }
       }
 
+      // Synchronize in-memory item status
+      const matchedItem = this.queueItems.find(it => it.id === payload.itemId);
+      if (matchedItem) {
+        matchedItem.status = payload.status;
+      }
+
+      let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
+      if (currentIdx === -1) currentIdx = 0;
+      const current = currentIdx + 1;
+      const total = this.queueItems.length || 1;
+      const overallPercent = this.calculateCumulativeProgress(payload.itemId, payload.status);
+
       if (payload.status === 'generating' || payload.status === 'injecting' || payload.status === 'downloading') {
-        this.updateTicker(`${payload.status.toUpperCase()} (${payload.percent || 0}%)`, 'running');
-        let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
-        if (currentIdx === -1) currentIdx = 0;
-        const current = currentIdx + 1;
-        const total = this.queueItems.length || 1;
-        const percent = Math.max(0, Math.min(100, Math.round(payload.percent || 0)));
-        this.updateQueueSummaryUI(true, { current, total, percent });
-      } else if (payload.status === 'completed') {
-        let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
-        if (currentIdx !== -1) {
-          const current = currentIdx + 1;
-          const total = this.queueItems.length || 1;
-          this.updateQueueSummaryUI(true, { current, total, percent: 100 });
-        }
+        this.updateTicker(`${payload.status.toUpperCase()} (${overallPercent}%)`, 'running');
+        this.updateQueueSummaryUI(true, { current, total, percent: overallPercent });
+      } else if (payload.status === 'completed' || payload.status === 'failed') {
+        this.updateQueueSummaryUI(true, { current, total, percent: overallPercent });
       }
     });
+  }
+
+  /**
+   * Calculates overall batch queue percentage accumulated across all row stages.
+   * Prevents per-card resets (e.g. jumping from 99% on row 1 back to 1% on row 2).
+   */
+  calculateCumulativeProgress(activeItemId = null, activeStatus = null) {
+    const total = this.queueItems.length || 1;
+    const stageWeights = {
+      not_ready: 0,
+      ready: 0,
+      pending: 0,
+      injecting: 0.15,
+      generating: 0.60,
+      downloading: 0.90,
+      completed: 1.0,
+      failed: 1.0
+    };
+
+    let accumulated = 0;
+    for (const it of this.queueItems) {
+      const st = (it.id === activeItemId && activeStatus) ? activeStatus : (it.status || 'pending');
+      accumulated += (stageWeights[st] !== undefined ? stageWeights[st] : 0);
+    }
+
+    return Math.min(100, Math.max(0, Math.round((accumulated / total) * 100)));
   }
 
   /**
