@@ -24,58 +24,97 @@ export class FlowWatcherService {
   }
 
   /**
-   * Retrieves the top-most (newest) batch container in the grid gallery.
-   * Angular CDK Virtual Scroll unmounts older batches upon scrolling,
-   * so monitoring is strictly bound to index 0 (:first-child).
+   * Retrieves the top-most tile card currently in the gallery.
    */
-  getTopBatchContainer() {
-    // 1. Direct flow-grid-tile-container at top index 0 (parent of all tiles in a batch)
-    const directBatch = query(SELECTORS.TOP_BATCH_CONTAINER) ||
-      query('div.virtual-scroll-container > div.tile-row:first-child flow-grid-tile-container') ||
-      query('flow-grid-tile-container:first-of-type') ||
-      query(`${SELECTORS.GRID_CONTAINER} > :first-child`);
-    if (directBatch) return directBatch;
-
-    // 2. Direct top tile fallback (if flat tiles inside grid view)
-    const topTile = query('flow-grid-tile-container flow-video-tile, flow-grid-tile-container flow-image-tile, flow-grid-tile-container flow-pending-tile');
-    if (topTile) {
-      return topTile.closest('flow-grid-tile-container') || topTile.closest('flow-tile-container') || topTile;
-    }
-
-    return null;
+  getTopTileCard() {
+    return query(SELECTORS.TOP_TILE) ||
+      query('div.virtual-scroll-container flow-tile-container') ||
+      query('flow-tile-container') ||
+      query('flow-video-tile, flow-image-tile, flow-pending-tile');
   }
 
   /**
-   * Returns all tile elements within a given batch container.
+   * Retrieves top batch or top tile node for backwards compatibility.
    */
-  getBatchTileElements(batchContainer, expectedCount = null) {
-    if (!batchContainer) return [];
-    if (batchContainer.matches && batchContainer.matches('flow-video-tile, flow-image-tile, flow-pending-tile')) {
-      return [batchContainer];
+  getTopBatchContainer() {
+    return this.getTopTileCard();
+  }
+
+  /**
+   * Ensures the gallery viewport is at scroll top 0 so the newest items are mounted.
+   */
+  ensureScrolledToTop() {
+    const viewport = query('cdk-virtual-scroll-viewport, .tiles-container');
+    if (viewport && viewport.scrollTop > 0) {
+      viewport.scrollTop = 0;
+    }
+  }
+
+  /**
+   * Returns all tile elements belonging to the active generation batch across
+   * all virtual scroll rows (supporting multi-row layouts for landscape 16:9 x3/x4).
+   *
+   * Traverses all flow-tile-container elements in document order from the top
+   * until encountering previousTopTile, or reaching expectedCount.
+   *
+   * @param {number|Element} firstArg - Expected count or legacy container element
+   * @param {Element|number} secondArg - Baseline top tile element or expected count
+   * @param {string} thirdArg - Active prompt text for secondary boundary verification
+   * @returns {Element[]} Array of tile card elements
+   */
+  getBatchTileElements(firstArg = 1, secondArg = null, thirdArg = '') {
+    let expectedCount = 1;
+    let previousTopTile = null;
+    let promptText = '';
+
+    if (firstArg instanceof Element || (firstArg && typeof firstArg === 'object' && firstArg.nodeType === 1)) {
+      // Legacy call pattern: (batchContainer, expectedCount)
+      expectedCount = Number(secondArg) || 1;
+      previousTopTile = null;
+    } else {
+      // New multi-row call pattern: (expectedCount, previousTopTile, promptText)
+      expectedCount = Number(firstArg) || 1;
+      previousTopTile = secondArg;
+      promptText = thirdArg || '';
     }
 
-    // In Google Flow, each tile in a batch is wrapped in <flow-tile-container>
-    const tileWrappers = queryAll('flow-tile-container', batchContainer);
-    if (tileWrappers.length > 0) {
-      const result = [];
-      for (const tw of tileWrappers) {
-        const card = tw.querySelector('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile') || tw;
-        result.push(card);
+    const targetCount = Number(expectedCount) || 1;
+    const tileWrappers = queryAll(SELECTORS.TOP_TILE);
+
+    if (tileWrappers.length === 0) {
+      const rawCards = queryAll('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile');
+      return rawCards.slice(0, targetCount);
+    }
+
+    const normPrompt = promptText ? promptText.trim().toLowerCase() : '';
+    const result = [];
+
+    for (const tw of tileWrappers) {
+      // 1. Boundary: reached the tile that was at the top before submission
+      if (previousTopTile && (tw === previousTopTile || tw.contains(previousTopTile) || previousTopTile.contains(tw))) {
+        break;
       }
-      if (expectedCount && result.length > expectedCount) {
-        return result.slice(0, expectedCount);
+
+      // 2. Secondary boundary: if card has a distinct aria-label from older generation
+      if (normPrompt) {
+        const gridContainer = tw.closest('flow-grid-tile-container');
+        const tileLabel = gridContainer ? (gridContainer.getAttribute('aria-label') || '').trim().toLowerCase() : '';
+        if (tileLabel && !tileLabel.includes(normPrompt) && !normPrompt.includes(tileLabel)) {
+          break;
+        }
       }
-      return result;
+
+      // 3. Resolve underlying card element inside wrapper
+      const card = tw.querySelector('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile') || tw;
+      result.push(card);
+
+      // 4. Boundary: collected target number of cards
+      if (result.length >= targetCount) {
+        break;
+      }
     }
 
-    // Direct card query across rendered and pending cards
-    let tiles = queryAll('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile', batchContainer);
-    tiles = tiles.filter(t => !tiles.some(parent => parent !== t && parent.contains(t)));
-
-    if (expectedCount && tiles.length > expectedCount) {
-      return tiles.slice(0, expectedCount);
-    }
-    return tiles;
+    return result;
   }
 
   /**
@@ -224,27 +263,24 @@ export class FlowWatcherService {
 
   /**
    * Waits for a newly initiated generation batch to spawn at the top of the grid.
+   * Compares against the baseline top tile element captured before prompt submission.
    */
-  async waitForNewBatchSpawn(previousTopBatch = null, timeout = 15000) {
+  async waitForNewBatchSpawn(previousTopTile = null, timeout = 15000) {
     return await waitForCondition(() => {
-      const currentTop = this.getTopBatchContainer();
+      const currentTop = this.getTopTileCard();
       if (!currentTop) return false;
 
-      // If we had no previous batch, any top batch is valid
-      if (!previousTopBatch) return currentTop;
+      // If we had no previous top tile, any top tile indicates the gallery is active
+      if (!previousTopTile) return currentTop;
 
-      // Return when the top batch is a distinct DOM node
-      if (currentTop !== previousTopBatch) {
+      // Return when top tile is a new DOM node prepended at top of gallery
+      if (currentTop !== previousTopTile && !previousTopTile.contains(currentTop)) {
         return currentTop;
       }
 
-      // Or if the batch container has an active pending tile or progress bar
-      const tiles = this.getBatchTileElements(currentTop);
-      const isAnyRendering = tiles.some(t => {
-        const st = this.getTileStatus(t);
-        return st.isRendering;
-      });
-      if (isAnyRendering) {
+      // Or if the top tile has transitioned into active rendering or pending state
+      const st = this.getTileStatus(currentTop);
+      if (st.isRendering) {
         return currentTop;
       }
 
@@ -253,11 +289,29 @@ export class FlowWatcherService {
   }
 
   /**
-   * Watches an active batch container until all child tiles complete or fail.
+   * Watches active generation tiles across all virtual scroll rows until all complete or fail.
+   * Supports both modern options object and legacy container-based signature.
    */
-  async watchBatchProgress(batchContainer, onProgress = null, { timeout = 180000, pollInterval = 1000, expectedCount = 1 } = {}) {
-    if (!batchContainer) {
-      throw new Error('[FlowWatcherService] Invalid batch container provided to watchBatchProgress');
+  async watchBatchProgress(optionsOrContainer, onProgress = null, legacyOptions = {}) {
+    let expectedCount = 1;
+    let previousTopTile = null;
+    let promptText = '';
+    let timeout = 180000;
+    let pollInterval = 1000;
+    let progressCb = onProgress;
+
+    if (optionsOrContainer && !(optionsOrContainer instanceof Element) && !(optionsOrContainer.nodeType === 1)) {
+      expectedCount = Number(optionsOrContainer.expectedCount) || 1;
+      previousTopTile = optionsOrContainer.previousTopTile || null;
+      promptText = optionsOrContainer.promptText || '';
+      timeout = optionsOrContainer.timeout || 180000;
+      pollInterval = optionsOrContainer.pollInterval || 1000;
+      if (optionsOrContainer.onProgress) progressCb = optionsOrContainer.onProgress;
+    } else {
+      expectedCount = Number(legacyOptions.expectedCount) || 1;
+      timeout = legacyOptions.timeout || 180000;
+      pollInterval = legacyOptions.pollInterval || 1000;
+      previousTopTile = optionsOrContainer;
     }
 
     const startTime = Date.now();
@@ -270,15 +324,9 @@ export class FlowWatcherService {
           return reject(new Error(`[FlowWatcherService] Generation batch timed out after ${timeout}ms`));
         }
 
-        // Verify container is still connected to DOM
-        if (!batchContainer.isConnected) {
-          clearInterval(timer);
-          return reject(new Error('[FlowWatcherService] Active batch container disconnected from DOM'));
-        }
-
-        const tiles = this.getBatchTileElements(batchContainer, expectedCount);
+        const tiles = this.getBatchTileElements(expectedCount, previousTopTile, promptText);
         if (tiles.length === 0) {
-          // Still initializing tiles inside container
+          // Still mounting initial tiles in DOM
           return;
         }
 
@@ -308,15 +356,15 @@ export class FlowWatcherService {
         const targetCount = expectedCount || 1;
         // Batch is only done when:
         // 1. All discovered tiles are finished (completed or failed)
-        // 2. AND we have received at least targetCount tiles (or 15s elapsed since batch start)
-        const hasExpectedTiles = total >= targetCount || (Date.now() - startTime >= 15000);
-        const isDone = hasExpectedTiles && (completedCount + failedCount) === total;
+        // 2. AND we have received at least targetCount tiles (or 35s safety grace elapsed if platform dropped an output)
+        const hasExpectedTiles = total >= targetCount || (Date.now() - startTime >= 35000);
+        const isDone = hasExpectedTiles && total > 0 && (completedCount + failedCount) === total;
         // Real-time aggregate percentage calculated across all tiles in the batch
         const estimatedPercent = total > 0 ? Math.min(100, Math.round(sumTilePercent / total)) : 0;
 
-        if (typeof onProgress === 'function') {
+        if (typeof progressCb === 'function') {
           try {
-            onProgress({
+            progressCb({
               total,
               completed: completedCount,
               failed: failedCount,
@@ -339,7 +387,7 @@ export class FlowWatcherService {
           }
           resolve({
             success: completedCount > 0,
-            batchContainer,
+            batchContainer: tiles[0] || null,
             total,
             completed: completedCount,
             failed: failedCount,
@@ -351,17 +399,27 @@ export class FlowWatcherService {
   }
 
   /**
-   * High-level orchestrator: captures prior state, awaits new batch container spawn,
-   * and tracks lifecycle until full completion.
+   * High-level orchestrator: captures prior state, awaits new tiles spawn at gallery top,
+   * and monitors lifecycle across multi-row virtual scroll rows until completion.
    */
-  async waitForGeneration(previousTopBatch = null, expectedCount = 1, onProgress = null, timeout = 180000) {
+  async waitForGeneration(previousTopTile = null, expectedCount = 1, onProgress = null, timeout = 180000, promptText = '') {
     logger.step('watcher', 'Awaiting new generation batch in gallery...');
-    // 1. Wait for Google Flow to mount the new batch container at top index 0
-    const newBatch = await this.waitForNewBatchSpawn(previousTopBatch, 15000);
+
+    // 1. Ensure viewport is scrolled to top so index 0 tiles are active in DOM
+    this.ensureScrolledToTop();
+
+    // 2. Wait for Google Flow to mount new tiles at top of gallery
+    await this.waitForNewBatchSpawn(previousTopTile, 15000);
     logger.step('watcher', 'New batch detected, monitoring generation progress...');
 
-    // 2. Poll until all tiles in the batch resolve (success or failure)
-    const result = await this.watchBatchProgress(newBatch, onProgress, { timeout, expectedCount });
+    // 3. Poll multi-row batch progress until all expected tiles complete or fail
+    const result = await this.watchBatchProgress({
+      expectedCount,
+      previousTopTile,
+      promptText,
+      onProgress,
+      timeout
+    });
 
     return result;
   }

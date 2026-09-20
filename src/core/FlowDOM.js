@@ -46,6 +46,10 @@ export const SELECTORS = {
   // Gallery & Cards
   GRID_CONTAINER: 'flow-grid-tile-container',
   TOP_BATCH_CONTAINER: 'div.virtual-scroll-container > div.tile-row:first-child flow-grid-tile-container, flow-grid-tile-container:first-of-type, div.tile-row:first-child',
+  VIRTUAL_SCROLL_CONTAINER: 'div.virtual-scroll-container, cdk-virtual-scroll-viewport.tiles-container',
+  TILE_ROW: 'div.virtual-scroll-container > div.tile-row, div.tile-row',
+  TILE_CONTAINER: 'flow-tile-container',
+  TOP_TILE: 'div.virtual-scroll-container flow-tile-container, cdk-virtual-scroll-viewport flow-tile-container, flow-tile-container',
   CARD_MEDIA: 'img.thumbnail, img.image, img, video',
   PROGRESS_BAR: '.progress-bar, .progress-bar-fill, flow-pending-tile',
   CARD_ERROR: '.error-container, .failed-indicator, .error-badge, .error-message',

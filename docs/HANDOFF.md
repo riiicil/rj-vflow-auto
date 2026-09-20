@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `HEAD` (`fix(queue): restore duration variable declaration in single parameter orchestration`)
+- **Latest Commit**: `HEAD` (`fix(watcher): multi-row batch tile collection across virtual scroll rows for multi-output downloads`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), `duration` variable declaration restored in `QueueManager.js` single parameter branch, multi-output batch container resolution verified, clear prompt switch detection verified via direct MDC button selector, and footer queue progress accumulation verified.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), multi-row batch tile collection across virtual scroll rows verified, `duration` variable declaration verified in `QueueManager.js`, clear prompt switch detection verified via direct MDC button selector, and footer queue progress accumulation verified.
 
 ---
 
@@ -86,6 +86,11 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
     - `src/overlay/overlay.css`: Added `.row-badges-group` and `.row-params-badge` capsule styles. Expanded `.row-status-badge` with dedicated color stages (`.status-not-ready` warning amber `#ffab3d`, `.status-ready` cyan `#57c1ff`, `.status-injecting` purple `#c084fc`, `.status-generating` teal `#14b8a6`, `.status-downloading`/`.status-completed` green `#59d499`, `.status-failed` red `#ff6161`).
     - `src/overlay/FlowHUDHost.js`: Implemented `getEffectiveRowParams(item)`, `updateRowBadges(rowIdx)`, and `updateAllRowBadges()`. Wired dynamic badge updates on textarea input, parameter sidebar segment changes, and mode switches. Removed percentage progress strings from badge text in `queueManager.onProgress` (`INJECTING`, `GENERATING`, `DOWNLOADING`). Unlocked output multipliers for video in `syncModeUI()` and `saveCurrentQueue()`. Refactored `updateStartButtonState()` to validate row readiness via `getRowStatusInfo()`.
     - `src/core/QueueManager.js`: Removed `isVideo ? 1 :` restriction in `runLoop()` batch settings and `processItem()` single settings, allowing video generations to run with user-configured output counts.
+16. **Session 33 Fix Complete (Commit 19, `HEAD`)**:
+    - `src/core/FlowDOM.js`: Added master selectors `VIRTUAL_SCROLL_CONTAINER`, `TILE_ROW`, `TILE_CONTAINER`, and `TOP_TILE`.
+    - `src/services/FlowWatcherService.js`: Replaced single-row `div.tile-row:first-child` container limitation with multi-row tile collection `getBatchTileElements(expectedCount, previousTopTile, promptText)`. Seamlessly collects cards across Row 1, Row 2, etc., resolving the partial download issue where landscape 16:9 x3 and x4 batches only downloaded 2 cards. Refactored `waitForNewBatchSpawn()` and `watchBatchProgress()` with multi-row polling, live percentage calculation, and increased safety fallback (35s).
+    - `src/core/QueueManager.js`: Snapshots baseline top tile before prompt submission via `flowWatcherService.getTopTileCard()` and passes it with `item.prompt` to `flowWatcherService.waitForGeneration()`. Downloader now receives all successful tiles across all rows.
+    - `src/services/FlowDownloadService.js`: Added `scrollIntoView({ block: 'nearest' })` on card elements before more-menu trigger to guarantee visibility in lower virtual scroll rows, and added post-download Escape key dismissal fallback.
 
 ---
 

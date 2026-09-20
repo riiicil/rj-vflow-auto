@@ -353,18 +353,18 @@ export class QueueManager {
         await flowIngredientService.clearIngredients();
       }
 
-      // 3. Capture baseline top batch before submission
-      const previousTopBatch = flowWatcherService.getTopBatchContainer();
+      // 3. Capture baseline top tile before submission
+      const previousTopTile = flowWatcherService.getTopTileCard();
 
       // 4. Submit prompt via native ProseMirror injection
       logger.step('prompt injection', item.prompt);
       await flowPromptService.submitPrompt(item.prompt);
 
-      // 5. Stage: GENERATING — Watch batch resolution
+      // 5. Stage: GENERATING — Watch batch resolution across all virtual scroll rows
       await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
       const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
       const watchResult = await flowWatcherService.waitForGeneration(
-        previousTopBatch,
+        previousTopTile,
         expectedOutputCount,
         (progress) => {
           this.notifyProgress({
@@ -374,7 +374,8 @@ export class QueueManager {
             progress
           });
         },
-        180000
+        180000,
+        item.prompt
       );
 
       // 6. Stage: DOWNLOADING — Handle asset downloads

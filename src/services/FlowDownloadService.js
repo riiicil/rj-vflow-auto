@@ -32,6 +32,10 @@ export class FlowDownloadService {
       throw new Error('[FlowDownloadService] Tile element required to open more menu');
     }
 
+    if (tileElement.scrollIntoView) {
+      tileElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
     // Find more options button inside card hotbar
     let moreBtn = queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
       query('flow-hotbar-container div.hotbar-inner > button:nth-of-type(3)', tileElement);
@@ -145,6 +149,10 @@ export class FlowDownloadService {
 
     // Wait for context menu to dismiss
     await waitForElementGone(SELECTORS.MENU_PANEL, { timeout: 2000 }).catch(() => {});
+    if (query(SELECTORS.MENU_PANEL)) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
+      await sleep(150);
+    }
     await sleep(250);
     return true;
   }
