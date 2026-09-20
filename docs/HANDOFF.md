@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending (`feat(hud): always visible row status badge parameter badges and video output multiplier support`)
+- **Latest Commit**: `a38e218` (`fix(hud): live aspect ratio and outputs badge sync row handle centering and footer progress spinner`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), dual row badges (live params badge + always-visible status badge with pre-run READY vs NOT READY states) verified, percentage progress stripped from badges, and video output multiplier x1-x4 support unhidden across HUD and QueueManager.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), live aspect ratio and outputs badge synchronization across single and batch parameter changes verified, row checkbox and drag handle vertical centering verified, and dynamic footer queue summary with idle prompt icon and running progress spinner verified.
 
 ---
 
@@ -117,7 +117,8 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 31 | 2026-09-20 | `task/dual-mode-ui` | Pending | Dual row badges (live params + always-visible status with READY vs NOT READY), stripped progress percentages, and video output multiplier | Phase 4: E2E Integration & Stress Testing |
+| 32 | 2026-09-20 | `task/dual-mode-ui` | `a38e218` | Live aspect ratio and outputs badge synchronization, row handle vertical centering, and footer progress spinner | Phase 4: E2E Integration & Stress Testing |
+| 31 | 2026-09-20 | `task/dual-mode-ui` | `dc6525c` | Dual row badges (live params + always-visible status with READY vs NOT READY), stripped progress percentages, and video output multiplier | Live badge sync & footer spinner |
 | 30 | 2026-09-20 | `task/dual-mode-ui` | `8273579` | Model defaults realignment (Nano Banana 2 / Veo 3.1 - Lite), strict mode normalization, sequential 2x F2V paste injection, and thumbnail hydration | Row status and parameter badges |
 | 29 | 2026-09-20 | `task/dual-mode-ui` | `9ffec65` | Smart image drop, ingredient click-to-swap in sort mode, start button prompt validation, right-aligned status badge, and prompt auto-save | Model defaults and F2V injection hardening |
 | 28 | 2026-09-20 | `task/dual-mode-ui` | `b4e223b` | Container focus toggle, multi-select transition, and uncheck focus clearing | Smart image drop & sort mode swap |

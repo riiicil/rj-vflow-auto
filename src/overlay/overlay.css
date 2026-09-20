@@ -519,7 +519,14 @@ svg.rj-icon,
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 6px;
+  align-self: center;
+  margin-top: 0;
+}
+
+.row-select-checkbox {
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--rj-accent-cyan, #00b4a4);
 }
 
 .row-drag-handle {
@@ -964,6 +971,33 @@ svg.rj-icon,
   font-size: 11px;
   font-weight: 500;
   color: var(--rj-text-muted, #9c9c9d);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.hud-stats-badge svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.hud-stats-badge.is-processing {
+  color: var(--rj-accent-cyan, #00b4a4);
+}
+
+.rj-spin {
+  animation: rj-spin 1s linear infinite;
+}
+
+@keyframes rj-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .hud-footer-right {

@@ -505,10 +505,12 @@ export class FlowHUDHost {
           targetItems.forEach(it => {
             it.duration = val;
           });
+          this.updateAllRowBadges();
           await this.saveCurrentQueue();
         }
       } else {
         await saveConfig({ duration: val }).catch(() => {});
+        this.updateAllRowBadges();
       }
     });
 
@@ -522,10 +524,12 @@ export class FlowHUDHost {
           targetItems.forEach(it => {
             it.aspectRatio = val;
           });
+          this.updateAllRowBadges();
           await this.saveCurrentQueue();
         }
       } else {
         await saveConfig({ aspectRatio: val }).catch(() => {});
+        this.updateAllRowBadges();
       }
     });
 
@@ -541,10 +545,12 @@ export class FlowHUDHost {
             it.outputs = count;
             it.outputCount = count;
           });
+          this.updateAllRowBadges();
           await this.saveCurrentQueue();
         }
       } else {
         await saveConfig({ outputCount: count }).catch(() => {});
+        this.updateAllRowBadges();
       }
     });
 
@@ -647,6 +653,7 @@ export class FlowHUDHost {
           bStart.disabled = false;
         }
         this.updateTicker('Running', 'running');
+        this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
       } else if (state === QUEUE_STATES.STOPPED) {
         if (bStart) {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
@@ -656,6 +663,7 @@ export class FlowHUDHost {
         this.updateTicker('Stopped', 'stopped');
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
+        this.updateQueueSummaryUI(false);
       } else {
         if (bStart) {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
@@ -665,6 +673,7 @@ export class FlowHUDHost {
         this.updateTicker('Idle', 'idle');
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
+        this.updateQueueSummaryUI(false);
       }
     });
 
@@ -720,8 +729,41 @@ export class FlowHUDHost {
 
       if (payload.status === 'generating' || payload.status === 'injecting' || payload.status === 'downloading') {
         this.updateTicker(`${payload.status.toUpperCase()} (${payload.percent || 0}%)`, 'running');
+        let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
+        if (currentIdx === -1) currentIdx = 0;
+        const current = currentIdx + 1;
+        const total = this.queueItems.length || 1;
+        const percent = Math.max(0, Math.min(100, Math.round(payload.percent || 0)));
+        this.updateQueueSummaryUI(true, { current, total, percent });
+      } else if (payload.status === 'completed') {
+        let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
+        if (currentIdx !== -1) {
+          const current = currentIdx + 1;
+          const total = this.queueItems.length || 1;
+          this.updateQueueSummaryUI(true, { current, total, percent: 100 });
+        }
       }
     });
+  }
+
+  /**
+   * Updates the bottom-left footer summary badge.
+   * Idle: [Prompt SVG] X prompt queued
+   * Running: [Spinner SVG] Processing X/Y (Z%)
+   */
+  updateQueueSummaryUI(isProcessing = false, progressInfo = null) {
+    const summaryEl = this.shadow?.getElementById('hudQueueSummaryText');
+    if (!summaryEl) return;
+
+    if (isProcessing && progressInfo) {
+      const { current, total, percent } = progressInfo;
+      summaryEl.className = 'hud-stats-badge is-processing';
+      summaryEl.innerHTML = `${ICONS.SPINNER} <span>Processing ${current}/${total} (${percent}%)</span>`;
+    } else {
+      const count = this.queueItems.length;
+      summaryEl.className = 'hud-stats-badge';
+      summaryEl.innerHTML = `${ICONS.PROMPT} <span>${count} prompt queued</span>`;
+    }
   }
 
   /**
@@ -729,17 +771,12 @@ export class FlowHUDHost {
    */
   renderQueueContent() {
     const container = this.shadow.getElementById('hudQueueContent');
-    const summaryText = this.shadow.getElementById('hudQueueSummaryText');
     if (!container) return;
 
     const count = this.queueItems.length;
-    const estSec = count * 45;
-    const estMins = Math.floor(estSec / 60);
-    const estRemainder = estSec % 60;
-    const estText = estMins > 0 ? `${estMins}m ${estRemainder}s` : `${estSec}s`;
 
-    if (summaryText) {
-      summaryText.textContent = `${count} prompt${count === 1 ? '' : 's'} queued | Est: ~${count === 0 ? '0s' : estText}`;
+    if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
+      this.updateQueueSummaryUI(false);
     }
 
     if (count === 0) {
@@ -2151,6 +2188,7 @@ export class FlowHUDHost {
         if (typeof onChange === 'function') {
           onChange(btn.dataset.val);
         }
+        this.updateAllRowBadges();
       });
     });
   }
@@ -2228,6 +2266,7 @@ export class FlowHUDHost {
         btnStart.title = 'Start batch generation';
         btnStart.disabled = false;
         this.updateTicker('Idle', 'idle');
+        this.updateQueueSummaryUI(false);
       }
     }
   }
