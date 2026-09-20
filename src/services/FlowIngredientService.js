@@ -51,7 +51,7 @@ export class FlowIngredientService {
    * Google Flow's internal paste handler detects the image/video File and automatically
    * routes it into the active ingredient slot or media card.
    */
-  async injectMediaToFlow(fileBlobOrDataUrl, fileName = 'ingredient.png', mimeType = 'image/png', targetElement = null) {
+  async injectMediaToFlow(fileBlobOrDataUrl, fileName = 'ingredient.png', mimeType = 'image/png', targetElement = null, expectedChipCount = 1) {
     let blob = fileBlobOrDataUrl;
     if (typeof fileBlobOrDataUrl === 'string' && fileBlobOrDataUrl.startsWith('data:')) {
       blob = dataUrlToBlob(fileBlobOrDataUrl);
@@ -74,7 +74,7 @@ export class FlowIngredientService {
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
 
-    // 1. Dispatch native ClipboardEvent paste
+    // 1. Dispatch native ClipboardEvent paste to ProseMirror editor
     const pasteEvent = new ClipboardEvent('paste', {
       clipboardData: dataTransfer,
       bubbles: true,
@@ -82,21 +82,11 @@ export class FlowIngredientService {
     });
     destination.dispatchEvent(pasteEvent);
 
-    // 2. Also dispatch DragEvent drop as robust fallback for frame slots
-    if (targetElement && targetElement !== editor) {
-      const dropEvent = new DragEvent('drop', {
-        dataTransfer,
-        bubbles: true,
-        cancelable: true
-      });
-      targetElement.dispatchEvent(dropEvent);
-    }
-
     // Auto-handle any upload consent dialog that may appear
     await this.handleUploadConsentDialog(4000).catch(() => {});
 
     // Wait until upload processing completes and chip is fully mounted
-    await this.waitForIngredientUploadComplete(30000);
+    await this.waitForIngredientUploadComplete(30000, expectedChipCount);
     return true;
   }
 
@@ -157,12 +147,9 @@ export class FlowIngredientService {
    * Sets a Frame-to-Video slot (Start or End frame).
    * Strictly avoids clicking button.empty-chip to prevent opening the add-menu popover.
    */
-  async setFrameSlot(slotType = 'start', blobOrDataUrl, fileName = 'frame.png') {
-    const slotIdx = slotType === 'start' ? 1 : 2;
-    const targetSlot = query(`flow-ingredient-bar div.frame-trigger:nth-of-type(${slotIdx})`) ||
-      query(slotType === 'start' ? SELECTORS.FRAME_TRIGGER_START : SELECTORS.FRAME_TRIGGER_END);
-
-    return await this.injectMediaToFlow(blobOrDataUrl, fileName, 'image/png', targetSlot);
+  async setFrameSlot(slotType = 'start', blobOrDataUrl, fileName = 'frame.png', expectedChipCount = 1) {
+    const editor = query(SELECTORS.PROSEMIRROR_EDITOR);
+    return await this.injectMediaToFlow(blobOrDataUrl, fileName, 'image/png', editor, expectedChipCount);
   }
 
   /**
@@ -182,10 +169,10 @@ export class FlowIngredientService {
    * Adheres strictly to inspect manual: detects aria-busy="false", disappearance of
    * flow-soupy-overlay, and presence of valid img.chip-image.
    */
-  async waitForIngredientUploadComplete(timeout = 30000) {
+  async waitForIngredientUploadComplete(timeout = 30000, expectedChipCount = 1) {
     return await waitForCondition(() => {
       const chipButtons = queryAll('flow-ingredient-bar button.chip-container, button.chip-container, flow-image-ingredient-chip button');
-      if (chipButtons.length === 0) {
+      if (chipButtons.length < expectedChipCount) {
         return false;
       }
 

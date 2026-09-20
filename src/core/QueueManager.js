@@ -13,7 +13,8 @@ import {
   saveConfig,
   getQueue,
   updateQueueItem,
-  QUEUE_STATUS
+  QUEUE_STATUS,
+  normalizeModelForMode
 } from './FlowStorage.js';
 
 import { flowSettingsService } from '../services/FlowSettingsService.js';
@@ -279,7 +280,8 @@ export class QueueManager {
         const cfg = await getConfig();
         const mode = item.mode || cfg.mode || 'text-to-video';
         const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
-        const model = item.model || cfg.model || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro');
+        const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
+        const model = normalizeModelForMode(mode, rawModel);
         const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
         const duration = item.duration || cfg.duration || '6s';
         const outputCount = isVideo ? 1 : (item.outputs || item.outputCount || cfg.outputCount || 1);
@@ -315,6 +317,9 @@ export class QueueManager {
       } else if (item.frames && (item.frames.start || item.frames.end)) {
         logger.step('frames', 'Injecting start & end frames');
         await flowIngredientService.clearIngredients();
+        await new Promise(r => setTimeout(r, 400));
+
+        let currentChipTarget = 0;
         if (item.frames.start) {
           let startPayload = (typeof item.frames.start === 'object' ? item.frames.start.dataUrl : item.frames.start) || item.frames.start;
           let startName = item.frames.start?.name || 'start_frame.png';
@@ -325,7 +330,9 @@ export class QueueManager {
               startName = dbRecord.name || startName;
             }
           }
-          await flowIngredientService.setFrameSlot('start', startPayload, startName);
+          currentChipTarget++;
+          await flowIngredientService.setFrameSlot('start', startPayload, startName, currentChipTarget);
+          await new Promise(r => setTimeout(r, 500));
         }
         if (item.frames.end) {
           let endPayload = (typeof item.frames.end === 'object' ? item.frames.end.dataUrl : item.frames.end) || item.frames.end;
@@ -337,7 +344,9 @@ export class QueueManager {
               endName = dbRecord.name || endName;
             }
           }
-          await flowIngredientService.setFrameSlot('end', endPayload, endName);
+          currentChipTarget++;
+          await flowIngredientService.setFrameSlot('end', endPayload, endName, currentChipTarget);
+          await new Promise(r => setTimeout(r, 500));
         }
       } else {
         // Pure text prompt: ensure no residual chips remain

@@ -42,6 +42,38 @@ export const MODELS = {
   NANO_BANANA_2_LITE: 'Nano Banana 2 Lite'
 };
 
+/**
+ * Returns default model family for a given media mode.
+ * t2i / ei -> Nano Banana 2
+ * t2v / i2v / f2v -> Veo 3.1 - Lite
+ */
+export function getDefaultModelForMode(mode) {
+  const isImage = mode === MEDIA_MODES.TEXT_TO_IMAGE || mode === MEDIA_MODES.EDIT_IMAGE ||
+    (typeof mode === 'string' && mode.includes('image') && !mode.includes('video'));
+  return isImage ? MODELS.NANO_BANANA_2 : MODELS.VEO_LITE;
+}
+
+/**
+ * Normalizes model family to ensure strict compatibility with the active generation mode:
+ * - Image modes (t2i, ei) strictly require Image Models (Nano Banana family). Default: Nano Banana 2.
+ * - Video modes (t2v, i2v, f2v) strictly require Video Models (Veo 3.1 family, Omni). Default: Veo 3.1 - Lite.
+ */
+export function normalizeModelForMode(mode, currentModel) {
+  const isImage = mode === MEDIA_MODES.TEXT_TO_IMAGE || mode === MEDIA_MODES.EDIT_IMAGE ||
+    (typeof mode === 'string' && mode.includes('image') && !mode.includes('video'));
+  if (isImage) {
+    if (currentModel && IMAGE_MODELS.includes(currentModel)) {
+      return currentModel;
+    }
+    return MODELS.NANO_BANANA_2;
+  } else {
+    if (currentModel && VIDEO_MODELS.includes(currentModel)) {
+      return currentModel;
+    }
+    return MODELS.VEO_LITE;
+  }
+}
+
 export const ASPECT_RATIOS = ['16:9', '9:16', '4:3', '1:1'];
 
 export const VIDEO_DURATIONS = ['4s', '6s', '8s', '10s'];
@@ -63,7 +95,7 @@ export const DEFAULT_CONFIG = {
   schemaVersion: SCHEMA_VERSION,
   mode: MEDIA_MODES.TEXT_TO_VIDEO,
   paramMode: 'batch',
-  model: MODELS.OMNI_FLASH,
+  model: MODELS.VEO_LITE,
   aspectRatio: '16:9',
   duration: '6s',
   outputCount: 1,
@@ -250,7 +282,7 @@ export async function enqueueItem(item) {
     id: `q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     prompt: '',
     mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.OMNI_FLASH,
+    model: MODELS.VEO_LITE,
     aspectRatio: '16:9',
     duration: '6s',
     outputs: 1,
@@ -277,7 +309,7 @@ export async function enqueueBatch(items) {
     id: `q_${Date.now() + idx}_${Math.random().toString(36).substring(2, 7)}`,
     prompt: '',
     mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.OMNI_FLASH,
+    model: MODELS.VEO_LITE,
     aspectRatio: '16:9',
     duration: '6s',
     outputs: 1,

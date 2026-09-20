@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending (`fix(hud): smart image drop ingredient swap in sort mode prompt validation and status badge alignment`)
+- **Latest Commit**: Pending (`fix(engine): model defaults realignment strict mode normalization sequential f2v frame injection and thumbnail hydration`)
 - **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), 4-state lifecycle verified, IndexedDB binary storage operational, smart image drop verified, mode conversion pairing/unpairing verified, ingredient click-to-swap in sort mode verified, prompt validation for start button verified, debounced auto-save verified, and right-aligned status badge verified.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), model defaults realignment verified (Nano Banana 2 for images, Veo 3.1 - Lite for videos), mode/model strict normalization verified, popover mode mutation fix verified, sequential 2x frame paste ingestion with expectedChipCount pacing verified, and thumbnail hydration on queue idle/stop verified.
 
 ---
 
@@ -69,12 +69,18 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
     - `src/overlay/FlowHUDHost.js`: Refactored row container click behavior. When 0 rows are checked, clicking any row container focuses/activates that row (`activeRowIdx = idx`, applying `.row-active` cyan accent) without checking its checkbox across both Batch and Single modes, allowing seamless parameter inspection in Single mode (`ROW #X`) without unintended selections. When 1 or more rows are already checked (`selectedCount > 0`), clicking another row container automatically checks that row too (`it.selected = true`), allowing swift multi-selection without precision-clicking the checkbox. Checkbox direct click (`change` event with `e.stopPropagation()`) independently toggles individual row selection.
     - `src/overlay/FlowHUDHost.js`: Fixed bulk delete trash button visibility bug. Refactored `updateSelectionUI()` to strictly set `#btnBulkDeleteQueue.style.display = selectedCount > 0 ? 'inline-flex' : 'none'`, ensuring the trash button is strictly hidden whenever 0 rows are checked in both Single and Batch modes.
     - `src/overlay/FlowHUDTemplates.js` & `src/overlay/overlay.css`: Increased default prompt textarea rows to `rows="2"`, expanded `.row-prompt-input` min-height to `54px` (max-height `130px`) with `13px` font size, `1.45` line-height, and `7px 9px` padding to comfortably display 2 to 3 lines of prompt text simultaneously by default. Added `margin-top: 6px;` to `.row-select-handle` for dead-center vertical alignment with the first line of the expanded textarea.
-16. **Session 29 Fix Complete (Commit 13, `HEAD`)**:
+16. **Session 29 Fix Complete (Commit 13, `9ffec65`)**:
     - `src/overlay/FlowHUDHost.js`: Refactored `handleBulkFiles()` to isolate image files, resolve the empty dropzone bug where images were ingested into `ingredients` while mode was `frames-to-video`, and implement smart mode detection: 1 image switches to `image-to-video` (or `edit-image`), 2 images switch to `frames-to-video` (creating 1 row with Start and End frames), and >2 images switch to `image-to-video` (or `edit-image`) creating N rows. Dropped images initialize with clean empty prompt (`prompt: ''`), completely eliminating filename auto-fill into textarea.
     - `src/overlay/FlowHUDHost.js`: Implemented smart queue conversion on mode change (`convertQueueBetweenModes()`): switching to `frames-to-video` pairs single-ingredient rows 2-by-2 into Start & End frames (halving row count); switching from `frames-to-video` to single-image modes unpairs them into individual rows.
     - `src/overlay/FlowHUDHost.js` & `src/overlay/overlay.css`: Implemented universal ingredient click-to-swap in Sort Mode (`isSortMode = true`). Clicking media slots suppresses native file picker dialogs across all modes (`f2v`, `i2v`, `ei`). First click marks slot with cyan pulsing glow (`.swap-source`); second click on another slot swaps media payloads between rows. Dynamic tooltips added in `renderQueueRow`.
     - `src/overlay/FlowHUDHost.js` & `src/overlay/overlay.css`: Implemented mandatory prompt validation for Start button (`updateStartButtonState()`). Disables Start button (`opacity: 0.42`, `cursor: not-allowed`) if any row has an empty prompt, and updates state in real-time on textarea `input`. Added 500ms debounced auto-save on prompt input.
     - `src/overlay/overlay.css`: Changed `.row-status-badge` to `align-self: flex-end;`, positioning badges flush to the bottom-right of the prompt textarea.
+17. **Session 30 Fix Complete (Commit 14, `HEAD`)**:
+    - `src/core/FlowStorage.js`: Realigned model defaults: Image modes (`text-to-image`, `edit-image`) default to `Nano Banana 2` (was Nano Banana Pro), Video modes (`text-to-video`, `image-to-video`, `frames-to-video`) default to `Veo 3.1 - Lite` (was Omni 1.1 Flash). Added and exported `getDefaultModelForMode(mode)` and `normalizeModelForMode(mode, currentModel)` to enforce strict model-to-mode compatibility.
+    - `src/overlay/FlowHUDTemplates.js`: Updated `#selModelFamily` dropdown template to select `Veo 3.1 - Lite` by default in Video Models optgroup and `Nano Banana 2` by default in Image Models optgroup.
+    - `src/services/FlowSettingsService.js`: Fixed critical popover mode mutation bug in `applySettings()`. Replaced aggressive auto-align logic that forced `edit-image` to `text-to-video` whenever a video model was supplied. Now uses `normalizeModelForMode(target.mode, target.model)` to strictly retain the user's chosen media mode and normalize the model to an image model (`Nano Banana 2`).
+    - `src/services/FlowIngredientService.js` & `src/core/QueueManager.js`: Fixed Frame-to-Video (`frames-to-video`) injection failure. Abandoned targeting non-input DOM frame triggers; now dispatches native clipboard paste events directly into Google Flow's `ProseMirror` editor sequentially. 1st paste injection mounts Start Frame (`expectedChipCount = 1`), 2nd paste injection mounts End Frame (`expectedChipCount = 2`). Added 500ms inter-injection settling delays to prevent Angular race conditions.
+    - `src/overlay/FlowHUDHost.js`: Realigned model resolution across `addQueueRow`, `handleBulkFiles`, `selMode` change handler, `convertQueueBetweenModes`, `syncSidebarControlsToItem`, and `syncModeUI`. Fixed missing preview hydration bug in `syncQueueFromStorage()` by adding `await this.hydrateQueuePreviews()` so queue row thumbnails never vanish when the queue transitions to idle or stopped.
 
 ---
 
@@ -106,6 +112,13 @@ Phase 3 (Dual-Mode UI Implementation) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
+| 30 | 2026-09-20 | `task/dual-mode-ui` | Pending | Model defaults realignment (Nano Banana 2 / Veo 3.1 - Lite), strict mode normalization, sequential 2x F2V paste injection, and thumbnail hydration | Phase 4: E2E Integration & Stress Testing |
+| 29 | 2026-09-20 | `task/dual-mode-ui` | `9ffec65` | Smart image drop, ingredient click-to-swap in sort mode, start button prompt validation, right-aligned status badge, and prompt auto-save | Model defaults and F2V injection hardening |
+| 28 | 2026-09-20 | `task/dual-mode-ui` | `b4e223b` | Container focus toggle, multi-select transition, and uncheck focus clearing | Smart image drop & sort mode swap |
+| 27 | 2026-09-20 | `task/dual-mode-ui` | `8860cd8` | Row container selection, conditional bulk delete trash button, and prompt textarea expansion | Selection focus refinement |
+| 26 | 2026-09-20 | `task/dual-mode-ui` | `f9a649d` | Checkbox geometry centering, keyboard selection, custom select optgroup fallback, and logger consolidation | Row container selection & trash button |
+| 25 | 2026-09-20 | `task/dual-mode-ui` | `435928d` | Live percentage parsing, multi-tile aggregate calculation, upload verification, and resolution matching | Checkbox geometry and selection engine |
+| 24 | 2026-09-20 | `task/dual-mode-ui` | `8c6bb8a` | Header switch isolation, unconditional popover inspection, and video/image media resolver | Watcher live percentage & multi-tile downloads |
 | 23 | 2026-09-19 | `task/dual-mode-ui` | `be187e7` | Implement conditional batch vs single parameter orchestration and header setup (Commit 7) | Phase 4: E2E Integration & Stress Testing |
 | 22 | 2026-09-19 | `task/dual-mode-ui` | `a4430e2` | Wire multi-select bulk delete, sort reordering, and single param mode bindings | Commit 7: QueueManager Orchestration & Execution Branching |
 | 21 | 2026-09-19 | `task/dual-mode-ui` | `e66a385` | Redesign queue toolbar, row items with multi-select, sort controls, and sidebar placeholder | Commit 6: HUD Event Orchestration & Interactive Handlers |

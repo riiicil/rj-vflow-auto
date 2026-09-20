@@ -31,7 +31,8 @@ import {
   ASPECT_RATIOS,
   VIDEO_DURATIONS,
   IMAGE_MODELS,
-  VIDEO_MODELS
+  VIDEO_MODELS,
+  normalizeModelForMode
 } from '../core/FlowStorage.js';
 
 export class FlowSettingsService {
@@ -464,12 +465,10 @@ export class FlowSettingsService {
       outputCount: config.outputCount || config.outputs
     };
 
-    // Auto-align mode with model family if mismatched
-    if (target.model && IMAGE_MODELS.includes(target.model) && (!target.mode || target.mode.includes('video'))) {
-      target.mode = MEDIA_MODES.TEXT_TO_IMAGE;
-    } else if (target.model && VIDEO_MODELS.includes(target.model) && (!target.mode || target.mode.includes('image'))) {
-      target.mode = MEDIA_MODES.TEXT_TO_VIDEO;
-    }
+    // Strict model normalization according to media mode:
+    // Image modes (text-to-image, edit-image) strictly use image models (default: Nano Banana 2).
+    // Video modes (text-to-video, image-to-video, frames-to-video) strictly use video models (default: Veo 3.1 - Lite).
+    target.model = normalizeModelForMode(target.mode || MEDIA_MODES.TEXT_TO_VIDEO, target.model);
 
     logger.step('settings', `Configuring popover: ${target.mode || 'video'} | ${target.model || 'default'} | ratio: ${target.aspectRatio || '16:9'}`);
 

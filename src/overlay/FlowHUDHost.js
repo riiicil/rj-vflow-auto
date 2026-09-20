@@ -15,7 +15,9 @@ import {
   getQueue,
   saveQueue,
   clearAllQueue,
-  onChanged
+  onChanged,
+  getDefaultModelForMode,
+  normalizeModelForMode
 } from '../core/FlowStorage.js';
 
 import { queueManager, QUEUE_STATES } from '../core/QueueManager.js';
@@ -404,7 +406,7 @@ export class FlowHUDHost {
         const mode = e.target.value;
         const prevMode = this.activeMode;
         const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
-        const normModel = isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro';
+        const normModel = isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2';
         const normRes = isVideo ? '1080p' : '2K';
 
         if (this.paramMode === 'single') {
@@ -416,10 +418,11 @@ export class FlowHUDHost {
             targetItems.forEach(it => {
               const oldItemMode = it.mode || prevMode;
               it.mode = mode;
-              const wasVideo = it.model ? !it.model.includes('Banana') : true;
-              if (isVideo !== wasVideo) {
-                it.model = normModel;
-                it.resolution = normRes;
+              it.model = normalizeModelForMode(mode, it.model);
+              if (isVideo) {
+                if (!it.resolution || !it.resolution.includes('p')) it.resolution = normRes;
+              } else {
+                if (!it.resolution || !it.resolution.includes('K')) it.resolution = normRes;
               }
               // Convert single row media representation if changing between f2v and single ingredient
               if (mode === 'frames-to-video' && (oldItemMode === 'image-to-video' || oldItemMode === 'edit-image')) {
@@ -1202,7 +1205,7 @@ export class FlowHUDHost {
       status: 'pending',
       selected: false,
       mode: this.activeMode,
-      model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+      model: isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2',
       aspectRatio: '16:9',
       duration: '6s',
       outputs: 1,
@@ -1304,7 +1307,7 @@ export class FlowHUDHost {
           status: 'pending',
           selected: false,
           mode: targetMode,
-          model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+          model: isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2',
           aspectRatio: '16:9',
           duration: '6s',
           outputs: 1,
@@ -1321,7 +1324,7 @@ export class FlowHUDHost {
           status: 'pending',
           selected: false,
           mode: targetMode,
-          model: 'Omni 1.1 Flash',
+          model: 'Veo 3.1 - Lite',
           aspectRatio: '16:9',
           duration: '6s',
           outputs: 1,
@@ -1345,7 +1348,7 @@ export class FlowHUDHost {
             status: 'pending',
             selected: false,
             mode: targetMode,
-            model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+            model: isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2',
             aspectRatio: '16:9',
             duration: '6s',
             outputs: 1,
@@ -1413,9 +1416,7 @@ export class FlowHUDHost {
       return {
         ...it,
         mode,
-        model: (this.paramMode === 'single' && it.model)
-          ? it.model
-          : (cfg.model || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro')),
+        model: normalizeModelForMode(mode, (this.paramMode === 'single' && it.model) ? it.model : cfg.model),
         aspectRatio: (this.paramMode === 'single' && it.aspectRatio)
           ? it.aspectRatio
           : (cfg.aspectRatio || '16:9'),
@@ -1640,7 +1641,7 @@ export class FlowHUDHost {
             status: 'pending',
             selected: false,
             mode: 'frames-to-video',
-            model: 'Omni 1.1 Flash',
+            model: 'Veo 3.1 - Lite',
             aspectRatio: '16:9',
             duration: '6s',
             outputs: 1,
@@ -1656,6 +1657,7 @@ export class FlowHUDHost {
       } else {
         this.queueItems.forEach(it => {
           it.mode = toMode;
+          it.model = normalizeModelForMode(toMode, it.model);
         });
       }
     } else if (isFromFrames && isToSingleIngredient) {
@@ -1679,7 +1681,7 @@ export class FlowHUDHost {
           status: 'pending',
           selected: false,
           mode: toMode,
-          model: isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro',
+          model: isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2',
           aspectRatio: '16:9',
           duration: '6s',
           outputs: 1,
@@ -1822,8 +1824,8 @@ export class FlowHUDHost {
 
     // 2. Model
     const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
-    const defaultModel = isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro';
-    const model = item.model || defaultModel;
+    const defaultModel = isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2';
+    const model = normalizeModelForMode(mode, item.model || defaultModel);
     const selModel = this.shadow.getElementById('selModelFamily');
     if (selModel && selModel.value !== model) {
       selModel.value = model;
@@ -1915,20 +1917,20 @@ export class FlowHUDHost {
     const selModel = this.shadow.getElementById('selModelFamily');
     if (selModel) {
       if (isVideo && selModel.value.includes('Banana')) {
-        selModel.value = 'Omni 1.1 Flash';
-        saveConfig({ model: 'Omni 1.1 Flash' }).catch(() => {});
+        selModel.value = 'Veo 3.1 - Lite';
+        saveConfig({ model: 'Veo 3.1 - Lite' }).catch(() => {});
       } else if (!isVideo && !selModel.value.includes('Banana')) {
-        selModel.value = 'Nano Banana Pro';
-        saveConfig({ model: 'Nano Banana Pro' }).catch(() => {});
+        selModel.value = 'Nano Banana 2';
+        saveConfig({ model: 'Nano Banana 2' }).catch(() => {});
       } else if (mode === 'image-to-video' && selModel.value === 'Veo 3.1 - Quality') {
-        selModel.value = 'Omni 1.1 Flash';
-        saveConfig({ model: 'Omni 1.1 Flash' }).catch(() => {});
+        selModel.value = 'Veo 3.1 - Lite';
+        saveConfig({ model: 'Veo 3.1 - Lite' }).catch(() => {});
       }
       CustomSelect.refresh(selModel);
     }
 
     // Duration is strictly for Omni 1.1 Flash in video mode
-    this.syncModelUI(selModel?.value || (isVideo ? 'Omni 1.1 Flash' : 'Nano Banana Pro'));
+    this.syncModelUI(selModel?.value || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2'));
 
     const selRes = this.shadow.getElementById('selResolution');
     if (selRes) {
@@ -2039,6 +2041,7 @@ export class FlowHUDHost {
 
   async syncQueueFromStorage() {
     this.queueItems = await getQueue();
+    await this.hydrateQueuePreviews();
     this.renderQueueContent();
   }
 

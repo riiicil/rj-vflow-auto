@@ -125,14 +125,14 @@ export function renderStudioLayout() {
               </label>
               <select class="rj-select" id="selModelFamily">
                 <optgroup label="Video Models" id="grpVideoModels">
-                  <option value="Omni 1.1 Flash" selected>Omni 1.1 Flash</option>
+                  <option value="Veo 3.1 - Lite" selected>Veo 3.1 - Lite</option>
                   <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
-                  <option value="Veo 3.1 - Lite">Veo 3.1 - Lite</option>
                   <option value="Veo 3.1 - Quality">Veo 3.1 - Quality</option>
+                  <option value="Omni 1.1 Flash">Omni 1.1 Flash</option>
                 </optgroup>
                 <optgroup label="Image Models" id="grpImageModels" style="display: none;">
+                  <option value="Nano Banana 2" selected>Nano Banana 2</option>
                   <option value="Nano Banana Pro">Nano Banana Pro</option>
-                  <option value="Nano Banana 2">Nano Banana 2</option>
                   <option value="Nano Banana 2 Lite">Nano Banana 2 Lite</option>
                 </optgroup>
               </select>
