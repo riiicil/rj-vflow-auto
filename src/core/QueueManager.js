@@ -283,6 +283,7 @@ export class QueueManager {
         const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
         const model = normalizeModelForMode(mode, rawModel);
         const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
+        const duration = item.duration || cfg.duration || '6s';
         const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
 
         logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
