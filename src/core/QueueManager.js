@@ -28,6 +28,7 @@ import { flowImageDB } from './FlowImageDB.js';
 export const QUEUE_STATES = {
   IDLE: 'idle',
   RUNNING: 'running',
+  STOPPING: 'stopping',
   STOPPED: 'stopped'
 };
 
@@ -124,18 +125,36 @@ export class QueueManager {
   }
 
   /**
-   * Stops queue execution immediately.
+   * Requests automation stop. Defaults to graceful stop if an item is actively processing,
+   * allowing the current generation and asset download to complete before halting.
+   * @param {boolean} [force=false]
    */
-  async stop() {
-    logger.warn('Queue automation stopped by user');
-    this.setState(QUEUE_STATES.STOPPED);
-    this.activeItemId = null;
-    await saveConfig({
-      activeBatch: {
-        isRunning: false,
-        activeItemId: null
-      }
-    });
+  async stop(force = false) {
+    if (this.state !== QUEUE_STATES.RUNNING && this.state !== QUEUE_STATES.STOPPING) {
+      this.setState(QUEUE_STATES.STOPPED);
+      return;
+    }
+
+    if (this.state === QUEUE_STATES.STOPPING && !force) {
+      return; // Already in graceful stopping process; ignore repeated clicks
+    }
+
+    if (force || !this.activeItemId) {
+      logger.warn('Queue automation stopped immediately');
+      this.setState(QUEUE_STATES.STOPPED);
+      this.activeItemId = null;
+      await saveConfig({
+        activeBatch: {
+          isRunning: false,
+          activeItemId: null
+        }
+      });
+      return;
+    }
+
+    // Graceful Stop: allow currently active item to finish generation and download
+    logger.banner('Graceful stop requested: completing active item before stopping...');
+    this.setState(QUEUE_STATES.STOPPING);
   }
 
   /**
@@ -213,16 +232,40 @@ export class QueueManager {
         const activeParamMode = currentCfg.paramMode || paramMode;
         await this.processItem(nextItem, activeParamMode);
 
+        // Check if user requested graceful stop during processItem
+        if (this.state === QUEUE_STATES.STOPPING || this.state === QUEUE_STATES.STOPPED) {
+          logger.banner('Active item finished. Queue automation gracefully stopped.');
+          this.setState(QUEUE_STATES.STOPPED);
+          await saveConfig({
+            activeBatch: { isRunning: false, activeItemId: null }
+          });
+          break;
+        }
+
         // Cooldown between prompts
         const cooldownMs = (currentCfg.settings && currentCfg.settings.cooldownMs) || 2500;
         if (this.state === QUEUE_STATES.RUNNING && cooldownMs > 0) {
           logger.step('cooldown', `${cooldownMs}ms`);
           await new Promise(r => setTimeout(r, cooldownMs));
         }
+
+        // Check again after cooldown
+        if (this.state !== QUEUE_STATES.RUNNING) {
+          if (this.state === QUEUE_STATES.STOPPING) {
+            this.setState(QUEUE_STATES.STOPPED);
+            await saveConfig({
+              activeBatch: { isRunning: false, activeItemId: null }
+            });
+          }
+          break;
+        }
       }
     } finally {
       this.isLoopActive = false;
       this.activeItemId = null;
+      if (this.state === QUEUE_STATES.STOPPING) {
+        this.setState(QUEUE_STATES.STOPPED);
+      }
     }
   }
 
@@ -281,6 +324,7 @@ export class QueueManager {
           }
           await flowIngredientService.injectMediaToFlow(mediaPayload, mediaName);
         }
+        await new Promise(r => setTimeout(r, 600));
         this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients_ready', percent: 11 });
       } else if (item.frames && (item.frames.start || item.frames.end)) {
         logger.step('frames', 'Injecting start & end frames');
@@ -317,6 +361,7 @@ export class QueueManager {
           await flowIngredientService.setFrameSlot('end', endPayload, endName, currentChipTarget);
           await new Promise(r => setTimeout(r, 500));
         }
+        await new Promise(r => setTimeout(r, 600));
         this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames_ready', percent: 11 });
       } else {
         // Pure text prompt: ensure no residual chips remain

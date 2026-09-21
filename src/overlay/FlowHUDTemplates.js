@@ -26,8 +26,23 @@ export const ICONS = {
   LAYERS: `<svg class="rj-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
   TARGET: `<svg class="rj-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
   PROMPT: `<svg class="rj-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>`,
-  SPINNER: `<svg class="rj-icon rj-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>`
+  SPINNER: `<svg class="rj-icon rj-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>`,
+  COFFEE: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>`,
+  COIN: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path></svg>`,
+  CARD: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>`,
+  PIZZA: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"></path><path d="M11 15h.01"></path><path d="M16 16h.01"></path><path d="m2 2 20 7-9 13Z"></path><path d="M16 11a4 4 0 0 1-4 4"></path></svg>`,
+  HEART: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>`
 };
+
+export const DONATION_URL = 'https://s.id/rjsupport';
+
+export const DONATION_VARIANTS = [
+  { label: 'Send a coffee', icon: ICONS.COFFEE, title: 'Send a coffee to support development' },
+  { label: 'Donate a coin', icon: ICONS.COIN, title: 'Donate a coin to support development' },
+  { label: 'Support dev', icon: ICONS.CARD, title: 'Support extension development' },
+  { label: 'Gift a pizza', icon: ICONS.PIZZA, title: 'Gift a pizza to support development' },
+  { label: 'Sponsor dev', icon: ICONS.HEART, title: 'Sponsor the development of RJ V-Flow Auto' }
+];
 
 /**
  * Generates the full Two-Column Studio Layout markup.
@@ -61,7 +76,7 @@ export function renderStudioLayout() {
               <input type="checkbox" class="rj-checkbox" id="chkSelectAllQueue" title="Select all">
               <div class="toolbar-param-mode">
                 <span class="toolbar-label">Set params:</span>
-                <select class="rj-select rj-select-sm" id="selParamMode">
+                <select class="rj-select rj-select-sm" id="selParamMode" style="display: none;">
                   <option value="batch" selected>Batch</option>
                   <option value="single">Single</option>
                 </select>
@@ -116,7 +131,7 @@ export function renderStudioLayout() {
               <label class="rj-field-label" for="selGenerationMode">
                 <span>Generation Mode</span>
               </label>
-              <select class="rj-select" id="selGenerationMode">
+              <select class="rj-select" id="selGenerationMode" style="display: none;">
                 <option value="text-to-video" selected>Text to Video</option>
                 <option value="text-to-image">Text to Image</option>
                 <option value="image-to-video">Image to Video</option>
@@ -130,7 +145,7 @@ export function renderStudioLayout() {
               <label class="rj-field-label" for="selModelFamily">
                 <span>Model Selector</span>
               </label>
-              <select class="rj-select" id="selModelFamily">
+              <select class="rj-select" id="selModelFamily" style="display: none;">
                 <optgroup label="Video Models" id="grpVideoModels">
                   <option value="Veo 3.1 - Lite" selected>Veo 3.1 - Lite</option>
                   <option value="Veo 3.1 - Fast">Veo 3.1 - Fast</option>
@@ -190,7 +205,7 @@ export function renderStudioLayout() {
               <label class="rj-field-label" for="selResolution">
                 <span>Target Resolution</span>
               </label>
-              <select class="rj-select" id="selResolution">
+              <select class="rj-select" id="selResolution" style="display: none;">
                 <optgroup label="Video Resolutions" id="grpVideoRes">
                   <option value="720p">720p (Original size)</option>
                   <option value="1080p" selected>1080p (Upscaled)</option>
@@ -213,9 +228,11 @@ export function renderStudioLayout() {
           <span class="hud-stats-badge is-idle" id="hudQueueSummaryText"><span class="dot-idle"></span> <span>Idle</span></span>
         </div>
         <div class="hud-footer-right">
-          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnSaveQueue" type="button" title="Save current queue & parameters draft">
-            ${ICONS.SAVE}
-            <span>Save</span>
+          <button class="rj-btn rj-btn-secondary rj-btn-sm rj-btn-support" id="btnSupportDev" type="button" title="Send a coffee to support development">
+            <span class="support-btn-content" id="supportDevContent">
+              <span id="supportDevIcon">${ICONS.COFFEE}</span>
+              <span id="supportDevText">Send a coffee</span>
+            </span>
           </button>
           <button class="rj-btn rj-btn-accent rj-btn-sm" id="btnStartQueue" type="button" title="Start batch generation">
             ${ICONS.PLAY}

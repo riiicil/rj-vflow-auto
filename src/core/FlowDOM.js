@@ -357,12 +357,56 @@ export function getTileMediaSource(tileElement) {
 }
 
 /**
+ * Detects whether a tile card or wrapper represents an uploaded raw ingredient / reference asset
+ * rather than an AI-generated output.
+ * Google Flow assigns the uploaded file's name (ending in a media file extension) as the tile title
+ * and does not provide a 'Reuse prompt' (redo) action on user-uploaded assets.
+ *
+ * @param {Element} tile - Tile card or container element
+ * @returns {boolean} True if this is an uploaded ingredient asset tile
+ */
+export function isIngredientTile(tile) {
+  if (!tile) return false;
+
+  // 1. Check title and aria-label for media filename extensions
+  const footerTitle = tile.querySelector('.footer-title, [class*="footer-title"]');
+  const titleText = (footerTitle?.textContent || '').trim();
+  const ariaLabel = (tile.getAttribute('aria-label') || '').trim();
+  const fileExtRegex = /\.(jpe?g|png|webp|gif|mp4|mov|webm)$/i;
+
+  if (fileExtRegex.test(titleText) || fileExtRegex.test(ariaLabel)) {
+    return true;
+  }
+
+  // 2. Check hotbar actions: completed generated tiles always feature a "redo" / "Reuse prompt" action
+  // User-uploaded ingredients only have "Favorite" and "More options".
+  const hotbar = tile.querySelector('flow-hotbar-container, flow-image-hotbar, flow-video-hotbar');
+  const imgOrVideo = tile.querySelector('img[src], video[src]');
+  const hasProgressBar = tile.querySelector('.progress-bar, [class*="progress-bar"]');
+
+  if (hotbar && imgOrVideo && !hasProgressBar) {
+    const icons = Array.from(hotbar.querySelectorAll('mat-icon')).map(m => (m.textContent || '').trim());
+    const hasRedo = icons.includes('redo') || !!hotbar.querySelector('[aria-label="Reuse prompt"]');
+    if (!hasRedo) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Evaluates whether an asset card completed successfully (ADR-006).
  * Google Flow does NOT produce toasts for moderation blocks or quota limits;
  * failed tiles remain blurred with error badges and no valid playable media source.
  */
 export function isCardGenerationSuccess(tileElement) {
   if (!tileElement) return false;
+
+  // Raw uploaded ingredient tiles must never be flagged as generated outputs
+  if (isIngredientTile(tileElement)) {
+    return false;
+  }
 
   // 1. Pending tile indicator or active progress bar must be absent
   if (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') {
@@ -393,20 +437,20 @@ export function isCardGenerationSuccess(tileElement) {
     return false;
   }
 
-  // 4. Hotbar presence indicates generation completion
-  const hasHotbar = Boolean(
-    tileElement.querySelector('flow-hotbar-container') ||
+  // 4. Hotbar or footer presence indicates generation completion (video hotbar or image hover footer)
+  const hasHotbarOrFooter = Boolean(
+    tileElement.querySelector('flow-hotbar-container, flow-tile-hover-footer, .project-tile-hover-footer') ||
     queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
     queryIcon(LIGATURES.MORE_OPTIONS, tileElement)
   );
 
-  // 5. Must contain a valid rendered media element with active source OR hotbar
+  // 5. Must contain a valid rendered media element with active source OR hotbar/footer
   const media = getTileMediaSource(tileElement);
   if (media && media.src && media.src.trim() !== '') {
     return true;
   }
 
-  if (hasHotbar) {
+  if (hasHotbarOrFooter) {
     return true;
   }
 

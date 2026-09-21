@@ -26,7 +26,9 @@ import {
   renderQueueRow,
   getRowStatusInfo,
   formatRowParamsBadge,
-  ICONS
+  ICONS,
+  DONATION_URL,
+  DONATION_VARIANTS
 } from './FlowHUDTemplates.js';
 import { CustomSelect } from './CustomSelect.js';
 import { flowImageDB } from '../core/FlowImageDB.js';
@@ -68,6 +70,8 @@ export class FlowHUDHost {
     this.lastSelectedIdx = null;
     this.promptSaveDebounceTimer = null;
     this.config = null;
+    this.supportTickerInterval = null;
+    this.supportVariantIndex = 0;
   }
 
   /**
@@ -117,21 +121,23 @@ export class FlowHUDHost {
 
     this.shadow = this.host.attachShadow({ mode: 'open' });
 
-    // 5. Inject Stylesheets into Shadow DOM
-    const varLink = document.createElement('link');
-    varLink.rel = 'stylesheet';
-    varLink.href = chrome.runtime.getURL('styles/variables.css');
-    this.shadow.appendChild(varLink);
+    // 5. Inject Stylesheets into Shadow DOM with Loading Gate
+    const loadStylesheet = (href) => new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = chrome.runtime.getURL(href);
+      link.onload = () => resolve();
+      link.onerror = () => resolve();
+      this.shadow.appendChild(link);
+      // Safety timeout: never block execution beyond 150ms if event fails
+      setTimeout(resolve, 150);
+    });
 
-    const compLink = document.createElement('link');
-    compLink.rel = 'stylesheet';
-    compLink.href = chrome.runtime.getURL('styles/components.css');
-    this.shadow.appendChild(compLink);
-
-    const overlayLink = document.createElement('link');
-    overlayLink.rel = 'stylesheet';
-    overlayLink.href = chrome.runtime.getURL('overlay/overlay.css');
-    this.shadow.appendChild(overlayLink);
+    await Promise.all([
+      loadStylesheet('styles/variables.css'),
+      loadStylesheet('styles/components.css'),
+      loadStylesheet('overlay/overlay.css')
+    ]);
 
     // 6. Build HUD markup
     this.buildMarkup();
@@ -147,7 +153,14 @@ export class FlowHUDHost {
     // 9. Initial parameters sync and CustomSelect enhancement
     await this.syncUIFromStorage();
 
-    // 10. Subscribe to storage updates for live ticker
+    // 10. Clean Mount Reveal: Remove is-mounting on next frame to suppress transition artifacts
+    requestAnimationFrame(() => {
+      if (this.container) {
+        this.container.classList.remove('is-mounting');
+      }
+    });
+
+    // 11. Subscribe to storage updates for live ticker
     onChanged(cfg => this.handleStorageUpdate(cfg));
   }
 
@@ -216,6 +229,7 @@ export class FlowHUDHost {
   buildMarkup() {
     this.container = document.createElement('div');
     this.container.id = 'flow-hud-container';
+    this.container.classList.add('is-mounting');
     if (this.isMinimized) {
       this.container.classList.add('is-minimized');
     }
@@ -594,18 +608,15 @@ export class FlowHUDHost {
     }
 
     // 4. Footer Execution Controls
-    const btnSaveQueue = this.shadow.getElementById('btnSaveQueue');
-    if (btnSaveQueue) {
-      btnSaveQueue.addEventListener('click', async () => {
-        if (this.isRunning) return;
-        await this.saveCurrentQueue();
-        const origHtml = btnSaveQueue.innerHTML;
-        btnSaveQueue.innerHTML = `${ICONS.SAVE} <span>Saved!</span>`;
-        btnSaveQueue.classList.add('rj-btn-active');
-        setTimeout(() => {
-          btnSaveQueue.innerHTML = origHtml;
-          btnSaveQueue.classList.remove('rj-btn-active');
-        }, 1200);
+    const btnSupportDev = this.shadow.getElementById('btnSupportDev');
+    if (btnSupportDev) {
+      btnSupportDev.addEventListener('click', (e) => {
+        e.stopPropagation();
+        try {
+          window.open(DONATION_URL, '_blank');
+        } catch (err) {
+          logger.error('[FlowHUDHost] Failed to open donation link', err);
+        }
       });
     }
 
@@ -619,12 +630,15 @@ export class FlowHUDHost {
         if (currentState === QUEUE_STATES.RUNNING) {
           btnStart.disabled = true;
           try {
-            await queueManager.stop();
+            await queueManager.stop(false);
           } catch (err) {
             logger.error('[FlowHUDHost] Failed to stop queue', err);
           } finally {
             this.updateStartButtonState();
           }
+        } else if (currentState === QUEUE_STATES.STOPPING) {
+          // Already in graceful stop process
+          return;
         } else {
           const totalRows = this.queueItems.length;
           const allPromptsFilled = totalRows > 0 && this.queueItems.every(it => Boolean(it.prompt && it.prompt.trim().length > 0));
@@ -656,27 +670,55 @@ export class FlowHUDHost {
     // 5. Subscribe to QueueManager State Changes & Progress
     queueManager.onStateChange((state) => {
       const bStart = this.shadow.getElementById('btnStartQueue');
+      const bSupport = this.shadow.getElementById('btnSupportDev');
 
       if (state === QUEUE_STATES.RUNNING) {
         this.isRunning = true;
         this.lastOverallPercent = 0;
         if (bStart) {
-          bStart.classList.remove('rj-btn-accent', 'is-disabled');
+          bStart.classList.remove('rj-btn-accent', 'is-disabled', 'is-stopping');
           bStart.classList.add('rj-btn-danger', 'rj-btn-stop');
           bStart.innerHTML = `${ICONS.STOP} <span id="btnStartQueueText">Stop</span>`;
           bStart.title = 'Stop running generation';
           bStart.disabled = false;
         }
+        if (bSupport) {
+          bSupport.style.display = '';
+          bSupport.classList.add('is-visible');
+          this.startSupportTicker();
+        }
         this.setFormControlsDisabled(true);
         this.updateAllRowBadges();
         this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
-      } else if (state === QUEUE_STATES.STOPPED) {
+      } else if (state === QUEUE_STATES.STOPPING) {
+        // Graceful stop in progress: allow current item to finish generating and downloading
+        if (bStart) {
+          bStart.disabled = true;
+          bStart.classList.remove('rj-btn-accent');
+          bStart.classList.add('rj-btn-danger', 'is-disabled', 'is-stopping');
+          bStart.innerHTML = `${ICONS.SPINNER} <span id="btnStartQueueText">Stopping...</span>`;
+          bStart.title = 'Stopping generation (finishing active item)...';
+        }
+        if (bSupport) {
+          bSupport.style.display = '';
+          bSupport.classList.add('is-visible');
+        }
+        const summaryBadge = this.shadow.getElementById('hudQueueSummaryText');
+        if (summaryBadge) {
+          summaryBadge.innerHTML = `<span class="dot-idle" style="background-color: #ff9494;"></span> <span>Stopping...</span>`;
+        }
+      } else if (state === QUEUE_STATES.STOPPED || state === QUEUE_STATES.IDLE) {
         this.isRunning = false;
         this.lastOverallPercent = 0;
         if (bStart) {
-          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop', 'is-stopping');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
+        }
+        if (bSupport) {
+          bSupport.style.display = '';
+          bSupport.classList.remove('is-visible');
+          this.stopSupportTicker();
         }
         this.setFormControlsDisabled(false);
         const container = this.shadow?.getElementById('hudQueueContent');
@@ -691,9 +733,14 @@ export class FlowHUDHost {
         this.isRunning = false;
         this.lastOverallPercent = 0;
         if (bStart) {
-          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+          bStart.classList.remove('rj-btn-danger', 'rj-btn-stop', 'is-stopping');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
+        }
+        if (bSupport) {
+          bSupport.style.display = '';
+          bSupport.classList.remove('is-visible');
+          this.stopSupportTicker();
         }
         this.setFormControlsDisabled(false);
         const container = this.shadow?.getElementById('hudQueueContent');
@@ -852,12 +899,6 @@ export class FlowHUDHost {
 
     const chkAutoDownload = this.shadow?.getElementById('chkAutoDownload');
     if (chkAutoDownload) chkAutoDownload.disabled = disabled;
-
-    const btnSaveQueue = this.shadow?.getElementById('btnSaveQueue');
-    if (btnSaveQueue) {
-      btnSaveQueue.disabled = disabled;
-      btnSaveQueue.classList.toggle('is-disabled', disabled);
-    }
 
     const btnResetSettings = this.shadow?.getElementById('btnResetSettings');
     if (btnResetSettings) {
@@ -1895,8 +1936,14 @@ export class FlowHUDHost {
     const currentState = queueManager.getState();
     if (currentState === QUEUE_STATES.RUNNING) {
       btnStart.disabled = false;
-      btnStart.classList.remove('is-disabled');
+      btnStart.classList.remove('is-disabled', 'is-stopping');
       btnStart.title = 'Stop running generation';
+      return;
+    }
+    if (currentState === QUEUE_STATES.STOPPING) {
+      btnStart.disabled = true;
+      btnStart.classList.add('is-disabled', 'is-stopping');
+      btnStart.title = 'Stopping generation (finishing active item)...';
       return;
     }
 
@@ -1922,6 +1969,64 @@ export class FlowHUDHost {
     }
 
     this.updateQueueSummaryUI(false);
+  }
+
+  /**
+   * Starts rotating support button variations every 6 seconds while running.
+   */
+  startSupportTicker() {
+    if (this.supportTickerInterval) return;
+    this.supportVariantIndex = 0;
+    this.renderSupportButtonContent();
+    this.supportTickerInterval = setInterval(() => {
+      if (!this.isRunning) {
+        this.stopSupportTicker();
+        return;
+      }
+      this.supportVariantIndex = (this.supportVariantIndex + 1) % DONATION_VARIANTS.length;
+      this.transitionSupportButtonContent();
+    }, 6000);
+  }
+
+  /**
+   * Stops support ticker and resets variation index.
+   */
+  stopSupportTicker() {
+    if (this.supportTickerInterval) {
+      clearInterval(this.supportTickerInterval);
+      this.supportTickerInterval = null;
+    }
+    this.supportVariantIndex = 0;
+  }
+
+  /**
+   * Smoothly transitions the support button content with a fade effect.
+   */
+  transitionSupportButtonContent() {
+    const contentEl = this.shadow?.getElementById('supportDevContent');
+    if (!contentEl) {
+      this.renderSupportButtonContent();
+      return;
+    }
+    contentEl.classList.add('fading');
+    setTimeout(() => {
+      this.renderSupportButtonContent();
+      contentEl.classList.remove('fading');
+    }, 180);
+  }
+
+  /**
+   * Renders the current donation variant label, icon, and tooltip into #btnSupportDev.
+   */
+  renderSupportButtonContent() {
+    const btn = this.shadow?.getElementById('btnSupportDev');
+    if (!btn) return;
+    const variant = DONATION_VARIANTS[this.supportVariantIndex] || DONATION_VARIANTS[0];
+    const iconEl = this.shadow?.getElementById('supportDevIcon');
+    const textEl = this.shadow?.getElementById('supportDevText');
+    if (iconEl) iconEl.innerHTML = variant.icon;
+    if (textEl) textEl.textContent = variant.label;
+    btn.title = variant.title;
   }
 
   /**
@@ -2602,8 +2707,8 @@ export class FlowHUDHost {
         btnStart.title = 'Stop running generation';
         btnStart.disabled = false;
         this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
-      } else if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
-        btnStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
+      } else if (queueManager.getState() !== QUEUE_STATES.RUNNING && queueManager.getState() !== QUEUE_STATES.STOPPING) {
+        btnStart.classList.remove('rj-btn-danger', 'rj-btn-stop', 'is-stopping');
         btnStart.classList.add('rj-btn-accent');
         btnStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         btnStart.title = 'Start batch generation';

@@ -14,6 +14,7 @@ import {
   waitForCondition,
   isCardGenerationSuccess,
   isCardGenerationFailed,
+  isIngredientTile,
   getTileMediaSource
 } from '../core/FlowDOM.js';
 import { logger } from './LoggerService.js';
@@ -79,26 +80,25 @@ export class FlowWatcherService {
       return rawCards.slice(0, targetCount);
     }
 
-    const normPrompt = promptText ? promptText.trim().toLowerCase() : '';
     const result = [];
 
     for (const tw of tileWrappers) {
-      // 1. Boundary: reached the tile that was at the top before submission
+      // 1. Boundary: reached the tile that was at the top before submission (legacy parity)
       if (previousTopTile && (tw === previousTopTile || tw.contains(previousTopTile) || previousTopTile.contains(tw))) {
         break;
       }
 
-      // 2. Secondary boundary: if card has a distinct aria-label from older generation
-      if (normPrompt) {
-        const gridContainer = tw.closest('flow-grid-tile-container');
-        const tileLabel = gridContainer ? (gridContainer.getAttribute('aria-label') || '').trim().toLowerCase() : '';
-        if (tileLabel && !tileLabel.includes(normPrompt) && !normPrompt.includes(tileLabel)) {
-          break;
-        }
+      // 2. Skip uploaded ingredient / user asset tiles so they never mix with generated results
+      if (isIngredientTile(tw)) {
+        continue;
       }
 
       // 3. Resolve underlying card element inside wrapper
       const card = tw.querySelector('flow-video-tile, flow-image-tile, flow-pending-tile, flow-error-tile') || tw;
+      if (isIngredientTile(card)) {
+        continue;
+      }
+
       result.push(card);
 
       // 4. Boundary: collected target number of cards
@@ -180,7 +180,7 @@ export class FlowWatcherService {
     const isPending = (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') ||
       Boolean(tileElement.querySelector('flow-pending-tile'));
 
-    const progressBar = tileElement.querySelector('.progress-bar, .progress-bar-fill, .hover-overlay-has-progress-bar');
+    const progressBar = tileElement.querySelector('.progress-bar, .progress-bar-fill, div.progress-bar-fill');
     let isProgressActive = false;
     if (progressBar) {
       let isVisible = true;
