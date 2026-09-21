@@ -14,7 +14,6 @@ import {
   saveConfig,
   getQueue,
   saveQueue,
-  clearAllQueue,
   onChanged,
   getDefaultModelForMode,
   normalizeModelForMode
@@ -62,6 +61,8 @@ export class FlowHUDHost {
     this.activeMode = 'text-to-video';
     this.paramMode = 'batch';
     this.isSortMode = false;
+    this.isRunning = false;
+    this.lastOverallPercent = 0;
     this.draggedRowIdx = null;
     this.activeRowIdx = null;
     this.lastSelectedIdx = null;
@@ -160,7 +161,6 @@ export class FlowHUDHost {
         await saveConfig({
           activeBatch: {
             isRunning: false,
-            isPaused: false,
             activeItemId: null
           }
         });
@@ -645,6 +645,8 @@ export class FlowHUDHost {
       const bStart = this.shadow.getElementById('btnStartQueue');
 
       if (state === QUEUE_STATES.RUNNING) {
+        this.isRunning = true;
+        this.lastOverallPercent = 0;
         if (bStart) {
           bStart.classList.remove('rj-btn-accent', 'is-disabled');
           bStart.classList.add('rj-btn-danger', 'rj-btn-stop');
@@ -652,24 +654,31 @@ export class FlowHUDHost {
           bStart.title = 'Stop running generation';
           bStart.disabled = false;
         }
+        this.setFormControlsDisabled(true);
         this.updateTicker('Running', 'running');
         this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
       } else if (state === QUEUE_STATES.STOPPED) {
+        this.isRunning = false;
+        this.lastOverallPercent = 0;
         if (bStart) {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         }
+        this.setFormControlsDisabled(false);
         this.updateTicker('Stopped', 'stopped');
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
         this.updateQueueSummaryUI(false);
       } else {
+        this.isRunning = false;
+        this.lastOverallPercent = 0;
         if (bStart) {
           bStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
           bStart.classList.add('rj-btn-accent');
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         }
+        this.setFormControlsDisabled(false);
         this.updateTicker('Idle', 'idle');
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
@@ -737,7 +746,7 @@ export class FlowHUDHost {
       if (currentIdx === -1) currentIdx = 0;
       const current = currentIdx + 1;
       const total = this.queueItems.length || 1;
-      const overallPercent = this.calculateCumulativeProgress(payload.itemId, payload.status);
+      const overallPercent = this.calculateCumulativeProgress(payload.itemId, payload.status, payload.percent);
 
       if (payload.status === 'generating' || payload.status === 'injecting' || payload.status === 'downloading') {
         this.updateTicker(`${payload.status.toUpperCase()} (${overallPercent}%)`, 'running');
@@ -749,29 +758,157 @@ export class FlowHUDHost {
   }
 
   /**
-   * Calculates overall batch queue percentage accumulated across all row stages.
-   * Prevents per-card resets (e.g. jumping from 99% on row 1 back to 1% on row 2).
+   * Calculates overall batch queue percentage accumulated across all row stages and sub-steps.
+   * Monotonically increases without resets or jarring jumps.
    */
-  calculateCumulativeProgress(activeItemId = null, activeStatus = null) {
+  calculateCumulativeProgress(activeItemId = null, activeStatus = null, activeItemPercent = 0) {
     const total = this.queueItems.length || 1;
-    const stageWeights = {
-      not_ready: 0,
-      ready: 0,
-      pending: 0,
-      injecting: 0.15,
-      generating: 0.60,
-      downloading: 0.90,
-      completed: 1.0,
-      failed: 1.0
-    };
-
     let accumulated = 0;
+
     for (const it of this.queueItems) {
-      const st = (it.id === activeItemId && activeStatus) ? activeStatus : (it.status || 'pending');
-      accumulated += (stageWeights[st] !== undefined ? stageWeights[st] : 0);
+      if (it.id === activeItemId) {
+        if (activeStatus === 'completed' || activeStatus === 'failed') {
+          accumulated += 100;
+        } else {
+          accumulated += Math.max(0, Math.min(100, Number(activeItemPercent) || 0));
+        }
+      } else if (it.status === 'completed' || it.status === 'failed') {
+        accumulated += 100;
+      } else {
+        accumulated += 0;
+      }
     }
 
-    return Math.min(100, Math.max(0, Math.round((accumulated / total) * 100)));
+    const calculated = Math.min(100, Math.max(0, Math.round(accumulated / total)));
+    const overallPercent = Math.max(this.lastOverallPercent || 0, calculated);
+    this.lastOverallPercent = overallPercent;
+    return overallPercent;
+  }
+
+  /**
+   * Disables or enables interactive form inputs and toolbar controls during queue execution.
+   * Preserves row container clickability so users can still inspect row parameters in read-only mode.
+   */
+  setFormControlsDisabled(disabled) {
+    const hudWindow = this.shadow?.querySelector('.hud-window');
+    if (hudWindow) {
+      hudWindow.classList.toggle('queue-is-running', disabled);
+    }
+
+    // 1. Right-column Parameter Controls
+    const selMode = this.shadow?.getElementById('selMode');
+    if (selMode) {
+      selMode.disabled = disabled;
+      CustomSelect.sync(selMode);
+    }
+
+    const selModelFamily = this.shadow?.getElementById('selModelFamily');
+    if (selModelFamily) {
+      selModelFamily.disabled = disabled;
+      CustomSelect.sync(selModelFamily);
+    }
+
+    const selResolution = this.shadow?.getElementById('selResolution');
+    if (selResolution) {
+      selResolution.disabled = disabled;
+      CustomSelect.sync(selResolution);
+    }
+
+    const chkAutoDownload = this.shadow?.getElementById('chkAutoDownload');
+    if (chkAutoDownload) chkAutoDownload.disabled = disabled;
+
+    const btnSaveQueue = this.shadow?.getElementById('btnSaveQueue');
+    if (btnSaveQueue) {
+      btnSaveQueue.disabled = disabled;
+      btnSaveQueue.classList.toggle('is-disabled', disabled);
+    }
+
+    const btnResetSettings = this.shadow?.getElementById('btnResetSettings');
+    if (btnResetSettings) {
+      btnResetSettings.disabled = disabled;
+      btnResetSettings.classList.toggle('is-disabled', disabled);
+    }
+
+    ['segDuration', 'segAspectRatio', 'segOutputs'].forEach(id => {
+      const segGroup = this.shadow?.getElementById(id);
+      if (segGroup) {
+        segGroup.querySelectorAll('.rj-segment-btn').forEach(btn => {
+          btn.disabled = disabled;
+          btn.classList.toggle('is-disabled', disabled);
+        });
+      }
+    });
+
+    // 2. Queue Action Toolbar Controls
+    const selParamMode = this.shadow?.getElementById('selParamMode');
+    if (selParamMode) {
+      selParamMode.disabled = disabled;
+      CustomSelect.sync(selParamMode);
+    }
+
+    const chkSelectAll = this.shadow?.getElementById('chkSelectAllQueue');
+    if (chkSelectAll) chkSelectAll.disabled = disabled;
+
+    const btnToggleSort = this.shadow?.getElementById('btnToggleSortMode');
+    if (btnToggleSort) {
+      btnToggleSort.disabled = disabled;
+      btnToggleSort.classList.toggle('is-disabled', disabled);
+    }
+
+    const btnAddRow = this.shadow?.getElementById('btnAddQueueRow');
+    if (btnAddRow) {
+      btnAddRow.disabled = disabled;
+      btnAddRow.classList.toggle('is-disabled', disabled);
+    }
+
+    const btnBulkDelete = this.shadow?.getElementById('btnBulkDeleteQueue');
+    if (btnBulkDelete && disabled) {
+      btnBulkDelete.style.display = 'none';
+    }
+
+    // 3. Queue Row Interactive Items
+    const content = this.shadow?.getElementById('hudQueueContent');
+    if (content) {
+      content.querySelectorAll('.row-select-checkbox').forEach(cb => {
+        cb.disabled = disabled;
+      });
+
+      content.querySelectorAll('.row-prompt-input').forEach(ta => {
+        ta.readOnly = disabled;
+        ta.classList.toggle('is-readonly', disabled);
+      });
+
+      content.querySelectorAll('.row-media-slot').forEach(slot => {
+        slot.classList.toggle('is-disabled', disabled);
+      });
+
+      content.querySelectorAll('.row-remove-thumb-btn').forEach(btn => {
+        btn.disabled = disabled;
+        btn.classList.toggle('is-disabled', disabled);
+      });
+
+      content.querySelectorAll('.row-swap-frames-btn').forEach(btn => {
+        btn.disabled = disabled;
+        btn.classList.toggle('is-disabled', disabled);
+      });
+    }
+
+    // 4. Empty Dropzone Quick Actions
+    const btnQuickAdd = this.shadow?.getElementById('btnQuickAddEmptyRow');
+    if (btnQuickAdd) {
+      btnQuickAdd.disabled = disabled;
+      btnQuickAdd.classList.toggle('is-disabled', disabled);
+    }
+
+    const btnQuickPaste = this.shadow?.getElementById('btnQuickPasteClipboard');
+    if (btnQuickPaste) {
+      btnQuickPaste.disabled = disabled;
+      btnQuickPaste.classList.toggle('is-disabled', disabled);
+    }
+
+    if (!disabled) {
+      this.updateSelectionUI();
+    }
   }
 
   /**
@@ -832,6 +969,9 @@ export class FlowHUDHost {
     this.bindRowEvents();
     this.updateSelectionUI();
     this.updateStartButtonState();
+    if (this.isRunning) {
+      this.setFormControlsDisabled(true);
+    }
   }
 
   /**
@@ -866,6 +1006,8 @@ export class FlowHUDHost {
     }
 
     if (btnQuickAdd) btnQuickAdd.addEventListener('click', () => this.addQueueRow());
+    const btnQuickPaste = this.shadow.getElementById('btnQuickPasteClipboard');
+    if (btnQuickPaste) btnQuickPaste.addEventListener('click', () => this.pasteClipboard());
   }
 
   /**
@@ -878,6 +1020,7 @@ export class FlowHUDHost {
     // 1. Textarea prompt changes, validation, and debounced auto-save
     container.querySelectorAll('.row-prompt-input').forEach(input => {
       input.addEventListener('input', (e) => {
+        if (this.isRunning) return;
         const idx = Number(e.target.dataset.idx);
         if (this.queueItems[idx]) {
           this.queueItems[idx].prompt = e.target.value;
@@ -895,11 +1038,13 @@ export class FlowHUDHost {
       });
 
       input.addEventListener('blur', () => {
+        if (this.isRunning) return;
         clearTimeout(this.promptSaveDebounceTimer);
         this.saveCurrentQueue().catch(() => {});
       });
 
       input.addEventListener('focus', (e) => {
+        if (this.isRunning) return;
         const idx = Number(e.target.dataset.idx);
         this.activeRowIdx = idx;
         this.updateSelectionUI();
@@ -909,13 +1054,18 @@ export class FlowHUDHost {
     // 2. Row selection checkbox changes
     container.querySelectorAll('.row-select-checkbox').forEach(cb => {
       cb.addEventListener('click', (e) => {
+        if (this.isRunning) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.stopPropagation();
       });
 
       cb.addEventListener('change', (e) => {
         e.stopPropagation();
+        if (this.isRunning || this.isSortMode) return;
         const idx = Number(cb.dataset.idx);
-        if (this.isSortMode) return;
 
         if (e.shiftKey && this.lastSelectedIdx !== null) {
           // Range selection
@@ -953,6 +1103,18 @@ export class FlowHUDHost {
     // 3. Row container click engine (Direct Click, Shift+Click, Ctrl+Click)
     container.querySelectorAll('.hud-queue-row').forEach(row => {
       row.addEventListener('click', (e) => {
+        // If batch is running: allow focusing row to view parameters in sidebar (strictly read-only)
+        if (this.isRunning) {
+          const idx = Number(row.dataset.idx);
+          if (!isNaN(idx) && this.queueItems[idx]) {
+            this.activeRowIdx = idx;
+            this.updateSelectionUI();
+            this.updateSidebarParamModeUI();
+            this.setFormControlsDisabled(true);
+          }
+          return;
+        }
+
         // Ignore clicks on actionable child elements
         if (e.target && (
           e.target.closest('.row-select-checkbox') ||
@@ -1122,6 +1284,7 @@ export class FlowHUDHost {
       const fileInp = slot.querySelector('.row-file-input');
 
       slot.addEventListener('click', (e) => {
+        if (this.isRunning) return;
         if (e.target.closest('.row-remove-thumb-btn')) return;
         if (this.isSortMode) {
           e.stopPropagation();
@@ -1133,6 +1296,7 @@ export class FlowHUDHost {
 
       if (fileInp) {
         fileInp.addEventListener('change', async (e) => {
+          if (this.isRunning) return;
           const file = e.target.files && e.target.files[0];
           if (!file) return;
           const fileName = file.name;
@@ -1154,6 +1318,7 @@ export class FlowHUDHost {
       slot.addEventListener('dragover', (e) => e.preventDefault());
       slot.addEventListener('drop', async (e) => {
         e.preventDefault();
+        if (this.isRunning) return;
         const file = e.dataTransfer?.files?.[0];
         if (!file) return;
         const fileName = file.name;
@@ -1176,6 +1341,7 @@ export class FlowHUDHost {
     container.querySelectorAll('.row-remove-thumb-btn[data-slot="single"]').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        if (this.isRunning) return;
         const idx = Number(btn.dataset.idx);
         if (this.queueItems[idx]) {
           const oldIng = this.queueItems[idx].ingredients?.[0];
@@ -1196,6 +1362,7 @@ export class FlowHUDHost {
         const fileInp = slot.querySelector('.row-file-input');
 
         slot.addEventListener('click', (e) => {
+          if (this.isRunning) return;
           if (e.target.closest('.row-remove-thumb-btn')) return;
           if (this.isSortMode) {
             e.stopPropagation();
@@ -1207,6 +1374,7 @@ export class FlowHUDHost {
 
         if (fileInp) {
           fileInp.addEventListener('change', async (e) => {
+            if (this.isRunning) return;
             const file = e.target.files && e.target.files[0];
             if (!file) return;
             const fileName = file.name;
@@ -1229,6 +1397,7 @@ export class FlowHUDHost {
         slot.addEventListener('dragover', (e) => e.preventDefault());
         slot.addEventListener('drop', async (e) => {
           e.preventDefault();
+          if (this.isRunning) return;
           const file = e.dataTransfer?.files?.[0];
           if (!file) return;
           const fileName = file.name;
@@ -1252,6 +1421,7 @@ export class FlowHUDHost {
       container.querySelectorAll(`.row-remove-thumb-btn[data-slot="${slotType}"]`).forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          if (this.isRunning) return;
           const idx = Number(btn.dataset.idx);
           if (this.queueItems[idx] && this.queueItems[idx].frames) {
             const oldFrame = this.queueItems[idx].frames[slotType];
@@ -1270,6 +1440,7 @@ export class FlowHUDHost {
     container.querySelectorAll('.row-swap-frames-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (this.isRunning) return;
         const idx = Number(btn.dataset.idx);
         const it = this.queueItems[idx];
         if (it && it.frames) {
@@ -1332,14 +1503,25 @@ export class FlowHUDHost {
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length === 0) return;
 
+      const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
       for (const line of lines) {
         this.queueItems.push({
           id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           prompt: line,
-          status: 'pending'
+          status: 'pending',
+          selected: false,
+          mode: this.activeMode,
+          model: isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2',
+          aspectRatio: '16:9',
+          duration: '6s',
+          outputs: 1,
+          resolution: isVideo ? '1080p' : '2K',
+          ingredients: [],
+          frames: {}
         });
       }
       this.renderQueueContent();
+      this.updateSelectionUI();
       this.updateStartButtonState();
       await this.saveCurrentQueue();
     } catch (err) {
@@ -1799,31 +1981,6 @@ export class FlowHUDHost {
         it.mode = toMode;
       });
     }
-  }
-
-  /**
-   * Activates a single row for parameter inspection & editing without checking its checkbox.
-   */
-  activateSingleRow(idx) {
-    if (idx < 0 || idx >= this.queueItems.length) return;
-    this.activeRowIdx = idx;
-    this.lastSelectedIdx = idx;
-    this.updateSelectionUI();
-  }
-
-  /**
-   * Selects an individual row exclusively (checking its checkbox).
-   */
-  selectSingleRow(idx) {
-    if (idx < 0 || idx >= this.queueItems.length) return;
-
-    this.queueItems.forEach((it, i) => {
-      it.selected = (i === idx);
-    });
-    this.activeRowIdx = idx;
-    this.lastSelectedIdx = idx;
-
-    this.updateSelectionUI();
   }
 
   /**

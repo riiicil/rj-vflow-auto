@@ -227,7 +227,9 @@ svg.rj-icon,
 }
 
 .rj-btn:disabled,
-.rj-btn.is-disabled {
+.rj-btn.is-disabled,
+.rj-segment-btn:disabled,
+.rj-segment-btn.is-disabled {
   opacity: 0.35 !important;
   cursor: not-allowed !important;
   pointer-events: none !important;
@@ -585,6 +587,12 @@ svg.rj-icon,
   border-color: var(--rj-accent-cyan, #079183);
 }
 
+.row-media-slot.is-disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
 .row-media-slot.has-media {
   border-style: solid;
   border-color: var(--rj-border-strong, rgba(255, 255, 255, 0.16));
@@ -722,6 +730,18 @@ svg.rj-icon,
 
 .row-prompt-input:focus {
   border-color: var(--rj-accent-cyan, #00b4a4);
+}
+
+.row-prompt-input:read-only,
+.row-prompt-input.is-readonly {
+  opacity: 0.75;
+  cursor: default;
+  border-color: var(--rj-border-hairline, #242728);
+}
+
+.row-prompt-input:read-only:focus,
+.row-prompt-input.is-readonly:focus {
+  border-color: var(--rj-border-hairline, #242728);
 }
 
 .row-badges-group {

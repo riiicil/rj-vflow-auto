@@ -113,7 +113,6 @@ export const DEFAULT_CONFIG = {
   queue: [],
   activeBatch: {
     isRunning: false,
-    isPaused: false,
     activeItemId: null,
     startedAt: null,
     totalCount: 0,
@@ -274,60 +273,6 @@ export async function saveQueue(queue) {
 }
 
 /**
- * Adds a single item to the queue.
- */
-export async function enqueueItem(item) {
-  const queue = await getQueue();
-  const newItem = Object.assign({
-    id: `q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    prompt: '',
-    mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.VEO_LITE,
-    aspectRatio: '16:9',
-    duration: '6s',
-    outputs: 1,
-    resolution: '1080p',
-    ingredients: [],
-    frames: { start: null, end: null },
-    status: QUEUE_STATUS.PENDING,
-    error: null,
-    createdAt: Date.now(),
-    completedAt: null
-  }, item);
-
-  queue.push(newItem);
-  await saveQueue(queue);
-  return newItem;
-}
-
-/**
- * Adds multiple items to the queue in one operation.
- */
-export async function enqueueBatch(items) {
-  const queue = await getQueue();
-  const created = items.map((item, idx) => Object.assign({
-    id: `q_${Date.now() + idx}_${Math.random().toString(36).substring(2, 7)}`,
-    prompt: '',
-    mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.VEO_LITE,
-    aspectRatio: '16:9',
-    duration: '6s',
-    outputs: 1,
-    resolution: '1080p',
-    ingredients: [],
-    frames: { start: null, end: null },
-    status: QUEUE_STATUS.PENDING,
-    error: null,
-    createdAt: Date.now() + idx,
-    completedAt: null
-  }, item));
-
-  queue.push(...created);
-  await saveQueue(queue);
-  return created;
-}
-
-/**
  * Updates specific properties of a queue item.
  */
 export async function updateQueueItem(itemId, partialUpdate) {
@@ -341,46 +286,12 @@ export async function updateQueueItem(itemId, partialUpdate) {
 }
 
 /**
- * Removes a specific item from the queue by ID.
- */
-export async function removeQueueItem(itemId) {
-  const queue = await getQueue();
-  const filtered = queue.filter(it => it.id !== itemId);
-  await saveQueue(filtered);
-  return filtered;
-}
-
-/**
- * Clears completed and failed items from the queue.
- */
-export async function clearCompletedQueue() {
-  const queue = await getQueue();
-  const pendingOnly = queue.filter(it => it.status !== QUEUE_STATUS.COMPLETED && it.status !== QUEUE_STATUS.FAILED);
-  await saveQueue(pendingOnly);
-  return pendingOnly;
-}
-
-/**
- * Clears entire queue.
- */
-export async function clearAllQueue() {
-  return saveQueue([]);
-}
-
-/**
  * Registers a callback for reactive changes.
  */
 export function onChanged(callback) {
   if (typeof callback === 'function') {
     changeListeners.add(callback);
   }
-}
-
-/**
- * Removes a previously registered change callback.
- */
-export function removeOnChanged(callback) {
-  changeListeners.delete(callback);
 }
 
 // Internal chrome.storage listener to keep cachedConfig synchronized

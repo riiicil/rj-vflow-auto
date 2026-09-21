@@ -13,7 +13,6 @@ import {
   query,
   queryAll,
   queryIcon,
-  queryButtonByIcon,
   waitForElement,
   waitForElementGone,
   waitForCondition,
@@ -150,18 +149,6 @@ export class FlowIngredientService {
   async setFrameSlot(slotType = 'start', blobOrDataUrl, fileName = 'frame.png', expectedChipCount = 1) {
     const editor = query(SELECTORS.PROSEMIRROR_EDITOR);
     return await this.injectMediaToFlow(blobOrDataUrl, fileName, 'image/png', editor, expectedChipCount);
-  }
-
-  /**
-   * Swaps start and end frames via the swap button.
-   */
-  swapFrames() {
-    const swapBtn = queryButtonByIcon(LIGATURES.SWAP);
-    if (!swapBtn) {
-      logger.warn('[FlowIngredientService] Swap frames button not found');
-      return false;
-    }
-    return simulateClick(swapBtn);
   }
 
   /**

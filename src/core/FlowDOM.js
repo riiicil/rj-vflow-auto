@@ -37,8 +37,6 @@ export const SELECTORS = {
 
   // Ingredient Bar & Frames
   INGREDIENT_BAR: 'flow-ingredient-bar.prompt-ingredient-bar',
-  FRAME_TRIGGER_START: 'flow-ingredient-bar div.frame-trigger:nth-of-type(1) button.empty-chip',
-  FRAME_TRIGGER_END: 'flow-ingredient-bar div.frame-trigger:nth-of-type(2) button.empty-chip',
   IMAGE_INGREDIENT_CHIP: 'flow-ingredient-bar flow-image-ingredient-chip',
   UPLOAD_CONSENT_DIALOG: 'flow-upload-consent-dialog',
   UPLOAD_CONSENT_CONFIRM: 'flow-upload-consent-dialog mat-dialog-actions div.agree-actions-group button',

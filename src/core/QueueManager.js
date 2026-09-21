@@ -2,7 +2,7 @@
  * QueueManager.js — Master Batch Automation Orchestrator
  * 
  * State machine managing automated prompt execution lifecycle:
- * IDLE -> RUNNING -> PAUSED -> STOPPED.
+ * IDLE -> RUNNING -> STOPPED.
  * 
  * Orchestrates settings configuration, media ingestion, prompt submission,
  * generation monitoring, and asset downloading across all Phase 2 services.
@@ -28,7 +28,6 @@ import { flowImageDB } from './FlowImageDB.js';
 export const QUEUE_STATES = {
   IDLE: 'idle',
   RUNNING: 'running',
-  PAUSED: 'paused',
   STOPPED: 'stopped'
 };
 
@@ -112,7 +111,6 @@ export class QueueManager {
     await saveConfig({
       activeBatch: {
         isRunning: true,
-        isPaused: false,
         startedAt: Date.now()
       }
     });
@@ -120,39 +118,6 @@ export class QueueManager {
     if (!this.isLoopActive) {
       this.runLoop().catch(err => {
         logger.error('Unexpected loop failure', err);
-        this.setState(QUEUE_STATES.IDLE);
-      });
-    }
-  }
-
-  /**
-   * Pauses queue execution after active batch finishes.
-   */
-  async pause() {
-    if (this.state !== QUEUE_STATES.RUNNING) return;
-
-    logger.info('Queue automation paused');
-    this.setState(QUEUE_STATES.PAUSED);
-    await saveConfig({
-      activeBatch: { isRunning: true, isPaused: true }
-    });
-  }
-
-  /**
-   * Resumes queue execution from paused state.
-   */
-  async resume() {
-    if (this.state !== QUEUE_STATES.PAUSED) return;
-
-    logger.info('Queue automation resumed');
-    this.setState(QUEUE_STATES.RUNNING);
-    await saveConfig({
-      activeBatch: { isRunning: true, isPaused: false }
-    });
-
-    if (!this.isLoopActive) {
-      this.runLoop().catch(err => {
-        logger.error('Resume loop error', err);
         this.setState(QUEUE_STATES.IDLE);
       });
     }
@@ -168,7 +133,6 @@ export class QueueManager {
     await saveConfig({
       activeBatch: {
         isRunning: false,
-        isPaused: false,
         activeItemId: null
       }
     });
@@ -188,7 +152,7 @@ export class QueueManager {
         logger.info('No pending queue items found. Automation idle.');
         this.setState(QUEUE_STATES.IDLE);
         await saveConfig({
-          activeBatch: { isRunning: false, isPaused: false, activeItemId: null }
+          activeBatch: { isRunning: false, activeItemId: null }
         });
         return;
       }
@@ -230,7 +194,7 @@ export class QueueManager {
           // No more pending items, transition to IDLE
           this.setState(QUEUE_STATES.IDLE);
           await saveConfig({
-            activeBatch: { isRunning: false, isPaused: false, activeItemId: null }
+            activeBatch: { isRunning: false, activeItemId: null }
           });
           break;
         }
@@ -269,15 +233,16 @@ export class QueueManager {
     const itemId = item.id;
 
     try {
+      const cfg = await getConfig();
+
       // 1. Stage: INJECTING — Apply settings & parameters
       await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, percent: 10 });
+      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'init', percent: 2 });
 
       // Parameter Branching:
       // If Single mode: read nextItem configuration and call applySettings(nextItem) on every iteration
       // If Batch mode: skip opening prompt settings popover; reuse pre-configured settings
       if (paramMode === 'single') {
-        const cfg = await getConfig();
         const mode = item.mode || cfg.mode || 'text-to-video';
         const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
         const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
@@ -287,6 +252,7 @@ export class QueueManager {
         const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
 
         logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'parameters', percent: 5 });
         await flowSettingsService.applySettings({
           mode,
           model,
@@ -301,6 +267,7 @@ export class QueueManager {
       // 2. Prepare Reference Ingredients / Frames
       if (item.ingredients && item.ingredients.length > 0) {
         logger.step('ingredients', `${item.ingredients.length} media file(s)`);
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients', percent: 8 });
         await flowIngredientService.clearIngredients();
         for (const ing of item.ingredients) {
           let mediaPayload = (ing && typeof ing === 'object' ? (ing.dataUrl || ing) : ing);
@@ -314,8 +281,10 @@ export class QueueManager {
           }
           await flowIngredientService.injectMediaToFlow(mediaPayload, mediaName);
         }
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients_ready', percent: 11 });
       } else if (item.frames && (item.frames.start || item.frames.end)) {
         logger.step('frames', 'Injecting start & end frames');
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames', percent: 8 });
         await flowIngredientService.clearIngredients();
         await new Promise(r => setTimeout(r, 400));
 
@@ -348,6 +317,7 @@ export class QueueManager {
           await flowIngredientService.setFrameSlot('end', endPayload, endName, currentChipTarget);
           await new Promise(r => setTimeout(r, 500));
         }
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames_ready', percent: 11 });
       } else {
         // Pure text prompt: ensure no residual chips remain
         await flowIngredientService.clearIngredients();
@@ -358,19 +328,25 @@ export class QueueManager {
 
       // 4. Submit prompt via native ProseMirror injection
       logger.step('prompt injection', item.prompt);
+      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'prompt', percent: 13 });
       await flowPromptService.submitPrompt(item.prompt);
+      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'submitted', percent: 15 });
 
       // 5. Stage: GENERATING — Watch batch resolution across all virtual scroll rows
       await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
+      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'spawning', percent: 18 });
       const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
       const watchResult = await flowWatcherService.waitForGeneration(
         previousTopTile,
         expectedOutputCount,
         (progress) => {
+          const live = progress.percent || 0;
+          const mappedPercent = Math.max(18, Math.min(85, Math.round(15 + (live / 100) * 70)));
           this.notifyProgress({
             itemId,
             status: QUEUE_STATUS.GENERATING,
-            percent: Math.max(1, Math.min(99, progress.percent || 1)),
+            percent: mappedPercent,
+            livePercent: live,
             progress
           });
         },
@@ -379,7 +355,6 @@ export class QueueManager {
       );
 
       // 6. Stage: DOWNLOADING — Handle asset downloads
-      const cfg = await getConfig();
       const shouldDownload = item.autoDownload !== undefined ? item.autoDownload : cfg.autoDownload;
 
       if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
@@ -389,8 +364,8 @@ export class QueueManager {
           this.notifyProgress({
             itemId,
             status: QUEUE_STATUS.DOWNLOADING,
-            percent: 90,
-            downloadProgress: { current: 1, total: successfulTiles.length }
+            percent: 85,
+            downloadProgress: { current: 0, total: successfulTiles.length }
           });
 
           const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
@@ -401,11 +376,11 @@ export class QueueManager {
             targetResolution: targetRes,
             delayBetweenMs: 1000,
             onProgress: (current, total) => {
-              const dlPercent = Math.min(99, Math.round(90 + (current / total) * 9));
+              const dlRowPercent = Math.min(99, Math.round(85 + (current / total) * 14));
               this.notifyProgress({
                 itemId,
                 status: QUEUE_STATUS.DOWNLOADING,
-                percent: dlPercent,
+                percent: dlRowPercent,
                 downloadProgress: { current, total }
               });
             }

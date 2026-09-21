@@ -34,13 +34,6 @@ export class FlowWatcherService {
   }
 
   /**
-   * Retrieves top batch or top tile node for backwards compatibility.
-   */
-  getTopBatchContainer() {
-    return this.getTopTileCard();
-  }
-
-  /**
    * Ensures the gallery viewport is at scroll top 0 so the newest items are mounted.
    */
   ensureScrolledToTop() {

@@ -5,11 +5,11 @@
 ---
 
 ## 1. Immediate Operational State
-- **Current Milestone**: Phase 3 (Dual-Mode UI Implementation) — [COMPLETE]
+- **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `HEAD` (`fix(watcher): multi-row batch tile collection across virtual scroll rows for multi-output downloads`)
-- **Working Tree**: Clean (all modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), multi-row batch tile collection across virtual scroll rows verified, `duration` variable declaration verified in `QueueManager.js`, clear prompt switch detection verified via direct MDC button selector, and footer queue progress accumulation verified.
+- **Latest Commit**: `HEAD` (`feat(hud): granular monotonic progress, controls disabling during execution, and dead code purge`)
+- **Working Tree**: Clean (all 17 JS modules verified syntax-valid)
+- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), cumulative monotonic progress calculation verified across single and multi-row queues, form controls locking with read-only row parameter inspection verified, quick action clipboard paste restoration verified, and pause/resume surfaces purged.
 
 ---
 
@@ -17,7 +17,13 @@
 
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
-Phase 3 (Dual-Mode UI Implementation) active progress:
+Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
+Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
+1. **Session 34 Polishing & Hardening Complete (`HEAD`)**:
+   - **Granular Monotonic Progress Counter**: Replaced abrupt percentage jumps with real-time sub-stage reporting in `QueueManager.processItem()` (injecting 2-15%, generating 18-85% from live tile percentages, downloading 85-99% sequentially per card, completed 100%). Implemented `calculateCumulativeProgress` in `FlowHUDHost.js` accumulating across rows with strict `Math.max(lastOverallPercent, calculated)` monotonic enforcement.
+   - **Form Controls Locking with Read-Only Inspection**: Implemented `setFormControlsDisabled(disabled)` locking selects, toolbar buttons, segment groups, checkboxes, textareas (`readOnly = true`), and media slots during execution. Refactored `bindRowEvents()` so clicking any row container while running allows switching focus and viewing parameters in the sidebar in read-only mode without mutating running state.
+   - **Quick Action Paste Restoration**: Restored `#btnQuickPasteClipboard` in `renderEmptyDropzone()` with complete row default parameters.
+   - **Dead Code & Pause Purge**: Purged `isPaused` and `QUEUE_STATES.PAUSED` from `FlowStorage.js` and `QueueManager.js`. Deleted unused alias `FlowActionService.js`. Purged dead functions `enqueueItem`, `enqueueBatch`, `removeQueueItem`, `clearCompletedQueue`, `clearAllQueue`, `removeOnChanged`, `swapFrames`, `getSettingsSummaryText`, `getTopBatchContainer`, `activateSingleRow`, and `selectSingleRow`. Purged obsolete selectors `FRAME_TRIGGER_START` and `FRAME_TRIGGER_END`.
 1. **Sub-phase 3.1 & 3.2 Complete (`ce3a4cb`, `7750ffe`)**: Design tokens, minimalist popup, Shadow DOM HUD host, and draggable floating pill.
 2. **Sub-phase 3.3 & 3.4 Complete (`f808156`, `bbd613a`)**: Two-column studio layout, QueueManager controls, and reactive telemetry.
 3. **Session 14–16 Blueprint Realignment Complete (`06f1cbd`, `768870f`, `83c66a4`)**: Exact blueprint popup, unified start/stop button, and high-contrast styling.

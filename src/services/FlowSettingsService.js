@@ -246,14 +246,6 @@ export class FlowSettingsService {
   }
 
   /**
-   * Reads current active settings summary from trigger button label.
-   */
-  getSettingsSummaryText() {
-    const summarySpan = query(SELECTORS.SETTINGS_SUMMARY);
-    return summarySpan ? (summarySpan.textContent || '').trim() : '';
-  }
-
-  /**
    * Selects a model family from the dropdown menu.
    */
   async selectModel(targetModel, popover = document) {
