@@ -246,29 +246,46 @@ flow-grid-tile-container
            │         └── flow-hotbar-container
 ```
 
-#### 1. In-Card Generation Success Validator (Zero Toast Dependency)
+#### 1. In-Card Generation Success & Failure Validator (Zero Toast Dependency)
 > [!CAUTION]
-> Moderation blocks and daily quota limits **do not appear as toasts**. Google Flow creates the card in the gallery, but it remains permanently blurred, shows an error badge, and lacks a valid playable media source.
+> Moderation blocks and daily quota limits **do not appear as toasts**. Google Flow creates an error card in the gallery displaying `<flow-error-tile>` and a Material Symbol ligature `warning`.
+> Additionally, there is a **transient blank phase (300ms–2000ms)** between the progress bar vanishing and the media thumbnail mounting. Systems must never classify a blank state without an error tile as failed.
 
 ```javascript
+/**
+ * Evaluates whether an asset tile has genuinely failed.
+ * Empirical verification: flow-error-tile, warning ligature, .error-tile.
+ */
+function isCardGenerationFailed(tileElement) {
+  if (!tileElement) return false;
+  const hasErrorTile = Boolean(tileElement.querySelector('flow-error-tile, .error-tile, .error-tile-content'));
+  const hasWarningIcon = Boolean(
+    tileElement.querySelector('mat-icon:has-text("warning")') ||
+    Array.from(tileElement.querySelectorAll('mat-icon')).some(i => i.textContent.trim() === 'warning')
+  );
+  const hasErrorClass = tileElement.classList.contains('failed') || tileElement.classList.contains('blurred-error');
+  const hasErrorMessage = Boolean(tileElement.querySelector('.error-message, .error-subtitle, .error-message-text'));
+  return hasErrorTile || hasWarningIcon || hasErrorClass || hasErrorMessage;
+}
+
+/**
+ * Evaluates whether an asset tile has completed successfully.
+ */
 function isCardGenerationSuccess(tileElement) {
-  // 1. Ensure progress bar is completely gone
-  if (tileElement.querySelector('.progress-bar, .hover-overlay-has-progress-bar')) {
+  if (!tileElement) return false;
+
+  // 1. Ensure progress bar / pending tile is completely gone
+  if (tileElement.querySelector('flow-pending-tile, .progress-bar, .hover-overlay-has-progress-bar')) {
     return false;
   }
 
-  // 2. Check for error or failure badges inside card
-  if (tileElement.querySelector('.error-container, .failed-indicator, [class*="error"], [class*="failed"]')) {
+  // 2. Definitive failure check
+  if (isCardGenerationFailed(tileElement)) {
     return false;
   }
 
-  // 3. Ensure card is not locked in a failed blur container
-  if (tileElement.classList.contains('failed') || tileElement.classList.contains('blurred-error')) {
-    return false;
-  }
-
-  // 4. Verify valid media source exists
-  const media = tileElement.querySelector('img.thumbnail, video');
+  // 3. Verify valid, non-empty, non-placeholder media source exists
+  const media = tileElement.querySelector('img.thumbnail, img.image, video');
   if (!media) return false;
   const src = media.getAttribute('src') || media.currentSrc || '';
   if (!src || src.trim() === '' || src.startsWith('data:image/svg') || src.includes('placeholder')) {

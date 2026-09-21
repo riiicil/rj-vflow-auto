@@ -5,6 +5,8 @@
  * Wraps chrome.storage.local with schema validation, debounced persistence, and auto-healing.
  */
 
+import { logger } from '../services/LoggerService.js';
+
 export const STORAGE_KEY = 'rj_vflow_config_v3';
 
 export const SCHEMA_VERSION = 3;
@@ -13,8 +15,22 @@ export const MEDIA_MODES = {
   TEXT_TO_VIDEO: 'text-to-video',
   TEXT_TO_IMAGE: 'text-to-image',
   IMAGE_TO_VIDEO: 'image-to-video',
-  FRAMES_TO_VIDEO: 'frames-to-video'
+  FRAMES_TO_VIDEO: 'frames-to-video',
+  EDIT_IMAGE: 'edit-image'
 };
+
+export const VIDEO_MODELS = [
+  'Omni 1.1 Flash',
+  'Veo 3.1 - Fast',
+  'Veo 3.1 - Lite',
+  'Veo 3.1 - Quality'
+];
+
+export const IMAGE_MODELS = [
+  'Nano Banana Pro',
+  'Nano Banana 2',
+  'Nano Banana 2 Lite'
+];
 
 export const MODELS = {
   OMNI_FLASH: 'Omni 1.1 Flash',
@@ -25,6 +41,38 @@ export const MODELS = {
   NANO_BANANA_2: 'Nano Banana 2',
   NANO_BANANA_2_LITE: 'Nano Banana 2 Lite'
 };
+
+/**
+ * Returns default model family for a given media mode.
+ * t2i / ei -> Nano Banana 2
+ * t2v / i2v / f2v -> Veo 3.1 - Lite
+ */
+export function getDefaultModelForMode(mode) {
+  const isImage = mode === MEDIA_MODES.TEXT_TO_IMAGE || mode === MEDIA_MODES.EDIT_IMAGE ||
+    (typeof mode === 'string' && mode.includes('image') && !mode.includes('video'));
+  return isImage ? MODELS.NANO_BANANA_2 : MODELS.VEO_LITE;
+}
+
+/**
+ * Normalizes model family to ensure strict compatibility with the active generation mode:
+ * - Image modes (t2i, ei) strictly require Image Models (Nano Banana family). Default: Nano Banana 2.
+ * - Video modes (t2v, i2v, f2v) strictly require Video Models (Veo 3.1 family, Omni). Default: Veo 3.1 - Lite.
+ */
+export function normalizeModelForMode(mode, currentModel) {
+  const isImage = mode === MEDIA_MODES.TEXT_TO_IMAGE || mode === MEDIA_MODES.EDIT_IMAGE ||
+    (typeof mode === 'string' && mode.includes('image') && !mode.includes('video'));
+  if (isImage) {
+    if (currentModel && IMAGE_MODELS.includes(currentModel)) {
+      return currentModel;
+    }
+    return MODELS.NANO_BANANA_2;
+  } else {
+    if (currentModel && VIDEO_MODELS.includes(currentModel)) {
+      return currentModel;
+    }
+    return MODELS.VEO_LITE;
+  }
+}
 
 export const ASPECT_RATIOS = ['16:9', '9:16', '4:3', '1:1'];
 
@@ -46,7 +94,8 @@ export const QUEUE_STATUS = {
 export const DEFAULT_CONFIG = {
   schemaVersion: SCHEMA_VERSION,
   mode: MEDIA_MODES.TEXT_TO_VIDEO,
-  model: MODELS.OMNI_FLASH,
+  paramMode: 'batch',
+  model: MODELS.VEO_LITE,
   aspectRatio: '16:9',
   duration: '6s',
   outputCount: 1,
@@ -64,7 +113,6 @@ export const DEFAULT_CONFIG = {
   queue: [],
   activeBatch: {
     isRunning: false,
-    isPaused: false,
     activeItemId: null,
     startedAt: null,
     totalCount: 0,
@@ -96,6 +144,7 @@ function migrateSchema(raw) {
   migrated.schemaVersion = SCHEMA_VERSION;
 
   // Ensure nested structures are not undefined
+  migrated.paramMode = raw.paramMode || 'batch';
   migrated.settings = Object.assign(clone(DEFAULT_CONFIG.settings), raw.settings || {});
   migrated.activeBatch = Object.assign(clone(DEFAULT_CONFIG.activeBatch), raw.activeBatch || {});
   if (!Array.isArray(migrated.queue)) {
@@ -123,6 +172,43 @@ export async function getConfig() {
 }
 
 /**
+ * Sanitizes queue items for chrome.storage.local persistence.
+ * Strips heavy dataUrl Base64 payloads if imageId reference is present,
+ * safeguarding against the 5MB extension storage quota limit.
+ */
+export function sanitizeQueueForStorage(queue) {
+  if (!Array.isArray(queue)) return [];
+
+  return queue.map(item => {
+    const cleanItem = { ...item };
+
+    if (Array.isArray(cleanItem.ingredients)) {
+      cleanItem.ingredients = cleanItem.ingredients.map(ing => {
+        if (ing && typeof ing === 'object' && ing.imageId) {
+          const { dataUrl, ...rest } = ing;
+          return rest;
+        }
+        return ing;
+      });
+    }
+
+    if (cleanItem.frames && typeof cleanItem.frames === 'object') {
+      const cleanFrames = { ...cleanItem.frames };
+      for (const slot of ['start', 'end']) {
+        const frame = cleanFrames[slot];
+        if (frame && typeof frame === 'object' && frame.imageId) {
+          const { dataUrl, ...rest } = frame;
+          cleanFrames[slot] = rest;
+        }
+      }
+      cleanItem.frames = cleanFrames;
+    }
+
+    return cleanItem;
+  });
+}
+
+/**
  * Persists updates to chrome.storage.local with 50ms debouncing.
  */
 export function saveConfig(updates) {
@@ -132,6 +218,10 @@ export function saveConfig(updates) {
     }
 
     // Merge updates into cachedConfig
+    if (updates.queue && Array.isArray(updates.queue)) {
+      updates.queue = sanitizeQueueForStorage(updates.queue);
+    }
+
     Object.assign(cachedConfig, updates);
     if (updates.settings) {
       cachedConfig.settings = Object.assign(cachedConfig.settings || {}, updates.settings);
@@ -178,61 +268,8 @@ export async function getQueue() {
  * Overwrites current queue with new array of items.
  */
 export async function saveQueue(queue) {
-  return saveConfig({ queue: Array.isArray(queue) ? queue : [] });
-}
-
-/**
- * Adds a single item to the queue.
- */
-export async function enqueueItem(item) {
-  const queue = await getQueue();
-  const newItem = Object.assign({
-    id: `q_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    prompt: '',
-    mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.OMNI_FLASH,
-    aspectRatio: '16:9',
-    duration: '6s',
-    outputs: 1,
-    resolution: '1080p',
-    ingredients: [],
-    frames: { start: null, end: null },
-    status: QUEUE_STATUS.PENDING,
-    error: null,
-    createdAt: Date.now(),
-    completedAt: null
-  }, item);
-
-  queue.push(newItem);
-  await saveQueue(queue);
-  return newItem;
-}
-
-/**
- * Adds multiple items to the queue in one operation.
- */
-export async function enqueueBatch(items) {
-  const queue = await getQueue();
-  const created = items.map((item, idx) => Object.assign({
-    id: `q_${Date.now() + idx}_${Math.random().toString(36).substring(2, 7)}`,
-    prompt: '',
-    mode: MEDIA_MODES.TEXT_TO_VIDEO,
-    model: MODELS.OMNI_FLASH,
-    aspectRatio: '16:9',
-    duration: '6s',
-    outputs: 1,
-    resolution: '1080p',
-    ingredients: [],
-    frames: { start: null, end: null },
-    status: QUEUE_STATUS.PENDING,
-    error: null,
-    createdAt: Date.now() + idx,
-    completedAt: null
-  }, item));
-
-  queue.push(...created);
-  await saveQueue(queue);
-  return created;
+  const sanitized = sanitizeQueueForStorage(Array.isArray(queue) ? queue : []);
+  return saveConfig({ queue: sanitized });
 }
 
 /**
@@ -249,46 +286,12 @@ export async function updateQueueItem(itemId, partialUpdate) {
 }
 
 /**
- * Removes a specific item from the queue by ID.
- */
-export async function removeQueueItem(itemId) {
-  const queue = await getQueue();
-  const filtered = queue.filter(it => it.id !== itemId);
-  await saveQueue(filtered);
-  return filtered;
-}
-
-/**
- * Clears completed and failed items from the queue.
- */
-export async function clearCompletedQueue() {
-  const queue = await getQueue();
-  const pendingOnly = queue.filter(it => it.status !== QUEUE_STATUS.COMPLETED && it.status !== QUEUE_STATUS.FAILED);
-  await saveQueue(pendingOnly);
-  return pendingOnly;
-}
-
-/**
- * Clears entire queue.
- */
-export async function clearAllQueue() {
-  return saveQueue([]);
-}
-
-/**
  * Registers a callback for reactive changes.
  */
 export function onChanged(callback) {
   if (typeof callback === 'function') {
     changeListeners.add(callback);
   }
-}
-
-/**
- * Removes a previously registered change callback.
- */
-export function removeOnChanged(callback) {
-  changeListeners.delete(callback);
 }
 
 // Internal chrome.storage listener to keep cachedConfig synchronized
@@ -301,7 +304,7 @@ if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged)
         try {
           listener(clone(cachedConfig));
         } catch (e) {
-          console.error('[FlowStorage] Listener error', e);
+          logger.error('[FlowStorage] Listener error', e);
         }
       }
     }

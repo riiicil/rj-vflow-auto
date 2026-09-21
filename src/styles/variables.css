@@ -1,0 +1,43 @@
+/**
+ * RJ V-Flow Auto — Design Tokens (Raycast Dark Precision)
+ * Reference: DESIGN.md & ADR-007
+ */
+
+:root,
+:host {
+  /* Surfaces */
+  --rj-bg-canvas: #0c0e12;
+  --rj-bg-surface: #12151b;
+  --rj-bg-elevated: #161920;
+  --rj-bg-card: #1a1e26;
+  --rj-bg-input: #14171d;
+
+  /* Borders & Dividers */
+  --rj-border-hairline: #262c36;
+  --rj-border-soft: rgba(255, 255, 255, 0.10);
+  --rj-border-strong: rgba(255, 255, 255, 0.20);
+
+  /* Typography */
+  --rj-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --rj-text-primary: #ffffff;
+  --rj-text-body: #e3e6ec;
+  --rj-text-muted: #a2a8b5;
+  --rj-text-ash: #727a8a;
+
+  /* Accent Colors */
+  --rj-accent-cyan: #00b4a4;
+  --rj-accent-cyan-soft: rgba(0, 180, 164, 0.18);
+  --rj-accent-green: #59d499;
+  --rj-accent-green-soft: rgba(89, 212, 153, 0.15);
+  --rj-accent-yellow: #ffc533;
+  --rj-accent-yellow-soft: rgba(255, 197, 51, 0.15);
+  --rj-accent-red: #ff6161;
+  --rj-accent-red-soft: rgba(255, 97, 97, 0.15);
+
+  /* Radii & Shadows */
+  --rj-radius-sm: 4px;
+  --rj-radius-md: 8px;
+  --rj-radius-lg: 12px;
+  --rj-radius-pill: 9999px;
+  --rj-shadow-overlay: 0 12px 32px -4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+}

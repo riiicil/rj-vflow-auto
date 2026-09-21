@@ -6,13 +6,22 @@
  * Never uses localized text queries or CDP synthetic events.
  */
 
+import { logger } from '../services/LoggerService.js';
+
 export const SELECTORS = {
   // Top Header & Grid
   HEADER: 'flow-tile-view-header > header.header-base',
   TOOLS_BUTTON_GROUP: 'flow-tile-view-header .tools-button-group',
+  SETTINGS_2_BUTTON: 'flow-tile-view-header .tools-button-group button:has(mat-icon:has-text("settings_2"))',
   OVERLAY_PANE: 'div.cdk-overlay-pane',
-  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle-group mat-button-toggle:nth-of-type(1) button',
-  CLEAR_PROMPT_SWITCH: 'div.cdk-overlay-pane mat-slide-toggle button[role="switch"]',
+  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
+  GRID_SIZE_S_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("S")) button, mat-button-toggle:has(span:has-text("S")) button',
+  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button, mat-button-toggle:has(span:has-text("M")) button',
+  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
+
+  // Project Sidenav / Left Navigation
+  SIDEBAR_COLLAPSE_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has-text("left_panel_close")',
+  SIDEBAR_EXPAND_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_open")), mat-list-item:has(mat-icon:has-text("left_panel_open")), mat-list-item:has-text("left_panel_open")',
 
   // Prompt Box & Creative Agent Suppression
   PROMPT_BOX_CONTAINER: 'flow-prompt-box.prompt-box-container',
@@ -29,22 +38,25 @@ export const SELECTORS = {
   MODEL_SELECT_TRIGGER: 'flow-prompt-box-settings span.model-select-trigger-content',
   MENU_PANEL: 'div.mat-mdc-menu-content',
   MENU_ITEM_BUTTON: 'div.mat-mdc-menu-content flow-menu-item button[role="menuitem"]',
-  BUTTON_TOGGLE: 'mat-button-toggle-group mat-button-toggle button',
+  BUTTON_TOGGLE: 'mat-button-toggle-group mat-button-toggle button, mat-button-toggle button, button[role="radio"]',
 
   // Ingredient Bar & Frames
   INGREDIENT_BAR: 'flow-ingredient-bar.prompt-ingredient-bar',
-  FRAME_TRIGGER_START: 'flow-ingredient-bar div.frame-trigger:nth-of-type(1) button.empty-chip',
-  FRAME_TRIGGER_END: 'flow-ingredient-bar div.frame-trigger:nth-of-type(2) button.empty-chip',
   IMAGE_INGREDIENT_CHIP: 'flow-ingredient-bar flow-image-ingredient-chip',
   UPLOAD_CONSENT_DIALOG: 'flow-upload-consent-dialog',
   UPLOAD_CONSENT_CONFIRM: 'flow-upload-consent-dialog mat-dialog-actions div.agree-actions-group button',
 
   // Gallery & Cards
   GRID_CONTAINER: 'flow-grid-tile-container',
-  TOP_BATCH_CONTAINER: 'flow-grid-tile-container > flow-tile-container:first-child',
-  CARD_MEDIA: 'img.thumbnail, video',
-  PROGRESS_BAR: '.progress-bar, .hover-overlay-has-progress-bar',
-  CARD_ERROR: '.error-container, .failed-indicator, [class*="error"], [class*="failed"]',
+  TOP_BATCH_CONTAINER: 'div.virtual-scroll-container > div.tile-row:first-child flow-grid-tile-container, flow-grid-tile-container:first-of-type, div.tile-row:first-child',
+  VIRTUAL_SCROLL_CONTAINER: 'div.virtual-scroll-container, cdk-virtual-scroll-viewport.tiles-container',
+  TILE_ROW: 'div.virtual-scroll-container > div.tile-row, div.tile-row',
+  TILE_CONTAINER: 'flow-tile-container',
+  TOP_TILE: 'div.virtual-scroll-container flow-tile-container, cdk-virtual-scroll-viewport flow-tile-container, flow-tile-container',
+  CARD_MEDIA: 'img.thumbnail, img.image, img, video',
+  PROGRESS_BAR: '.progress-bar, .progress-bar-fill, flow-pending-tile',
+  CARD_ERROR: '.error-container, .failed-indicator, .error-badge, .error-message',
+  ERROR_TILE: 'flow-error-tile, .error-tile, .error-tile-content',
   HOTBAR_CONTAINER: 'flow-hotbar-container div.hotbar-inner',
 
   // Download Menu
@@ -64,29 +76,102 @@ export const LIGATURES = {
   ASPECT_16_9: 'crop_16_9',
   ASPECT_9_16: 'crop_9_16',
   ASPECT_LANDSCAPE: 'crop_landscape',
-  ASPECT_SQUARE: 'crop_square'
+  ASPECT_SQUARE: 'crop_square',
+  WARNING: 'warning',
+  DELETE: 'delete',
+  DASHBOARD: 'dashboard',
+  LEFT_PANEL_CLOSE: 'left_panel_close',
+  LEFT_PANEL_OPEN: 'left_panel_open'
 };
 
 /**
- * Basic safe element query.
+ * Internal resolver for pseudo-selectors containing :has-text("...")
+ */
+function queryAllWithHasText(selector, root) {
+  const parts = selector.split(/,(?![^()]*\))/);
+  const results = [];
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed.includes(':has-text(')) {
+      try {
+        results.push(...Array.from(root.querySelectorAll(trimmed)));
+      } catch (e) {
+        logger.warn(`[FlowDOM] querySelectorAll failed for: ${trimmed}`, e);
+      }
+      continue;
+    }
+
+    // Pattern A: prefix:has(child:has-text("text")) suffix
+    const matchHasChild = trimmed.match(/^(.*?):has\((.*?):has-text\(["'](.*?)["']\)\)(.*)$/);
+    if (matchHasChild) {
+      const [, prefix, childSelector, expectedText, suffix] = matchHasChild;
+      const baseElements = prefix.trim() ? Array.from(root.querySelectorAll(prefix.trim())) : [root];
+      for (const el of baseElements) {
+        const children = childSelector.trim() ? Array.from(el.querySelectorAll(childSelector.trim())) : [el];
+        const hasMatchingChild = children.some(c => c.textContent && c.textContent.trim() === expectedText.trim());
+        if (hasMatchingChild) {
+          if (suffix && suffix.trim()) {
+            results.push(...Array.from(el.querySelectorAll(suffix.trim())));
+          } else {
+            results.push(el);
+          }
+        }
+      }
+      continue;
+    }
+
+    // Pattern B: target:has-text("text")
+    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)$/);
+    if (matchDirect) {
+      const [, targetSelector, expectedText] = matchDirect;
+      const candidates = targetSelector.trim() ? Array.from(root.querySelectorAll(targetSelector.trim())) : Array.from(root.querySelectorAll('*'));
+      for (const el of candidates) {
+        if (el.textContent && el.textContent.trim() === expectedText.trim()) {
+          results.push(el);
+        }
+      }
+      continue;
+    }
+
+    // Fallback standard query
+    try {
+      results.push(...Array.from(root.querySelectorAll(trimmed)));
+    } catch (e) {
+      logger.warn(`[FlowDOM] Unsupported selector with :has-text: ${trimmed}`);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Basic safe element query. Supports :has-text("...") pseudo selectors.
  */
 export function query(selector, root = document) {
   try {
+    if (selector.includes(':has-text(')) {
+      const all = queryAllWithHasText(selector, root);
+      return all.length > 0 ? all[0] : null;
+    }
     return root.querySelector(selector);
   } catch (err) {
-    console.error(`[FlowDOM] query error for selector: ${selector}`, err);
+    logger.error(`[FlowDOM] query error for selector: ${selector}`, err);
     return null;
   }
 }
 
 /**
- * Basic safe queryAll returning an array.
+ * Basic safe queryAll returning an array. Supports :has-text("...") pseudo selectors.
  */
 export function queryAll(selector, root = document) {
   try {
+    if (selector.includes(':has-text(')) {
+      return queryAllWithHasText(selector, root);
+    }
     return Array.from(root.querySelectorAll(selector));
   } catch (err) {
-    console.error(`[FlowDOM] queryAll error for selector: ${selector}`, err);
+    logger.error(`[FlowDOM] queryAll error for selector: ${selector}`, err);
     return [];
   }
 }
@@ -228,6 +313,96 @@ export function waitForCondition(predicate, { timeout = 10000, interval = 200 } 
 }
 
 /**
+ * Evaluates whether an asset tile has genuinely failed (ADR-006).
+ * Empirical verification: flow-error-tile, warning ligature, .error-tile,
+ * .failed, .blurred-error, or error message wrappers.
+ */
+export function isCardGenerationFailed(tileElement) {
+  if (!tileElement) return false;
+
+  const hasErrorTile = Boolean(tileElement.querySelector(SELECTORS.ERROR_TILE));
+  const hasWarningIcon = Boolean(
+    queryIcon(LIGATURES.WARNING, tileElement) ||
+    Array.from(tileElement.querySelectorAll('mat-icon')).some(i => i.textContent && i.textContent.trim() === LIGATURES.WARNING)
+  );
+  const hasErrorClass = tileElement.classList.contains('failed') ||
+    tileElement.classList.contains('blurred-error');
+  const hasErrorMessage = Boolean(tileElement.querySelector('.error-message, .error-subtitle, .error-message-text'));
+
+  return hasErrorTile || hasWarningIcon || hasErrorClass || hasErrorMessage;
+}
+
+/**
+ * Resolves the primary generated media element (video or image) from a card tile.
+ * Robust against empty thumbnail placeholders, video sources, and overlay avatars.
+ */
+export function getTileMediaSource(tileElement) {
+  if (!tileElement) return null;
+
+  // 1. Check <video> elements first (for video generation)
+  const videos = queryAll('video', tileElement);
+  for (const video of videos) {
+    const src = video.getAttribute('src') || video.currentSrc || video.querySelector('source')?.getAttribute('src') || video.poster || '';
+    if (src && !src.startsWith('data:image/svg') && !src.includes('placeholder')) {
+      return { element: video, type: 'video', src };
+    }
+  }
+
+  // 2. Check <img> elements (for image generation & poster thumbnails)
+  const images = queryAll('img.image, img.thumbnail, img', tileElement);
+  for (const img of images) {
+    if (img.closest('mat-icon') || img.classList.contains('avatar') || img.classList.contains('user-avatar')) {
+      continue;
+    }
+    const src = img.getAttribute('src') || img.currentSrc || '';
+    if (src && !src.startsWith('data:image/svg') && !src.includes('placeholder')) {
+      return { element: img, type: 'image', src };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detects whether a tile card or wrapper represents an uploaded raw ingredient / reference asset
+ * rather than an AI-generated output.
+ * Google Flow assigns the uploaded file's name (ending in a media file extension) as the tile title
+ * and does not provide a 'Reuse prompt' (redo) action on user-uploaded assets.
+ *
+ * @param {Element} tile - Tile card or container element
+ * @returns {boolean} True if this is an uploaded ingredient asset tile
+ */
+export function isIngredientTile(tile) {
+  if (!tile) return false;
+
+  // 1. Check title and aria-label for media filename extensions
+  const footerTitle = tile.querySelector('.footer-title, [class*="footer-title"]');
+  const titleText = (footerTitle?.textContent || '').trim();
+  const ariaLabel = (tile.getAttribute('aria-label') || '').trim();
+  const fileExtRegex = /\.(jpe?g|png|webp|gif|mp4|mov|webm)$/i;
+
+  if (fileExtRegex.test(titleText) || fileExtRegex.test(ariaLabel)) {
+    return true;
+  }
+
+  // 2. Check hotbar actions: completed generated tiles always feature a "redo" / "Reuse prompt" action
+  // User-uploaded ingredients only have "Favorite" and "More options".
+  const hotbar = tile.querySelector('flow-hotbar-container, flow-image-hotbar, flow-video-hotbar');
+  const imgOrVideo = tile.querySelector('img[src], video[src]');
+  const hasProgressBar = tile.querySelector('.progress-bar, [class*="progress-bar"]');
+
+  if (hotbar && imgOrVideo && !hasProgressBar) {
+    const icons = Array.from(hotbar.querySelectorAll('mat-icon')).map(m => (m.textContent || '').trim());
+    const hasRedo = icons.includes('redo') || !!hotbar.querySelector('[aria-label="Reuse prompt"]');
+    if (!hasRedo) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Evaluates whether an asset card completed successfully (ADR-006).
  * Google Flow does NOT produce toasts for moderation blocks or quota limits;
  * failed tiles remain blurred with error badges and no valid playable media source.
@@ -235,31 +410,58 @@ export function waitForCondition(predicate, { timeout = 10000, interval = 200 } 
 export function isCardGenerationSuccess(tileElement) {
   if (!tileElement) return false;
 
-  // 1. Progress bar must be absent
-  if (tileElement.querySelector(SELECTORS.PROGRESS_BAR)) {
+  // Raw uploaded ingredient tiles must never be flagged as generated outputs
+  if (isIngredientTile(tileElement)) {
     return false;
   }
 
-  // 2. Error badges / failed indicators must be absent
-  if (tileElement.querySelector(SELECTORS.CARD_ERROR)) {
+  // 1. Pending tile indicator or active progress bar must be absent
+  if (tileElement.tagName && tileElement.tagName.toLowerCase() === 'flow-pending-tile') {
+    return false;
+  }
+  if (tileElement.querySelector('flow-pending-tile')) {
     return false;
   }
 
-  // 3. Card must not have failed or blurred-error state classes
-  if (tileElement.classList.contains('failed') || tileElement.classList.contains('blurred-error')) {
+  // 2. Active visible progress bar check
+  const progressBar = tileElement.querySelector('.progress-bar, .progress-bar-fill');
+  if (progressBar) {
+    let isVisible = true;
+    if (typeof window !== 'undefined' && window.getComputedStyle) {
+      const style = window.getComputedStyle(progressBar);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        isVisible = false;
+      }
+    }
+    if (progressBar.offsetWidth === 0 && progressBar.offsetHeight === 0 && progressBar.getClientRects().length === 0) {
+      isVisible = false;
+    }
+    if (isVisible) return false;
+  }
+
+  // 3. Definitive failure check
+  if (isCardGenerationFailed(tileElement)) {
     return false;
   }
 
-  // 4. Must contain a valid rendered media element with active source
-  const media = tileElement.querySelector(SELECTORS.CARD_MEDIA);
-  if (!media) return false;
+  // 4. Hotbar or footer presence indicates generation completion (video hotbar or image hover footer)
+  const hasHotbarOrFooter = Boolean(
+    tileElement.querySelector('flow-hotbar-container, flow-tile-hover-footer, .project-tile-hover-footer') ||
+    queryButtonByIcon(LIGATURES.MORE_OPTIONS, tileElement) ||
+    queryIcon(LIGATURES.MORE_OPTIONS, tileElement)
+  );
 
-  const src = media.getAttribute('src') || media.currentSrc || '';
-  if (!src || src.trim() === '' || src.startsWith('data:image/svg') || src.includes('placeholder')) {
-    return false;
+  // 5. Must contain a valid rendered media element with active source OR hotbar/footer
+  const media = getTileMediaSource(tileElement);
+  if (media && media.src && media.src.trim() !== '') {
+    return true;
   }
 
-  return true;
+  if (hasHotbarOrFooter) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -282,4 +484,11 @@ export function simulateEnter(element) {
   element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   return true;
+}
+
+/**
+ * Asynchronous pause utility for pacing DOM events, Angular change detection, and animations.
+ */
+export function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

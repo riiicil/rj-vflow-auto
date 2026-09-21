@@ -59,16 +59,20 @@ gantt
 
 ---
 
-### Phase 3: Dual-Mode UI Implementation `[PLANNED]`
+### Phase 3: Dual-Mode UI Implementation `[COMPLETE]`
 - **Target Branch**: `task/dual-mode-ui` $\to$ `dev`
-- [ ] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[PLANNED]`
-  - Implement `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
-- [ ] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[PLANNED]`
+- [x] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[COMPLETE]`
+  - Commit: `feat(popup): implement minimalist toolbar popup launcher and connection detector`
+  - Implement `src/styles/variables.css`, `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
+- [x] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[COMPLETE]`
+  - Commit: `feat(overlay): implement Shadow DOM HUD host and draggable floating pill`
   - Implement `#flow-auto-hud-root` open Shadow DOM, fluid drag physics, boundary clamping, and minimize-to-pill transition.
-- [ ] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[PLANNED]`
-  - Implement dynamic Left Column (States A, B, C, D) and Right Column (Parameters sidebar) adhering to Raycast Dark Precision design tokens.
-- [ ] **Sub-phase 3.4**: Reactive Storage Synchronization & Automation Controls `[PLANNED]`
-  - Connect Start, Stop, and Pause controls with live status ticker and auto-save state recovery.
+- [x] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[COMPLETE]`
+  - Commit: `feat(overlay): build dynamic two-column studio HUD and template generators`
+  - Implement `FlowHUDTemplates.js`, two-column workspace tabs, media dropzones, and parameters sidebar in `FlowHUDHost.js`.
+- [x] **Sub-phase 3.4**: Reactive Storage Synchronization & Automation Controls `[COMPLETE]`
+  - Commit: `feat(overlay): connect reactive storage synchronization and automation controls`
+  - Connect Start and Stop controls with live status ticker and auto-save state recovery.
 
 ---
 
