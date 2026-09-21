@@ -235,6 +235,37 @@ svg.rj-icon,
   pointer-events: none !important;
 }
 
+.rj-segment-group.is-disabled {
+  pointer-events: none !important;
+  opacity: 0.45 !important;
+}
+
+.rj-checkbox:disabled,
+.rj-checkbox.is-disabled,
+.row-select-checkbox:disabled,
+.row-select-checkbox.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+/* CustomSelect Disabled State in Shadow DOM */
+.rj-select-wrapper.disabled {
+  pointer-events: none !important;
+  opacity: 0.45 !important;
+}
+
+.rj-select-wrapper.disabled .rj-select-trigger {
+  background-color: #131416 !important;
+  color: #505256 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  cursor: not-allowed !important;
+}
+
+.rj-select-wrapper.disabled .rj-select-arrow {
+  opacity: 0.3 !important;
+}
+
 /* Queue Action Toolbar */
 .hud-queue-toolbar {
   height: 38px;
@@ -801,6 +832,14 @@ svg.rj-icon,
   border-color: var(--rj-border-hairline, #242728);
 }
 
+.row-prompt-input:disabled,
+.row-prompt-input.is-disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  background-color: #121314 !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
 .row-badges-group {
   display: inline-flex;
   align-self: flex-end;
@@ -853,6 +892,12 @@ svg.rj-icon,
   background-color: rgba(87, 193, 255, 0.14);
   color: #57c1ff;
   border: 1px solid rgba(87, 193, 255, 0.25);
+}
+
+.row-status-badge.status-queued {
+  background-color: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 .row-status-badge.status-injecting {

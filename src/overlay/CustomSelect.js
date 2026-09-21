@@ -185,6 +185,13 @@ export class CustomSelect {
     CustomSelect._buildOptions(instance);
   }
 
+  /**
+   * Alias for refresh()
+   */
+  static sync(selectEl) {
+    CustomSelect.refresh(selectEl);
+  }
+
   static toggle(selectEl) {
     const instance = CustomSelect.instances.get(selectEl);
     if (!instance) return;

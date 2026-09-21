@@ -323,12 +323,19 @@ export class FlowHUDHost {
     // 2. Toolbar Actions
     const btnAddRow = this.shadow.getElementById('btnAddQueueRow');
     if (btnAddRow) {
-      btnAddRow.addEventListener('click', () => this.addQueueRow());
+      btnAddRow.addEventListener('click', () => {
+        if (this.isRunning) return;
+        this.addQueueRow();
+      });
     }
 
     const chkSelectAll = this.shadow.getElementById('chkSelectAllQueue');
     if (chkSelectAll) {
       chkSelectAll.addEventListener('change', (e) => {
+        if (this.isRunning) {
+          e.preventDefault();
+          return;
+        }
         const isChecked = e.target.checked;
         this.queueItems.forEach(item => {
           item.selected = isChecked;
@@ -347,6 +354,7 @@ export class FlowHUDHost {
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
       btnBulkDelete.addEventListener('click', async () => {
+        if (this.isRunning) return;
         let toDelete = this.queueItems.filter(it => it.selected);
         if (toDelete.length === 0 && this.activeRowIdx !== null && this.queueItems[this.activeRowIdx]) {
           toDelete = [this.queueItems[this.activeRowIdx]];
@@ -386,7 +394,7 @@ export class FlowHUDHost {
     const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
       btnToggleSort.addEventListener('click', () => {
-        if (this.queueItems.some(it => it.selected)) return;
+        if (this.isRunning || this.queueItems.some(it => it.selected)) return;
         this.isSortMode = !this.isSortMode;
         if (!this.isSortMode) {
           this.selectedSwapSlot = null;
@@ -400,6 +408,7 @@ export class FlowHUDHost {
     if (selParam) {
       selParam.value = this.paramMode;
       selParam.addEventListener('change', async (e) => {
+        if (this.isRunning) return;
         this.paramMode = e.target.value;
         await saveConfig({ paramMode: this.paramMode });
         this.updateSidebarParamModeUI();
@@ -412,6 +421,7 @@ export class FlowHUDHost {
     const selMode = this.shadow.getElementById('selGenerationMode');
     if (selMode) {
       selMode.addEventListener('change', async (e) => {
+        if (this.isRunning) return;
         const mode = e.target.value;
         const prevMode = this.activeMode;
         const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
@@ -473,6 +483,7 @@ export class FlowHUDHost {
     const selModel = this.shadow.getElementById('selModelFamily');
     if (selModel) {
       selModel.addEventListener('change', async (e) => {
+        if (this.isRunning) return;
         const val = e.target.value;
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
@@ -557,6 +568,7 @@ export class FlowHUDHost {
     const selRes = this.shadow.getElementById('selResolution');
     if (selRes) {
       selRes.addEventListener('change', async (e) => {
+        if (this.isRunning) return;
         const val = e.target.value;
         if (this.paramMode === 'single') {
           const selected = this.queueItems.filter(it => it.selected);
@@ -585,6 +597,7 @@ export class FlowHUDHost {
     const btnSaveQueue = this.shadow.getElementById('btnSaveQueue');
     if (btnSaveQueue) {
       btnSaveQueue.addEventListener('click', async () => {
+        if (this.isRunning) return;
         await this.saveCurrentQueue();
         const origHtml = btnSaveQueue.innerHTML;
         btnSaveQueue.innerHTML = `${ICONS.SAVE} <span>Saved!</span>`;
@@ -655,6 +668,7 @@ export class FlowHUDHost {
           bStart.disabled = false;
         }
         this.setFormControlsDisabled(true);
+        this.updateAllRowBadges();
         this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
       } else if (state === QUEUE_STATES.STOPPED) {
         this.isRunning = false;
@@ -671,6 +685,7 @@ export class FlowHUDHost {
         }
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
+        this.updateAllRowBadges();
         this.updateQueueSummaryUI(false);
       } else {
         this.isRunning = false;
@@ -687,6 +702,7 @@ export class FlowHUDHost {
         }
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
+        this.updateAllRowBadges();
         this.updateQueueSummaryUI(false);
       }
     });
@@ -760,6 +776,9 @@ export class FlowHUDHost {
         matchedItem.status = payload.status;
       }
 
+      // Refresh status badges for all rows (active becomes GENERATING/etc., waiting rows become QUEUED)
+      this.updateAllRowBadges();
+
       let currentIdx = this.queueItems.findIndex(it => it.id === payload.itemId);
       if (currentIdx === -1) currentIdx = 0;
       const current = currentIdx + 1;
@@ -813,22 +832,22 @@ export class FlowHUDHost {
     }
 
     // 1. Right-column Parameter Controls
-    const selMode = this.shadow?.getElementById('selMode');
-    if (selMode) {
-      selMode.disabled = disabled;
-      CustomSelect.sync(selMode);
+    const selGenerationMode = this.shadow?.getElementById('selGenerationMode');
+    if (selGenerationMode) {
+      selGenerationMode.disabled = disabled;
+      CustomSelect.refresh(selGenerationMode);
     }
 
     const selModelFamily = this.shadow?.getElementById('selModelFamily');
     if (selModelFamily) {
       selModelFamily.disabled = disabled;
-      CustomSelect.sync(selModelFamily);
+      CustomSelect.refresh(selModelFamily);
     }
 
     const selResolution = this.shadow?.getElementById('selResolution');
     if (selResolution) {
       selResolution.disabled = disabled;
-      CustomSelect.sync(selResolution);
+      CustomSelect.refresh(selResolution);
     }
 
     const chkAutoDownload = this.shadow?.getElementById('chkAutoDownload');
@@ -846,9 +865,11 @@ export class FlowHUDHost {
       btnResetSettings.classList.toggle('is-disabled', disabled);
     }
 
+    // Segmented Button Groups (Duration, Aspect Ratio, Outputs)
     ['segDuration', 'segAspectRatio', 'segOutputs'].forEach(id => {
       const segGroup = this.shadow?.getElementById(id);
       if (segGroup) {
+        segGroup.classList.toggle('is-disabled', disabled);
         segGroup.querySelectorAll('.rj-segment-btn').forEach(btn => {
           btn.disabled = disabled;
           btn.classList.toggle('is-disabled', disabled);
@@ -860,11 +881,14 @@ export class FlowHUDHost {
     const selParamMode = this.shadow?.getElementById('selParamMode');
     if (selParamMode) {
       selParamMode.disabled = disabled;
-      CustomSelect.sync(selParamMode);
+      CustomSelect.refresh(selParamMode);
     }
 
     const chkSelectAll = this.shadow?.getElementById('chkSelectAllQueue');
-    if (chkSelectAll) chkSelectAll.disabled = disabled;
+    if (chkSelectAll) {
+      chkSelectAll.disabled = disabled;
+      chkSelectAll.classList.toggle('is-disabled', disabled);
+    }
 
     const btnToggleSort = this.shadow?.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
@@ -879,8 +903,12 @@ export class FlowHUDHost {
     }
 
     const btnBulkDelete = this.shadow?.getElementById('btnBulkDeleteQueue');
-    if (btnBulkDelete && disabled) {
-      btnBulkDelete.style.display = 'none';
+    if (btnBulkDelete) {
+      btnBulkDelete.disabled = disabled;
+      btnBulkDelete.classList.toggle('is-disabled', disabled);
+      if (disabled) {
+        btnBulkDelete.style.display = 'none';
+      }
     }
 
     // 3. Queue Row Interactive Items
@@ -888,10 +916,13 @@ export class FlowHUDHost {
     if (content) {
       content.querySelectorAll('.row-select-checkbox').forEach(cb => {
         cb.disabled = disabled;
+        cb.classList.toggle('is-disabled', disabled);
       });
 
       content.querySelectorAll('.row-prompt-input').forEach(ta => {
+        ta.disabled = disabled;
         ta.readOnly = disabled;
+        ta.classList.toggle('is-disabled', disabled);
         ta.classList.toggle('is-readonly', disabled);
       });
 
@@ -942,8 +973,8 @@ export class FlowHUDHost {
     // Count how many rows are genuinely ready with non-empty prompts and required media
     const readyCount = this.queueItems.filter(it => {
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
-      const info = getRowStatusInfo(it, rowMode);
-      return info.label === 'READY';
+      const info = getRowStatusInfo(it, rowMode, this.isRunning);
+      return info.label === 'READY' || info.label === 'QUEUED';
     }).length;
 
     if (isProcessing && progressInfo) {
@@ -1018,7 +1049,7 @@ export class FlowHUDHost {
     container.innerHTML = this.queueItems.map((it, idx) => {
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
       const params = this.getEffectiveRowParams(it);
-      return renderQueueRow(it, idx, rowMode, this.isSortMode, params);
+      return renderQueueRow(it, idx, rowMode, this.isSortMode, params, this.isRunning);
     }).join('');
 
     if (this.isSortMode && this.selectedSwapSlot) {
@@ -1164,11 +1195,17 @@ export class FlowHUDHost {
     // 3. Row container click engine (Direct Click, Shift+Click, Ctrl+Click)
     container.querySelectorAll('.hud-queue-row').forEach(row => {
       row.addEventListener('click', (e) => {
-        // If batch is running: allow focusing row to view parameters in sidebar (strictly read-only)
+        // If batch is running: allow selecting/unselecting row to view parameters in sidebar (strictly read-only)
         if (this.isRunning) {
           const idx = Number(row.dataset.idx);
           if (!isNaN(idx) && this.queueItems[idx]) {
-            this.activeRowIdx = idx;
+            if (this.activeRowIdx === idx) {
+              this.activeRowIdx = null;
+              this.lastSelectedIdx = null;
+            } else {
+              this.activeRowIdx = idx;
+              this.lastSelectedIdx = idx;
+            }
             this.updateSelectionUI();
             this.updateSidebarParamModeUI();
             this.setFormControlsDisabled(true);
@@ -1789,25 +1826,36 @@ export class FlowHUDHost {
     if (chkSelectAll) {
       chkSelectAll.checked = totalCount > 0 && selectedCount === totalCount;
       chkSelectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+      if (this.isRunning) {
+        chkSelectAll.disabled = true;
+        chkSelectAll.classList.add('is-disabled');
+      }
     }
 
     // 2. Bulk Delete Button Visibility
     const btnBulkDelete = this.shadow.getElementById('btnBulkDeleteQueue');
     if (btnBulkDelete) {
-      const hasSelectionOrActive = selectedCount > 0 || (this.activeRowIdx !== null && Boolean(this.queueItems[this.activeRowIdx]));
-      btnBulkDelete.style.display = hasSelectionOrActive ? 'inline-flex' : 'none';
-      btnBulkDelete.title = selectedCount > 1
-        ? `Delete ${selectedCount} selected rows`
-        : 'Delete selected row';
+      if (this.isRunning) {
+        btnBulkDelete.style.display = 'none';
+        btnBulkDelete.disabled = true;
+      } else {
+        const hasSelectionOrActive = selectedCount > 0 || (this.activeRowIdx !== null && Boolean(this.queueItems[this.activeRowIdx]));
+        btnBulkDelete.style.display = hasSelectionOrActive ? 'inline-flex' : 'none';
+        btnBulkDelete.title = selectedCount > 1
+          ? `Delete ${selectedCount} selected rows`
+          : 'Delete selected row';
+      }
     }
 
     // 3. Sort Button Conditional Disabled State
     const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
-      const isSortDisabled = selectedCount > 0;
+      const isSortDisabled = this.isRunning || selectedCount > 0;
       btnToggleSort.disabled = isSortDisabled;
       btnToggleSort.classList.toggle('is-disabled', isSortDisabled);
-      if (isSortDisabled) {
+      if (this.isRunning) {
+        btnToggleSort.setAttribute('title', 'Queue is running');
+      } else if (isSortDisabled) {
         btnToggleSort.setAttribute('title', 'Deselect items to enable reordering');
       } else {
         btnToggleSort.setAttribute('title', this.isSortMode ? 'Done sorting' : 'Toggle sort mode');
@@ -1855,7 +1903,7 @@ export class FlowHUDHost {
     const totalRows = this.queueItems.length;
     const allReady = totalRows > 0 && this.queueItems.every(it => {
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
-      const info = getRowStatusInfo(it, rowMode);
+      const info = getRowStatusInfo(it, rowMode, this.isRunning);
       return info.label !== 'NOT READY';
     });
 
@@ -2166,6 +2214,10 @@ export class FlowHUDHost {
         }
       }
     }
+
+    if (this.isRunning) {
+      this.setFormControlsDisabled(true);
+    }
   }
 
   /**
@@ -2292,7 +2344,7 @@ export class FlowHUDHost {
 
     const rowMode = (this.paramMode === 'single' && item.mode) ? item.mode : this.activeMode;
     const params = this.getEffectiveRowParams(item);
-    const statusInfo = getRowStatusInfo(item, rowMode);
+    const statusInfo = getRowStatusInfo(item, rowMode, this.isRunning);
 
     const paramsBadge = row.querySelector('.row-params-badge');
     if (paramsBadge) {
@@ -2472,6 +2524,7 @@ export class FlowHUDHost {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (this.isRunning) return;
         if (btn.classList.contains('active')) return;
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');

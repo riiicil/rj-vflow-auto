@@ -273,7 +273,7 @@ export function renderEmptyDropzone() {
  * Resolves current row status label and CSS class.
  * Pre-run rows dynamically evaluate to READY or NOT READY.
  */
-export function getRowStatusInfo(item, mode = 'text-to-video') {
+export function getRowStatusInfo(item, mode = 'text-to-video', isRunning = false) {
   const rawStatus = (item?.status || 'pending').toLowerCase();
 
   if (rawStatus === 'completed') {
@@ -308,6 +308,9 @@ export function getRowStatusInfo(item, mode = 'text-to-video') {
   }
 
   if (hasPrompt && isMediaReady) {
+    if (isRunning || rawStatus === 'queued') {
+      return { label: 'QUEUED', statusClass: 'status-queued' };
+    }
     return { label: 'READY', statusClass: 'status-ready' };
   }
   return { label: 'NOT READY', statusClass: 'status-not-ready' };
@@ -370,7 +373,7 @@ export function formatRowParamsBadge(params) {
  * State B, C, D: Renders an individual Queue Row based on generation mode.
  * Redesigned with row-select checkbox, sort drag handle, dual badges (params + status).
  */
-export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode = false, params = null) {
+export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode = false, params = null, isRunning = false) {
   const isIngredientMode = mode === 'image-to-video' || mode === 'edit-image';
   const isFramesMode = mode === 'frames-to-video';
   const isChecked = Boolean(item.selected);
@@ -378,29 +381,33 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
   let mediaSlotHtml = '';
 
   if (isIngredientMode) {
-    const imgSrc = (item.ingredients && item.ingredients[0]?.dataUrl) || (typeof item.ingredients?.[0] === 'string' ? item.ingredients[0] : null);
-    const slotTitle = isSortMode ? 'Click to swap ingredient with another slot' : 'Drop or click to select image';
+    const singleImg = (item.ingredients && item.ingredients[0]?.dataUrl) ||
+      (typeof item.ingredients?.[0] === 'string' ? item.ingredients[0] : null) ||
+      item.ingredientImage || item.media || item.mediaUrl;
+    const singleTitle = (item.ingredients && item.ingredients[0]?.name) || 'Ingredient Image';
+
     mediaSlotHtml = `
-      <div class="row-media-slot ${imgSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="single" title="${slotTitle}">
+      <div class="row-media-slot ${singleImg ? 'has-media' : ''}" data-idx="${index}" data-slot="single" title="${singleTitle}">
         <input type="file" class="row-file-input" accept="image/*" style="display: none;">
-        ${imgSrc ? `
-          <img src="${imgSrc}" class="row-thumb-img" alt="Ref">
+        ${singleImg ? `
+          <img src="${singleImg}" class="row-thumb-img" alt="Thumb">
           <button class="row-remove-thumb-btn" type="button" title="Remove image" data-idx="${index}" data-slot="single">${ICONS.CLOSE}</button>
         ` : `
           <div class="row-slot-placeholder">
-            <span class="slot-icon">${ICONS.IMAGE}</span>
-            <span class="slot-text">+ Drop</span>
+            ${ICONS.IMAGE}
+            <span class="slot-text">Image</span>
           </div>
         `}
       </div>
     `;
   } else if (isFramesMode) {
-    const startSrc = (typeof item.frames?.start === 'object' ? item.frames?.start?.dataUrl : item.frames?.start) || null;
-    const endSrc = (typeof item.frames?.end === 'object' ? item.frames?.end?.dataUrl : item.frames?.end) || null;
-    const startTitle = isSortMode ? 'Click to swap start frame with another slot' : 'Start Frame';
-    const endTitle = isSortMode ? 'Click to swap end frame with another slot' : 'End Frame';
+    const startSrc = (typeof item.frames?.start === 'object' ? item.frames?.start?.dataUrl : item.frames?.start) || item.startFrame;
+    const startTitle = item.frames?.start?.name || 'Start Frame';
+    const endSrc = (typeof item.frames?.end === 'object' ? item.frames?.end?.dataUrl : item.frames?.end) || item.endFrame;
+    const endTitle = item.frames?.end?.name || 'End Frame';
+
     mediaSlotHtml = `
-      <div class="row-frames-group">
+      <div class="row-frames-wrapper">
         <!-- Start Frame -->
         <div class="row-media-slot ${startSrc ? 'has-media' : ''}" data-idx="${index}" data-slot="start" title="${startTitle}">
           <input type="file" class="row-file-input" accept="image/*" style="display: none;">
@@ -441,7 +448,7 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
       ? 'Enter transition / interpolation prompt...'
       : 'Enter prompt text here...';
 
-  const statusInfo = getRowStatusInfo(item, mode);
+  const statusInfo = getRowStatusInfo(item, mode, isRunning);
   const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
   const effectiveParams = params || {
     mode,
@@ -478,3 +485,4 @@ export function renderQueueRow(item, index, mode = 'text-to-video', isSortMode =
     </div>
   `;
 }
+

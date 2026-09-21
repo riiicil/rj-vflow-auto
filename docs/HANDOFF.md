@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `HEAD` (`feat(hud): synchronized pill status, redesigned sidebar header banner, and animated generating row glow`)
+- **Latest Commit**: `HEAD` (`fix(hud): enforce comprehensive form disabling during execution and add queued row status badge`)
 - **Working Tree**: Clean (all 17 JS modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), cumulative monotonic progress calculation verified, footer/pill status harmonization verified across idle/queued/processing, redesigned breadcrumb header validated, and hardware-accelerated animated glowing SVG borders verified.
+- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), comprehensive form controls disabling during batch execution verified, preserved row container selection/deselection verified, dynamic QUEUED status badge verified, cumulative monotonic progress calculation verified, and animated glowing SVG borders verified.
 
 ---
 
@@ -19,11 +19,15 @@ Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged 
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
 Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
 Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
-1. **Session 35 Polishing & Hardening Complete (`HEAD`)**:
+1. **Session 36 Polishing & Hardening Complete (`HEAD`)**:
+   - **Comprehensive Form Controls Disabling During Execution**: Fixed bug where an element ID mismatch (`selMode` instead of `selGenerationMode`) and non-existent `CustomSelect.sync()` caused an uncaught `TypeError` that aborted subsequent form disabling logic. Added `CustomSelect.sync()` alias. Disabled `#selGenerationMode`, `#selModelFamily`, `#selResolution`, `#selParamMode`, `#chkSelectAllQueue`, `#btnToggleSortMode`, `#btnAddQueueRow`, `#btnBulkDeleteQueue`, all segmented button groups (`#segDuration`, `#segAspectRatio`, `#segOutputs`), all row checkboxes (`.row-select-checkbox`), and prompt textareas (`.row-prompt-input:disabled` / `readOnly = true`). Added running guard checks to change listeners.
+   - **Preserved Row Container Selection/Deselection**: User can click any row container during execution to focus it and inspect parameters in the sidebar in read-only mode, or click an active row to deselect it, while strictly enforcing `setFormControlsDisabled(true)`.
+   - **Dynamic QUEUED Row Status Badge**: Waiting ready rows in the queue dynamically display badge `QUEUED` (`.status-queued`) during active batch runs (`isRunning === true`). Once stopped, paused, or completed, remaining ready rows seamlessly revert to `READY`.
+2. **Session 35 Polishing & Hardening Complete (`HEAD~1`)**:
    - **Footer & Floating Pill Status Harmonization**: Synchronized status reporting across both HUD bottom-left footer (`#hudQueueSummaryText`) and minimized floating pill (`#pillTickerText`, `#pillStatusDot`). Displays `[dot] Idle` when 0 rows are ready, `[>_] X prompt queued` (footer) / `[>_] X queued` (pill) when 1+ rows are ready, and `[spinner] Processing X/Y (Z%)` (footer) / `[spinner] Processing Z%` (pill) during execution. Auto-refreshes synchronously whenever textarea input or media changes.
    - **Sidebar Header Parameter Banner Redesign**: Redesigned `#sidebarModeBanner` into a sleek Raycast-style breadcrumb header with subtle gradient dark surface (`#121316`), hairline border, and mode-specific accent styling (`.mode-batch`, `.mode-single`, `.mode-multi`). Features 20x20 mode icon badge (`ICONS.LAYERS` in cyan/purple, `ICONS.TARGET` in blue), uppercase title, pill badge, and clean prompt subtitle without raw quotation marks (with italic empty prompt placeholder).
    - **Generating Row Animated Outline (Google Flow Agent Mode Parity)**: Implemented hardware-accelerated SVG border glow overlay (`.row-border-glow`, `.border-glow-svg`) on `.hud-queue-row` with `@keyframes rj-glow-loop` cycling `stroke-dashoffset` from 0 to -100 over 2.4s, dual-stroke (sharp `#57c1ff` + blurred `#00b4a4` glow), and soft ambient aura (`box-shadow: 0 0 18px rgba(0, 180, 164, 0.22)`). Dynamically toggled on active row matching `payload.itemId`.
-2. **Session 34 Polishing & Hardening Complete (`HEAD~1`)**:
+3. **Session 34 Polishing & Hardening Complete (`HEAD~2`)**:
    - **Granular Monotonic Progress Counter**: Replaced abrupt percentage jumps with real-time sub-stage reporting in `QueueManager.processItem()` (injecting 2-15%, generating 18-85% from live tile percentages, downloading 85-99% sequentially per card, completed 100%). Implemented `calculateCumulativeProgress` in `FlowHUDHost.js` accumulating across rows with strict `Math.max(lastOverallPercent, calculated)` monotonic enforcement.
    - **Form Controls Locking with Read-Only Inspection**: Implemented `setFormControlsDisabled(disabled)` locking selects, toolbar buttons, segment groups, checkboxes, textareas (`readOnly = true`), and media slots during execution. Refactored `bindRowEvents()` so clicking any row container while running allows switching focus and viewing parameters in the sidebar in read-only mode without mutating running state.
    - **Quick Action Paste Restoration**: Restored `#btnQuickPasteClipboard` in `renderEmptyDropzone()` with complete row default parameters.
