@@ -19,6 +19,10 @@ export const SELECTORS = {
   GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button, mat-button-toggle:has(span:has-text("M")) button',
   CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
 
+  // Project Sidenav / Left Navigation
+  SIDEBAR_COLLAPSE_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has-text("left_panel_close")',
+  SIDEBAR_EXPAND_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_open")), mat-list-item:has(mat-icon:has-text("left_panel_open")), mat-list-item:has-text("left_panel_open")',
+
   // Prompt Box & Creative Agent Suppression
   PROMPT_BOX_CONTAINER: 'flow-prompt-box.prompt-box-container',
   AGENT_MODE_CHIP: 'flow-agent-mode-toggle-chip button.agent-mode-chip',
@@ -75,7 +79,9 @@ export const LIGATURES = {
   ASPECT_SQUARE: 'crop_square',
   WARNING: 'warning',
   DELETE: 'delete',
-  DASHBOARD: 'dashboard'
+  DASHBOARD: 'dashboard',
+  LEFT_PANEL_CLOSE: 'left_panel_close',
+  LEFT_PANEL_OPEN: 'left_panel_open'
 };
 
 /**

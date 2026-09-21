@@ -180,13 +180,14 @@ export class QueueManager {
       const paramMode = cfg.paramMode || 'batch';
       logger.info(`QueueManager loop initiated with ${pendingItems.length} pending item(s) in [${paramMode.toUpperCase()}] mode`);
 
-      // 1. One-Time Page Setup Execution: Grid layout, size M, auto-clear prompt, and agent mode suppression
-      logger.step('header setup', 'Executing one-time page setup (grid layout, size M, auto-clear prompt)');
+      // 1. One-Time Page Setup Execution: Sidebar collapse, Grid layout, size S, auto-clear prompt, and agent mode suppression
+      logger.step('one-time setup', 'Executing one-time page setup (collapse sidebar, grid layout, size S, auto-clear prompt)');
       try {
+        await flowSettingsService.ensureSidebarCollapsed();
         await flowSettingsService.setupHeaderGridAndClearPrompt();
         await flowSettingsService.ensureAgentModeOff();
       } catch (setupErr) {
-        logger.warn('[QueueManager] One-time header setup warning', setupErr);
+        logger.warn('[QueueManager] One-time page setup warning', setupErr);
       }
 
       // 2. Parameter Branching Orchestration:

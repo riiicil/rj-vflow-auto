@@ -86,6 +86,28 @@ export class FlowSettingsService {
   }
 
   /**
+   * Ensures Google Flow's left project navigation sidebar is collapsed.
+   * If the sidebar is currently expanded (has left_panel_close icon), collapses it.
+   * If already collapsed, skips cleanly and logs state.
+   */
+  async ensureSidebarCollapsed() {
+    const collapseEl = query(SELECTORS.SIDEBAR_COLLAPSE_BUTTON) ||
+      queryIcon(LIGATURES.LEFT_PANEL_CLOSE)?.closest('mat-list-item, button, [role="button"]') ||
+      queryIcon(LIGATURES.LEFT_PANEL_CLOSE);
+
+    if (collapseEl) {
+      logger.step('sidebar setup', 'Collapsing left project navigation sidebar');
+      simulateClick(collapseEl);
+      await sleep(350);
+      logger.info('[FlowSettingsService] Left project navigation sidebar collapsed');
+      return true;
+    }
+
+    logger.info('[FlowSettingsService] Left project navigation sidebar already collapsed');
+    return false;
+  }
+
+  /**
    * Automates Google Flow top header settings (settings_2):
    * Enforces Grid view mode, Tile Size S, and Auto-Clear Prompt ON.
    * Executed once at the start of queue execution.
@@ -173,16 +195,23 @@ export class FlowSettingsService {
    */
   async ensureAgentModeOff() {
     const chipButton = query(SELECTORS.AGENT_MODE_CHIP);
-    if (!chipButton) return false;
+    if (!chipButton) {
+      logger.info('[FlowSettingsService] Creative Agent Mode toggle chip not found (or not present)');
+      return false;
+    }
 
     const isChecked = chipButton.classList.contains('agent-mode-chip-checked') ||
       Boolean(chipButton.closest(SELECTORS.AGENT_MODE_CONTAINER_CHECKED));
 
     if (isChecked) {
+      logger.step('agent mode', 'Creative Agent Mode detected active - turning OFF');
       simulateClick(chipButton);
       await sleep(350);
+      logger.info('[FlowSettingsService] Creative Agent Mode disabled successfully');
       return true;
     }
+
+    logger.info('[FlowSettingsService] Creative Agent Mode is already OFF');
     return false;
   }
 

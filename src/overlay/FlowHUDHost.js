@@ -408,7 +408,7 @@ export class FlowHUDHost {
     const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
       btnToggleSort.addEventListener('click', () => {
-        if (this.isRunning || this.queueItems.some(it => it.selected)) return;
+        if (this.isRunning || this.queueItems.length < 1 || this.queueItems.some(it => it.selected)) return;
         this.isSortMode = !this.isSortMode;
         if (!this.isSortMode) {
           this.selectedSwapSlot = null;
@@ -1892,12 +1892,21 @@ export class FlowHUDHost {
     // 3. Sort Button Conditional Disabled State
     const btnToggleSort = this.shadow.getElementById('btnToggleSortMode');
     if (btnToggleSort) {
-      const isSortDisabled = this.isRunning || selectedCount > 0;
+      const hasNoRows = !this.queueItems || this.queueItems.length < 1;
+      if (hasNoRows && this.isSortMode) {
+        this.isSortMode = false;
+        this.selectedSwapSlot = null;
+        btnToggleSort.classList.remove('active');
+      }
+
+      const isSortDisabled = this.isRunning || selectedCount > 0 || hasNoRows;
       btnToggleSort.disabled = isSortDisabled;
       btnToggleSort.classList.toggle('is-disabled', isSortDisabled);
       if (this.isRunning) {
         btnToggleSort.setAttribute('title', 'Queue is running');
-      } else if (isSortDisabled) {
+      } else if (hasNoRows) {
+        btnToggleSort.setAttribute('title', 'Add at least one row to enable sort mode');
+      } else if (selectedCount > 0) {
         btnToggleSort.setAttribute('title', 'Deselect items to enable reordering');
       } else {
         btnToggleSort.setAttribute('title', this.isSortMode ? 'Done sorting' : 'Toggle sort mode');

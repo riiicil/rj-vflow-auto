@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `a18f2e2` (`feat(hud): clean mount protocol, graceful stop engine, support button, and queue layout polish`)
+- **Latest Commit**: `2f6e1e4` (`feat(services): navigation sidebar auto-collapse, agent mode logging, and empty queue sort disabling`)
 - **Working Tree**: Clean (all 18 JS modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), Clean Mount Protocol verified, Graceful Stop engine verified, 50px prompt textarea matching media slot boxes verified, horizontal frame-to-video slot layout verified, standardized 12px sidebar parameter spacing verified, dynamic Support Dev button with Lucide donation variants verified, default Grid View Size S verified, Sort Mode Start Button locking verified.
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), Clean Mount Protocol verified, Graceful Stop engine verified, 50px prompt textarea matching media slot boxes verified, horizontal frame-to-video slot layout verified, standardized 12px sidebar parameter spacing verified, dynamic Support Dev button with Lucide donation variants verified, default Grid View Size S verified, Sort Mode Start Button locking verified, sidebar auto-collapse verified, agent mode logging polish verified, empty queue sort button disabling verified.
 
 ---
 
@@ -19,7 +19,11 @@ Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged 
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
 Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
 Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
-1. **Session 38 Default Grid View Size S & Sort Mode Start Button Locking (Commit 5, `f0f4c66`)**:
+1. **Session 39 Navigation Sidebar Auto-Collapse, Agent Mode Logging Polish & Empty Queue Sort Disabling (Commit 6, `2f6e1e4`)**:
+   - **Navigation Sidebar Auto-Collapse (`FlowDOM.js`, `FlowSettingsService.js`, `QueueManager.js`)**: Added `ensureSidebarCollapsed()` executing right after start before opening the `settings_2` header popover. Automatically clicks to collapse if expanded (`left_panel_close` ligature / selector), or skips cleanly if already collapsed.
+   - **Creative Agent Mode Logging Polish (`FlowSettingsService.js`)**: Added detailed step and info logging to `ensureAgentModeOff()`, recording active chip turn-off and already-off status in console.
+   - **Empty Queue Sort Button Disabling (`FlowHUDHost.js`, `FlowHUDTemplates.js`)**: Enforced that `#btnToggleSortMode` is disabled (`.is-disabled`, `disabled = true`, title `'Add at least one row to enable sort mode'`) whenever `queueItems.length < 1`. Added click guard and template initialization.
+2. **Session 38 Default Grid View Size S & Sort Mode Start Button Locking (Commit 5, `f0f4c66`)**:
    - **Default Grid View Size S Configuration (`FlowDOM.js`, `FlowSettingsService.js`)**: Updated `setupHeaderGridAndClearPrompt()` to toggle grid view Size S instead of Size M via `SELECTORS.GRID_SIZE_S_TOGGLE`. Retained `GRID_SIZE_M_TOGGLE` for backwards compatibility.
    - **Sort Mode Start Button Locking (`FlowHUDHost.js`)**: Enforced `#btnStartQueue` disabling and locking (`is-disabled` class and tooltip `'Sort mode active. Exit sort mode to start generation'`) while `isSortMode` is active. Re-evaluates queue readiness immediately upon exiting sort mode.
 2. **Session 37 Clean Mount Protocol, Graceful Stop Engine, Support Button & Queue Layout Polish Complete (Commit 4, `a18f2e2`)**:

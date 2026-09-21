@@ -86,7 +86,7 @@ export function renderStudioLayout() {
               <button class="rj-btn-icon rj-btn-danger" id="btnBulkDeleteQueue" type="button" title="Delete selected rows" style="display: none;">
                 ${ICONS.TRASH}
               </button>
-              <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnToggleSortMode" type="button" title="Toggle sort mode">
+              <button class="rj-btn rj-btn-secondary rj-btn-sm is-disabled" id="btnToggleSortMode" type="button" title="Add at least one row to enable sort mode" disabled>
                 ${ICONS.SORT}
                 <span>Sort</span>
               </button>
