@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `HEAD` (`feat(hud): granular monotonic progress, controls disabling during execution, and dead code purge`)
+- **Latest Commit**: `HEAD` (`feat(hud): synchronized pill status, redesigned sidebar header banner, and animated generating row glow`)
 - **Working Tree**: Clean (all 17 JS modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), cumulative monotonic progress calculation verified across single and multi-row queues, form controls locking with read-only row parameter inspection verified, quick action clipboard paste restoration verified, and pause/resume surfaces purged.
+- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), cumulative monotonic progress calculation verified, footer/pill status harmonization verified across idle/queued/processing, redesigned breadcrumb header validated, and hardware-accelerated animated glowing SVG borders verified.
 
 ---
 
@@ -19,7 +19,11 @@ Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged 
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
 Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
 Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
-1. **Session 34 Polishing & Hardening Complete (`HEAD`)**:
+1. **Session 35 Polishing & Hardening Complete (`HEAD`)**:
+   - **Footer & Floating Pill Status Harmonization**: Synchronized status reporting across both HUD bottom-left footer (`#hudQueueSummaryText`) and minimized floating pill (`#pillTickerText`, `#pillStatusDot`). Displays `[dot] Idle` when 0 rows are ready, `[>_] X prompt queued` (footer) / `[>_] X queued` (pill) when 1+ rows are ready, and `[spinner] Processing X/Y (Z%)` (footer) / `[spinner] Processing Z%` (pill) during execution. Auto-refreshes synchronously whenever textarea input or media changes.
+   - **Sidebar Header Parameter Banner Redesign**: Redesigned `#sidebarModeBanner` into a sleek Raycast-style breadcrumb header with subtle gradient dark surface (`#121316`), hairline border, and mode-specific accent styling (`.mode-batch`, `.mode-single`, `.mode-multi`). Features 20x20 mode icon badge (`ICONS.LAYERS` in cyan/purple, `ICONS.TARGET` in blue), uppercase title, pill badge, and clean prompt subtitle without raw quotation marks (with italic empty prompt placeholder).
+   - **Generating Row Animated Outline (Google Flow Agent Mode Parity)**: Implemented hardware-accelerated SVG border glow overlay (`.row-border-glow`, `.border-glow-svg`) on `.hud-queue-row` with `@keyframes rj-glow-loop` cycling `stroke-dashoffset` from 0 to -100 over 2.4s, dual-stroke (sharp `#57c1ff` + blurred `#00b4a4` glow), and soft ambient aura (`box-shadow: 0 0 18px rgba(0, 180, 164, 0.22)`). Dynamically toggled on active row matching `payload.itemId`.
+2. **Session 34 Polishing & Hardening Complete (`HEAD~1`)**:
    - **Granular Monotonic Progress Counter**: Replaced abrupt percentage jumps with real-time sub-stage reporting in `QueueManager.processItem()` (injecting 2-15%, generating 18-85% from live tile percentages, downloading 85-99% sequentially per card, completed 100%). Implemented `calculateCumulativeProgress` in `FlowHUDHost.js` accumulating across rows with strict `Math.max(lastOverallPercent, calculated)` monotonic enforcement.
    - **Form Controls Locking with Read-Only Inspection**: Implemented `setFormControlsDisabled(disabled)` locking selects, toolbar buttons, segment groups, checkboxes, textareas (`readOnly = true`), and media slots during execution. Refactored `bindRowEvents()` so clicking any row container while running allows switching focus and viewing parameters in the sidebar in read-only mode without mutating running state.
    - **Quick Action Paste Restoration**: Restored `#btnQuickPasteClipboard` in `renderEmptyDropzone()` with complete row default parameters.

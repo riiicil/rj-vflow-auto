@@ -477,6 +477,8 @@ svg.rj-icon,
 
 /* State B, C, D: Queue Row Items */
 .hud-queue-row {
+  position: relative;
+  overflow: hidden;
   background-color: var(--rj-bg-surface, #0d0d0d);
   border: 1px solid var(--rj-border-hairline, #242728);
   border-radius: var(--rj-radius-md, 8px);
@@ -500,9 +502,64 @@ svg.rj-icon,
   box-shadow: 0 0 0 1px rgba(0, 180, 164, 0.28);
 }
 
-.hud-queue-row.status-generating {
-  border-color: rgba(0, 180, 164, 0.6);
-  background-color: rgba(0, 180, 164, 0.06);
+/* Animated Glowing Perimeter for Running/Generating Rows (Google Flow Agent Mode Parity) */
+.row-border-glow {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: var(--rj-radius-md, 8px);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.hud-queue-row.is-processing .row-border-glow,
+.hud-queue-row.status-generating .row-border-glow,
+.hud-queue-row.status-injecting .row-border-glow,
+.hud-queue-row.status-downloading .row-border-glow {
+  opacity: 1;
+}
+
+.border-glow-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.border-glow-svg .glow-outline {
+  stroke: var(--rj-accent-cyan, #00b4a4);
+  animation: rj-glow-loop 2.4s linear infinite;
+}
+
+.border-glow-svg .glow-blur {
+  stroke-width: 3.5;
+  opacity: 0.65;
+  filter: drop-shadow(0 0 6px rgba(0, 180, 164, 0.85));
+}
+
+.border-glow-svg .glow-sharp {
+  stroke-width: 1.5;
+  opacity: 1;
+  stroke: #57c1ff;
+}
+
+@keyframes rj-glow-loop {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -100;
+  }
+}
+
+.hud-queue-row.is-processing,
+.hud-queue-row.status-generating,
+.hud-queue-row.status-injecting,
+.hud-queue-row.status-downloading {
+  border-color: transparent !important;
+  background-color: rgba(0, 180, 164, 0.04);
+  box-shadow: 0 0 18px rgba(0, 180, 164, 0.22), inset 0 0 8px rgba(0, 180, 164, 0.04);
 }
 
 .hud-queue-row.status-completed {
@@ -892,49 +949,123 @@ svg.rj-icon,
   max-width: 190px;
 }
 
-/* Sidebar Mode Indicator Banner */
+/* Sidebar Mode Indicator Banner (Precision Breadcrumb Bar) */
 .sidebar-mode-banner {
   margin-bottom: 2px;
-  padding: 8px 10px;
-  background-color: var(--rj-bg-card, #121212);
-  border: 1px solid var(--rj-border-hairline, #242728);
+  padding: 9px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%), #121316;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--rj-radius-md, 8px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.sidebar-banner-header {
+.sidebar-mode-banner.mode-batch {
+  border-color: rgba(0, 180, 164, 0.25);
+  background: linear-gradient(180deg, rgba(0, 180, 164, 0.06) 0%, rgba(0, 180, 164, 0.01) 100%), #121316;
+}
+
+.sidebar-mode-banner.mode-single {
+  border-color: rgba(87, 193, 255, 0.28);
+  background: linear-gradient(180deg, rgba(87, 193, 255, 0.06) 0%, rgba(87, 193, 255, 0.01) 100%), #121316;
+}
+
+.sidebar-mode-banner.mode-multi {
+  border-color: rgba(192, 132, 252, 0.28);
+  background: linear-gradient(180deg, rgba(192, 132, 252, 0.06) 0%, rgba(192, 132, 252, 0.01) 100%), #121316;
+}
+
+.sidebar-banner-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
+}
+
+.sidebar-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.sidebar-banner-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 180, 164, 0.12);
+  color: var(--rj-accent-cyan, #00b4a4);
+  flex-shrink: 0;
+}
+
+.sidebar-banner-icon.icon-single {
+  background: rgba(87, 193, 255, 0.14);
+  color: #57c1ff;
+}
+
+.sidebar-banner-icon.icon-multi {
+  background: rgba(192, 132, 252, 0.14);
+  color: #c084fc;
+}
+
+.sidebar-banner-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sidebar-banner-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--rj-text-primary, #ffffff);
+  white-space: nowrap;
+  letter-spacing: 0.25px;
 }
 
 .sidebar-banner-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 7px;
+  border-radius: var(--rj-radius-pill, 9999px);
   background: rgba(0, 180, 164, 0.15);
+  border: 1px solid rgba(0, 180, 164, 0.3);
   color: var(--rj-accent-cyan, #00b4a4);
-  width: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sidebar-banner-badge.badge-single {
-  background: rgba(87, 193, 255, 0.15);
+  background: rgba(87, 193, 255, 0.12);
+  border-color: rgba(87, 193, 255, 0.3);
   color: #57c1ff;
+}
+
+.sidebar-banner-badge.badge-multi {
+  background: rgba(192, 132, 252, 0.12);
+  border-color: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
 }
 
 .sidebar-banner-desc {
   font-size: 11px;
-  color: var(--rj-text-muted, #a2a8b5);
+  color: var(--rj-text-muted, #8b929e);
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 2px;
+}
+
+.sidebar-banner-desc.is-empty {
+  font-style: italic;
+  color: var(--rj-text-ash, #6a6b6c);
 }
 
 .hud-sidebar-scroll {
@@ -997,6 +1128,15 @@ svg.rj-icon,
   user-select: none;
 }
 
+.hud-stats-badge .dot-idle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--rj-text-ash, #6a6b6c);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .hud-stats-badge svg {
   width: 13px;
   height: 13px;
@@ -1005,6 +1145,10 @@ svg.rj-icon,
 
 .hud-stats-badge.is-processing {
   color: var(--rj-accent-cyan, #00b4a4);
+}
+
+.hud-stats-badge.is-queued {
+  color: var(--rj-text-secondary, #cccccc);
 }
 
 .rj-spin {
@@ -1151,11 +1295,28 @@ svg.rj-icon,
 .pill-ticker {
   font-size: 11px;
   font-weight: 500;
-  color: var(--rj-text-primary, #ffffff);
-  max-width: 140px;
+  color: var(--rj-text-secondary, #cccccc);
+  max-width: 150px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill-ticker.is-processing {
+  color: var(--rj-accent-cyan, #00b4a4);
+}
+
+.pill-ticker.is-queued {
+  color: var(--rj-text-primary, #ffffff);
+}
+
+.pill-ticker svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .pill-expand-btn {

@@ -655,7 +655,6 @@ export class FlowHUDHost {
           bStart.disabled = false;
         }
         this.setFormControlsDisabled(true);
-        this.updateTicker('Running', 'running');
         this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
       } else if (state === QUEUE_STATES.STOPPED) {
         this.isRunning = false;
@@ -666,7 +665,10 @@ export class FlowHUDHost {
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         }
         this.setFormControlsDisabled(false);
-        this.updateTicker('Stopped', 'stopped');
+        const container = this.shadow?.getElementById('hudQueueContent');
+        if (container) {
+          container.querySelectorAll('.hud-queue-row.is-processing').forEach(r => r.classList.remove('is-processing'));
+        }
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
         this.updateQueueSummaryUI(false);
@@ -679,23 +681,39 @@ export class FlowHUDHost {
           bStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         }
         this.setFormControlsDisabled(false);
-        this.updateTicker('Idle', 'idle');
+        const container = this.shadow?.getElementById('hudQueueContent');
+        if (container) {
+          container.querySelectorAll('.hud-queue-row.is-processing').forEach(r => r.classList.remove('is-processing'));
+        }
         this.syncQueueFromStorage().catch(() => {});
         this.updateStartButtonState();
         this.updateQueueSummaryUI(false);
       }
     });
 
-
     queueManager.onProgress((payload) => {
       if (!payload || !payload.itemId) return;
+
+      const container = this.shadow?.getElementById('hudQueueContent');
+      const isProcessing = (payload.status === 'injecting' || payload.status === 'generating' || payload.status === 'downloading');
+
+      // Manage active glowing row animation on all rows
+      if (container) {
+        container.querySelectorAll('.hud-queue-row').forEach(r => {
+          if (r.dataset.id === payload.itemId && isProcessing) {
+            r.classList.add('is-processing');
+          } else {
+            r.classList.remove('is-processing');
+          }
+        });
+      }
 
       const row = this.shadow.querySelector(`.hud-queue-row[data-id="${payload.itemId}"]`);
       if (row) {
         const status = payload.status || 'pending';
         const isChecked = row.classList.contains('row-checked');
         const isActive = row.classList.contains('row-active');
-        row.className = `hud-queue-row status-${status}${isActive ? ' row-active' : ''}${isChecked ? ' row-checked' : ''}`;
+        row.className = `hud-queue-row status-${status}${isActive ? ' row-active' : ''}${isChecked ? ' row-checked' : ''}${isProcessing ? ' is-processing' : ''}`;
 
         let badge = row.querySelector('.row-status-badge');
         if (!badge) {
@@ -748,8 +766,7 @@ export class FlowHUDHost {
       const total = this.queueItems.length || 1;
       const overallPercent = this.calculateCumulativeProgress(payload.itemId, payload.status, payload.percent);
 
-      if (payload.status === 'generating' || payload.status === 'injecting' || payload.status === 'downloading') {
-        this.updateTicker(`${payload.status.toUpperCase()} (${overallPercent}%)`, 'running');
+      if (isProcessing) {
         this.updateQueueSummaryUI(true, { current, total, percent: overallPercent });
       } else if (payload.status === 'completed' || payload.status === 'failed') {
         this.updateQueueSummaryUI(true, { current, total, percent: overallPercent });
@@ -912,22 +929,66 @@ export class FlowHUDHost {
   }
 
   /**
-   * Updates the bottom-left footer summary badge.
-   * Idle: [Prompt SVG] X prompt queued
-   * Running: [Spinner SVG] Processing X/Y (Z%)
+   * Synchronizes both the bottom-left footer summary badge and minimized floating pill.
+   * Idle with 0 ready items: [dot] Idle
+   * Idle with N ready items: [Prompt SVG] N prompt queued (footer) / N queued (pill)
+   * Running: [Spinner SVG] Processing X/Y (Z%) (footer) / Processing Z% (pill)
    */
   updateQueueSummaryUI(isProcessing = false, progressInfo = null) {
     const summaryEl = this.shadow?.getElementById('hudQueueSummaryText');
-    if (!summaryEl) return;
+    const pillTicker = this.shadow?.getElementById('pillTickerText');
+    const pillDot = this.shadow?.getElementById('pillStatusDot');
+
+    // Count how many rows are genuinely ready with non-empty prompts and required media
+    const readyCount = this.queueItems.filter(it => {
+      const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
+      const info = getRowStatusInfo(it, rowMode);
+      return info.label === 'READY';
+    }).length;
 
     if (isProcessing && progressInfo) {
       const { current, total, percent } = progressInfo;
-      summaryEl.className = 'hud-stats-badge is-processing';
-      summaryEl.innerHTML = `${ICONS.SPINNER} <span>Processing ${current}/${total} (${percent}%)</span>`;
+      // 1. Footer summary
+      if (summaryEl) {
+        summaryEl.className = 'hud-stats-badge is-processing';
+        summaryEl.innerHTML = `${ICONS.SPINNER} <span>Processing ${current}/${total} (${percent}%)</span>`;
+      }
+      // 2. Minimized floating pill
+      if (pillTicker) {
+        pillTicker.className = 'pill-ticker is-processing';
+        pillTicker.innerHTML = `${ICONS.SPINNER} <span>Processing ${percent}%</span>`;
+      }
+      if (pillDot) {
+        pillDot.style.display = 'none';
+      }
     } else {
-      const count = this.queueItems.length;
-      summaryEl.className = 'hud-stats-badge';
-      summaryEl.innerHTML = `${ICONS.PROMPT} <span>${count} prompt queued</span>`;
+      // Idle state
+      if (readyCount > 0) {
+        if (summaryEl) {
+          summaryEl.className = 'hud-stats-badge is-queued';
+          summaryEl.innerHTML = `${ICONS.PROMPT} <span>${readyCount} prompt queued</span>`;
+        }
+        if (pillTicker) {
+          pillTicker.className = 'pill-ticker is-queued';
+          pillTicker.innerHTML = `${ICONS.PROMPT} <span>${readyCount} queued</span>`;
+        }
+        if (pillDot) {
+          pillDot.style.display = 'none';
+        }
+      } else {
+        if (summaryEl) {
+          summaryEl.className = 'hud-stats-badge is-idle';
+          summaryEl.innerHTML = `<span class="dot-idle"></span> <span>Idle</span>`;
+        }
+        if (pillTicker) {
+          pillTicker.className = 'pill-ticker is-idle';
+          pillTicker.innerHTML = `<span>Idle</span>`;
+        }
+        if (pillDot) {
+          pillDot.style.display = 'inline-block';
+          pillDot.className = 'pill-status-dot dot-idle';
+        }
+      }
     }
   }
 
@@ -1811,6 +1872,8 @@ export class FlowHUDHost {
       btnStart.classList.remove('is-disabled');
       btnStart.title = 'Start batch generation';
     }
+
+    this.updateQueueSummaryUI(false);
   }
 
   /**
@@ -1990,6 +2053,9 @@ export class FlowHUDHost {
   updateSidebarParamModeUI() {
     const placeholder = this.shadow.getElementById('sidebarSinglePlaceholder');
     const controls = this.shadow.getElementById('sidebarControls');
+    const banner = this.shadow.getElementById('sidebarModeBanner');
+    const icon = this.shadow.getElementById('sidebarBannerIcon');
+    const title = this.shadow.getElementById('sidebarBannerTitle');
     const badge = this.shadow.getElementById('sidebarBannerBadge');
     const desc = this.shadow.getElementById('sidebarBannerDesc');
     if (!placeholder || !controls) return;
@@ -2002,14 +2068,25 @@ export class FlowHUDHost {
       placeholder.style.display = 'none';
       controls.style.display = '';
 
+      if (banner) {
+        banner.className = 'sidebar-mode-banner mode-batch';
+      }
+      if (icon) {
+        icon.className = 'sidebar-banner-icon';
+        icon.innerHTML = ICONS.LAYERS;
+      }
+      if (title) {
+        title.textContent = 'Batch Settings';
+      }
       if (badge) {
         badge.className = 'sidebar-banner-badge';
-        badge.textContent = 'BATCH PARAMETERS';
+        badge.textContent = 'GLOBAL';
       }
       if (desc) {
+        desc.className = 'sidebar-banner-desc';
         desc.textContent = totalCount > 0
-          ? `Applies to all ${totalCount} rows in queue`
-          : 'Applies to all rows in queue';
+          ? `Synced across all ${totalCount} rows`
+          : 'Synced across all rows in queue';
         desc.title = desc.textContent;
       }
     } else {
@@ -2023,12 +2100,23 @@ export class FlowHUDHost {
 
         if (selectedCount > 1) {
           // Multi-Selection (> 1 item checked)
+          if (banner) {
+            banner.className = 'sidebar-mode-banner mode-multi';
+          }
+          if (icon) {
+            icon.className = 'sidebar-banner-icon icon-multi';
+            icon.innerHTML = ICONS.LAYERS;
+          }
+          if (title) {
+            title.textContent = 'Multi-Row Settings';
+          }
           if (badge) {
-            badge.className = 'sidebar-banner-badge badge-single';
-            badge.textContent = `MULTI-SELECTION (${selectedCount})`;
+            badge.className = 'sidebar-banner-badge badge-multi';
+            badge.textContent = `${selectedCount} ROWS`;
           }
           if (desc) {
-            desc.textContent = `Changes apply to ${selectedCount} selected rows`;
+            desc.className = 'sidebar-banner-desc';
+            desc.textContent = `Editing ${selectedCount} selected rows simultaneously`;
             desc.title = `${selectedCount} rows selected`;
           }
 
@@ -2038,21 +2126,38 @@ export class FlowHUDHost {
           const targetItem = selectedCount === 1 ? selectedItems[0] : this.queueItems[this.activeRowIdx];
           const targetIdx = this.queueItems.indexOf(targetItem);
           const rawPrompt = (targetItem?.prompt || '').trim();
-          let promptPreview = 'No prompt text';
+          let promptPreview = '';
           if (rawPrompt) {
-            const maxChars = 38;
+            const maxChars = 36;
             promptPreview = rawPrompt.length > maxChars
               ? rawPrompt.substring(0, maxChars).trim() + '...'
               : rawPrompt;
           }
 
+          if (banner) {
+            banner.className = 'sidebar-mode-banner mode-single';
+          }
+          if (icon) {
+            icon.className = 'sidebar-banner-icon icon-single';
+            icon.innerHTML = ICONS.TARGET;
+          }
+          if (title) {
+            title.textContent = `Row #${targetIdx + 1} Settings`;
+          }
           if (badge) {
             badge.className = 'sidebar-banner-badge badge-single';
-            badge.textContent = `ITEM #${targetIdx + 1}`;
+            badge.textContent = `ROW #${targetIdx + 1}`;
           }
           if (desc) {
-            desc.textContent = `"${promptPreview}"`;
-            desc.title = rawPrompt || 'No prompt text';
+            if (promptPreview) {
+              desc.className = 'sidebar-banner-desc';
+              desc.textContent = promptPreview;
+              desc.title = rawPrompt;
+            } else {
+              desc.className = 'sidebar-banner-desc is-empty';
+              desc.textContent = 'Empty prompt — default parameters';
+              desc.title = 'No prompt text entered yet';
+            }
           }
 
           if (targetItem) {
@@ -2443,14 +2548,13 @@ export class FlowHUDHost {
         btnStart.innerHTML = `${ICONS.STOP} <span id="btnStartQueueText">Stop</span>`;
         btnStart.title = 'Stop running generation';
         btnStart.disabled = false;
-        this.updateTicker('Running', 'running');
+        this.updateQueueSummaryUI(true, { current: 1, total: Math.max(1, this.queueItems.length), percent: 0 });
       } else if (queueManager.getState() !== QUEUE_STATES.RUNNING) {
         btnStart.classList.remove('rj-btn-danger', 'rj-btn-stop');
         btnStart.classList.add('rj-btn-accent');
         btnStart.innerHTML = `${ICONS.PLAY} <span id="btnStartQueueText">Start</span>`;
         btnStart.title = 'Start batch generation';
         btnStart.disabled = false;
-        this.updateTicker('Idle', 'idle');
         this.updateQueueSummaryUI(false);
       }
     }
