@@ -7,9 +7,9 @@
 ## 1. Immediate Operational State
 - **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
 - **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: Pending (`feat(hud): clean mount protocol, graceful stop engine, support button, and queue layout polish`)
-- **Working Tree**: Clean (all 17 JS modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 17 JS modules passing syntax validation (`node --check`), Clean Mount Protocol verified, Graceful Stop engine verified, 50px prompt textarea matching media slot boxes verified, horizontal frame-to-video slot layout verified, standardized 12px sidebar parameter spacing verified, dynamic Support Dev button with Lucide donation variants verified.
+- **Latest Commit**: `a18f2e2` (`feat(hud): clean mount protocol, graceful stop engine, support button, and queue layout polish`)
+- **Working Tree**: Clean (all 18 JS modules verified syntax-valid)
+- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), Clean Mount Protocol verified, Graceful Stop engine verified, 50px prompt textarea matching media slot boxes verified, horizontal frame-to-video slot layout verified, standardized 12px sidebar parameter spacing verified, dynamic Support Dev button with Lucide donation variants verified, default Grid View Size S verified, Sort Mode Start Button locking verified.
 
 ---
 
@@ -19,7 +19,10 @@ Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged 
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
 Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
 Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
-1. **Session 37 Clean Mount Protocol, Graceful Stop Engine, Support Button & Queue Layout Polish Complete (Commit 4, Pending)**:
+1. **Session 38 Default Grid View Size S & Sort Mode Start Button Locking (Commit 5, `f0f4c66`)**:
+   - **Default Grid View Size S Configuration (`FlowDOM.js`, `FlowSettingsService.js`)**: Updated `setupHeaderGridAndClearPrompt()` to toggle grid view Size S instead of Size M via `SELECTORS.GRID_SIZE_S_TOGGLE`. Retained `GRID_SIZE_M_TOGGLE` for backwards compatibility.
+   - **Sort Mode Start Button Locking (`FlowHUDHost.js`)**: Enforced `#btnStartQueue` disabling and locking (`is-disabled` class and tooltip `'Sort mode active. Exit sort mode to start generation'`) while `isSortMode` is active. Re-evaluates queue readiness immediately upon exiting sort mode.
+2. **Session 37 Clean Mount Protocol, Graceful Stop Engine, Support Button & Queue Layout Polish Complete (Commit 4, `a18f2e2`)**:
    - **Clean Mount Protocol (Eliminating Initial White Border Glitch / FOUC on Refresh)**: Diagnosed root cause of transient white border flash across native form controls during page refresh (Chromium asynchronously fetches `<link>` stylesheets in Shadow DOM, paints unstyled elements with UA borders, and animates `transition: all 0.18s` when Raycast styles attach). Added inline `style="display: none;"` to `#selParamMode`, `#selGenerationMode`, `#selModelFamily`, and `#selResolution` in `renderStudioLayout()`, preventing raw select rendering before `CustomSelect.initAll()`. Refactored `init()` in `FlowHUDHost.js` to wait for all 3 stylesheets via `Promise.all` with a 150ms safety timeout before mounting markup. Added `#flow-hud-container.is-mounting` rules in `overlay.css` (`opacity: 0 !important; pointer-events: none !important; transition: none !important;`), cleanly removed via `requestAnimationFrame` once initial DOM configuration and `CustomSelect` enhancement are complete.
    - **Prompt Row & Textarea Proportions**: Solved vertical badge clipping (`T2V ...`, `NOT READY`) caused by flex-shrink default in `.hud-queue-content`. Set `flex-shrink: 0;` on `.hud-queue-row`, standardized `.row-prompt-input` height to `50px` (`height: 50px; min-height: 50px; resize: none; line-height: 1.4; padding: 6px 9px;`), perfectly matching the 50px height of `.row-media-slot` (ingredients & frame boxes). Added `margin-top: 6px; margin-bottom: 2px;` on `.row-badges-group`, and custom Raycast dark precision scrollbars (`width: 5px;`, thumb `#242728;`).
    - **Horizontal Frame-to-Video Slot Arrangement**: Added `.row-frames-wrapper, .row-frames-group` rule (`display: flex; flex-direction: row; align-items: center; gap: 6px; flex-shrink: 0;`), fixing class name discrepancy from commit `e55dcad` and ensuring Start Frame, Swap Button, and End Frame sit horizontally side-by-side on the left, pushing the prompt textarea cleanly to the right.

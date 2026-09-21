@@ -15,7 +15,8 @@ export const SELECTORS = {
   SETTINGS_2_BUTTON: 'flow-tile-view-header .tools-button-group button:has(mat-icon:has-text("settings_2"))',
   OVERLAY_PANE: 'div.cdk-overlay-pane',
   GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
-  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button',
+  GRID_SIZE_S_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("S")) button, mat-button-toggle:has(span:has-text("S")) button',
+  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button, mat-button-toggle:has(span:has-text("M")) button',
   CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
 
   // Prompt Box & Creative Agent Suppression

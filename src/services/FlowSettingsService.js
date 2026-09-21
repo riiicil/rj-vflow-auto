@@ -87,11 +87,11 @@ export class FlowSettingsService {
 
   /**
    * Automates Google Flow top header settings (settings_2):
-   * Enforces Grid view mode, Tile Size M, and Auto-Clear Prompt ON.
+   * Enforces Grid view mode, Tile Size S, and Auto-Clear Prompt ON.
    * Executed once at the start of queue execution.
    */
   async setupHeaderGridAndClearPrompt(timeout = 5000) {
-    logger.step('header setup', 'Configuring Grid mode, Size M, and Auto-Clear Prompt');
+    logger.step('header setup', 'Configuring Grid mode, Size S, and Auto-Clear Prompt');
 
     let triggerBtn = query(SELECTORS.SETTINGS_2_BUTTON);
     if (!triggerBtn) {
@@ -130,11 +130,11 @@ export class FlowSettingsService {
         await sleep(300);
       }
 
-      // 2. Tile size M toggle
-      const sizeMBtn = query(SELECTORS.GRID_SIZE_M_TOGGLE, pane) ||
-        query('mat-button-toggle:has(span:has-text("M")) button', document);
-      if (sizeMBtn && !this.isToggleChecked(sizeMBtn)) {
-        simulateClick(sizeMBtn);
+      // 2. Tile size S toggle
+      const sizeSBtn = query(SELECTORS.GRID_SIZE_S_TOGGLE, pane) ||
+        query('mat-button-toggle:has(span:has-text("S")) button', document);
+      if (sizeSBtn && !this.isToggleChecked(sizeSBtn)) {
+        simulateClick(sizeSBtn);
         await sleep(300);
       }
 

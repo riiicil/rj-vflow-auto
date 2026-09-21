@@ -415,6 +415,7 @@ export class FlowHUDHost {
         }
         btnToggleSort.classList.toggle('active', this.isSortMode);
         this.renderQueueContent();
+        this.updateStartButtonState();
       });
     }
 
@@ -1944,6 +1945,14 @@ export class FlowHUDHost {
       btnStart.disabled = true;
       btnStart.classList.add('is-disabled', 'is-stopping');
       btnStart.title = 'Stopping generation (finishing active item)...';
+      return;
+    }
+
+    if (this.isSortMode) {
+      btnStart.disabled = true;
+      btnStart.classList.add('is-disabled');
+      btnStart.title = 'Sort mode active. Exit sort mode to start generation';
+      this.updateQueueSummaryUI(false);
       return;
     }
 
