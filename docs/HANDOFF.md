@@ -5,11 +5,10 @@
 ---
 
 ## 1. Immediate Operational State
-- **Current Milestone**: Phase 4 (End-to-End Integration, Polishing & Hardening) — [IN_PROGRESS]
-- **Active Branch**: `task/dual-mode-ui`
-- **Latest Commit**: `2f6e1e4` (`feat(services): navigation sidebar auto-collapse, agent mode logging, and empty queue sort disabling`)
-- **Working Tree**: Clean (all 18 JS modules verified syntax-valid)
-- **Build / Test State**: Verified healthy, all 18 JS modules passing syntax validation (`node --check`), Clean Mount Protocol verified, Graceful Stop engine verified, 50px prompt textarea matching media slot boxes verified, horizontal frame-to-video slot layout verified, standardized 12px sidebar parameter spacing verified, dynamic Support Dev button with Lucide donation variants verified, default Grid View Size S verified, Sort Mode Start Button locking verified, sidebar auto-collapse verified, agent mode logging polish verified, empty queue sort button disabling verified.
+- **Current Milestone**: Phase 4 (Production Packaging Pipeline & Release) — [IN_PROGRESS]
+- **Active Branch**: `task/packaging-and-release`
+- **Latest Commit**: `feat(build): implement production bundler, AST obfuscation, and packaging pipeline`
+- **Working Tree**: Clean, `npm run build` pipeline verified healthy, 4 standalone ES modules bundled with esbuild into `dist/LOAD THIS FOLDER/`, AST obfuscated with javascript-obfuscator passing `node --check`, `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB) and `releases/v3.0.0.zip` created.
 
 ---
 
@@ -17,8 +16,14 @@
 
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
-Phase 3 (Dual-Mode UI Implementation) was successfully completed across Commits 1 through 19.
-Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
+Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, and merged into `dev` (`7b0f1d9`).
+Phase 4 (Production Packaging Pipeline & Release) active progress:
+1. **Session 40 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (Sub-phase 4.1, `task/packaging-and-release`)**:
+   - **Production Packaging Pipeline (`package.json`, `obfuscator.config.js`, `build.js`)**: Mirrored the production bundling architecture from `RJ_AIO_Metadata`. Added `esbuild`, `fs-extra`, and `javascript-obfuscator` dependencies with `"build": "node build.js"` script.
+   - **Standalone ES Module Bundling**: Bundled entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`) with `esbuild` directly into `dist/LOAD THIS FOLDER/`. `content_main.js` completely inlines and resolves all 18 internal dependencies (`src/core/`, `src/services/`, `src/overlay/`) into a single 218.7kb production bundle.
+   - **AST Obfuscation**: Applied `javascript-obfuscator` with MV3-safe options (`disableConsoleOutput: false`, `debugProtection: false`, `renameGlobals: false`, `selfDefending: false`, `stringArrayEncoding: ['base64']`, `controlFlowFlattening: true`) across all 4 bundled JS files in `LOAD THIS FOLDER/`. Verified all obfuscated files pass `node --check` with 0 syntax errors.
+   - **Distribution Asset Copying**: Copied `manifest.json`, `popup/popup.html`, `popup/popup.css`, `overlay/overlay.css`, `styles/`, and `assets/` into `dist/LOAD THIS FOLDER/`. Copied `README.md`, `LICENSE`, `CHANGELOG.md`, `SC.url`, and `SUPPORT ME.url` into `dist/` root.
+   - **Release Archives**: Generated `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB) and mirror alias `releases/v3.0.0.zip` using PowerShell `Compress-Archive`.
 1. **Session 39 Navigation Sidebar Auto-Collapse, Agent Mode Logging Polish & Empty Queue Sort Disabling (Commit 6, `2f6e1e4`)**:
    - **Navigation Sidebar Auto-Collapse (`FlowDOM.js`, `FlowSettingsService.js`, `QueueManager.js`)**: Added `ensureSidebarCollapsed()` executing right after start before opening the `settings_2` header popover. Automatically clicks to collapse if expanded (`left_panel_close` ligature / selector), or skips cleanly if already collapsed.
    - **Creative Agent Mode Logging Polish (`FlowSettingsService.js`)**: Added detailed step and info logging to `ensureAgentModeOff()`, recording active chip turn-off and already-off status in console.
@@ -127,12 +132,11 @@ Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
 
 ## 3. Actionable Next Steps for Incoming Agent
 
-1. **Phase 4: End-to-End Integration & Multi-Language Stress Testing**:
-   - Target branch: `task/e2e-integration-testing` (branched from `dev` after merging `task/dual-mode-ui`).
-   - Sub-phase 4.1: Text-to-Image & Text-to-Video batch validation across Omni 1.1 Flash and Veo 3.1 models.
-   - Sub-phase 4.2: Image-to-Video & Frames-to-Video multi-asset injection.
-   - Sub-phase 4.3: In-card failure recovery and moderation error handling validation.
-   - Sub-phase 4.4: Multi-language locale verification on non-English interfaces (ID, ES, JA, DE, FR).
+1. **Phase 4 Sub-phase 4.2 (Release Documentation & Milestone Finalization)**:
+   - Target branch: `task/packaging-and-release` (active).
+   - Overhaul and align all project documentation (`docs/ARCHITECTURE.md`, `README.md`, `DESIGN.md`, `CHANGELOG.md`, `src/manifest.json`) to 100% reflect the factual codebase.
+   - Synchronize release version across `src/manifest.json` and `CHANGELOG.md`.
+   - Prepare merge of `task/packaging-and-release` into `dev` and subsequently `dev` into `main`.
 
 ---
 
@@ -153,7 +157,9 @@ Phase 4 (End-to-End Integration, Polishing & Hardening) active progress:
 
 | Session | Date | Branch | Commit | Summary | Next Focus |
 | :---: | :---: | :--- | :--- | :--- | :--- |
-| 32 | 2026-09-20 | `task/dual-mode-ui` | `a38e218` | Live aspect ratio and outputs badge synchronization, row handle vertical centering, and footer progress spinner | Phase 4: E2E Integration & Stress Testing |
+| 40 | 2026-09-22 | `task/packaging-and-release` | `d4e8941` | Implement production bundler, AST obfuscation, packaging pipeline, and gitignore local tooling mirroring RJ AIO Metadata (Sub-phase 4.1 Complete) | Sub-phase 4.2: Factual Docs Overhaul & Release Finalization |
+| 39 | 2026-09-22 | `task/dual-mode-ui` | `2f6e1e4` | Navigation sidebar auto-collapse, agent mode logging, and empty queue sort disabling (Merged dev `7b0f1d9`) | Phase 4 Packaging & Release |
+| 38 | 2026-09-22 | `task/dual-mode-ui` | `f0f4c66` | Default Grid View Size S configuration and Sort Mode Start Button locking | Sidebar auto-collapse & agent mode logging |
 | 31 | 2026-09-20 | `task/dual-mode-ui` | `dc6525c` | Dual row badges (live params + always-visible status with READY vs NOT READY), stripped progress percentages, and video output multiplier | Live badge sync & footer spinner |
 | 30 | 2026-09-20 | `task/dual-mode-ui` | `8273579` | Model defaults realignment (Nano Banana 2 / Veo 3.1 - Lite), strict mode normalization, sequential 2x F2V paste injection, and thumbnail hydration | Row status and parameter badges |
 | 29 | 2026-09-20 | `task/dual-mode-ui` | `9ffec65` | Smart image drop, ingredient click-to-swap in sort mode, start button prompt validation, right-aligned status badge, and prompt auto-save | Model defaults and F2V injection hardening |

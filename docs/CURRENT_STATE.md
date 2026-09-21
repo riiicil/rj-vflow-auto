@@ -1,8 +1,8 @@
 # Current Project State — RJ V-Flow Auto Extension
 
 *Last Updated: 2026-09-22*<br>
-*Active Branch: `task/dual-mode-ui`*<br>
-*Current Milestone: Phase 4 (Integration, Polishing & Hardening) — [IN_PROGRESS]*
+*Active Branch: `task/packaging-and-release`*<br>
+*Current Milestone: Phase 4 (Production Packaging Pipeline & Release) — [IN_PROGRESS]*
 
 ---
 
@@ -10,9 +10,8 @@
 
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Sub-phase 1.1 complete: legacy branch isolated and pushed, gitignore hardened; Sub-phase 1.2 complete: root zip archives, legacy version folders, and obsolete UI scripts purged; Sub-phase 1.3 complete: complete governance documentation suite established and GOOGLE_FLOW_DOM reference ported; Sub-phase 1.4 complete: root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (Sub-phases 2.1 through 2.5 complete: FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented and verified; merged into dev `c14ca68`)
-- **Phase 3 — Dual-Mode UI Implementation**: [COMPLETE] (Sub-phases 3.1 through 3.4 complete across Commits 1 through 19: two-column Studio HUD in Shadow DOM, drag physics, dark precision styling, dual row badges, multi-select checkboxes, sort mode drag-and-drop reordering, single vs batch parameter bindings, IndexedDB binary storage engine, multi-row batch tile collection across virtual scroll rows for multi-output downloads, and prompt validation)
-- **Phase 4 — End-to-End Integration, Polishing & Hardening**: [IN_PROGRESS] (Commit 1 complete: granular monotonic progress counter across sub-stages [params, media, prompt, live generation, downloading], complete form controls disabling during batch execution with read-only parameter inspection on row clicks, quick action paste-from-clipboard restoration with complete row defaults, and thorough codebase audit purging pause/resume dead code and obsolete surfaces; Commit 2 complete: harmonized minimized floating pill and bottom-left footer summary status across idle [0 ready -> Idle], ready [>=1 ready -> X queued], and processing [Processing Z%], redesigned sidebar header parameter banner with sleek breadcrumb bar, 20x20 mode icon badge, uppercase titles, pill badges, and prompt subtitle without raw quotes, and added hardware-accelerated animated SVG border glow on running/generating rows matching Google Flow native agent prompt box style; Commit 3 complete: comprehensive form controls disabling during execution across selects, segmented buttons, checkboxes, toolbar actions, and prompt textareas with preserved row container selection/deselection, and dynamic QUEUED row status badge during active batch runs; Commit 4 complete `a18f2e2`: Clean Mount Protocol eliminating initial white border flash / FOUC on page refresh via pre-hidden native selects in templates, stylesheet loading gate [Promise.all], and mount-time transition suppression [.is-mounting], prompt row compression & badge clipping resolution via flex-shrink: 0, 50px prompt textarea matching ingredient & frame thumbnail boxes, horizontal frame-to-video slot arrangement [.row-frames-wrapper], standardized 12px vertical spacing across all sidebar parameters, QueueManager graceful stop engine [QUEUE_STATES.STOPPING, active item completion before halting], tile watcher resilience eliminating string matching in favor of DOM boundary tracking aligned with legacy wisdom, uploaded ingredient tile filtering [isIngredientTile, media extension & redo hotbar check], completed image card detection via flow-tile-hover-footer, high-contrast disabled form controls, and dynamic Support Dev button with 116px fixed width, 6s rotation, and smooth fade/expand CSS animations; Commit 5 complete `f0f4c66`: Default Grid View Size S configuration via FlowSettingsService and SELECTORS.GRID_SIZE_S_TOGGLE, and Sort Mode Start Generation button locking with instant updateStartButtonState synchronization; Commit 6 complete `2f6e1e4`: Left project navigation sidebar auto-collapse before header settings setup, comprehensive Creative Agent Mode logging polish, and empty queue sort button disabling)
-- **Phase 5 — Production Packaging Pipeline & Release**: [PLANNED]
+- **Phase 3 — Dual-Mode UI Implementation & End-to-End Hardening**: [COMPLETE] (Sub-phases 3.1 through 3.4 complete across Commits 1 through 19 and Sessions 34 through 39: two-column Studio HUD in Shadow DOM, drag physics, dark precision styling, dual row badges, multi-select checkboxes, sort mode drag-and-drop reordering, single vs batch parameter bindings, IndexedDB binary storage engine, multi-row batch tile collection across virtual scroll rows for multi-output downloads, prompt validation, granular monotonic progress counter, complete form controls disabling during batch execution with read-only parameter inspection on row clicks, dynamic QUEUED status badges, animated SVG border glow on running rows, Clean Mount Protocol eliminating FOUC, Graceful Stop engine with QUEUE_STATES.STOPPING, uploaded ingredient filtering, high-contrast disabled form controls, dynamic Support Dev button, default Size S grid view, left project navigation sidebar auto-collapse, and agent mode logging polish; merged into dev `7b0f1d9`)
+- **Phase 4 — Production Packaging Pipeline & Release**: [IN_PROGRESS] (Sub-phase 4.1 complete: production packaging pipeline with `package.json`, `obfuscator.config.js`, and `build.js` mirroring RJ AIO Metadata architecture, distribution shortcuts `SC.url` and `SUPPORT ME.url`, standalone ES modules bundling with `esbuild`, AST obfuscation with `javascript-obfuscator`, and automated distribution archive creation `releases/RJ_V-Flow_Auto-v3.0.0.zip` and `releases/v3.0.0.zip`; Sub-phase 4.2 in progress: release documentation overhaul and milestone finalization)
 
 ---
 
@@ -25,7 +24,8 @@
 | `legacy` | Remote Archived | Permanent archive of legacy v2.x codebase and history |
 | `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
 | `task/core-automation-engine` | Merged | Phase 2: Core Automation Engine & Services (Merged into dev `c14ca68`) |
-| `task/dual-mode-ui` | Active | Phase 3 & 4: Dual-Mode UI Implementation & Polishing (Active working branch) |
+| `task/dual-mode-ui` | Merged | Phase 3: Dual-Mode UI Implementation & End-to-End Hardening (Merged into dev `7b0f1d9`) |
+| `task/packaging-and-release` | Active | Phase 4: Production Packaging Pipeline & Release (Active working branch) |
 
 ---
 
@@ -109,57 +109,39 @@
   - `bahan/vflow-note.md` — Master technical specification with language-resilient selector map.
   - `bahan/new note vflow.md` — Architectural defect analysis, UI redesign, and 7-commit execution roadmap.
   - `C:\Users\admin\Desktop\handoff - vflow.md` — Project context and handoff briefing.
+- **Production Packaging & Release Pipeline:**
+  - `package.json` — Node configuration with `esbuild`, `fs-extra`, `javascript-obfuscator`, and `"build": "node build.js"` script (local tooling, gitignored per RJ AIO Metadata baseline).
+  - `obfuscator.config.js` — Production obfuscation settings configured for MV3 (local tooling, gitignored per RJ AIO Metadata baseline).
+  - `build.js` — Automated production packaging pipeline (local tooling, gitignored per RJ AIO Metadata baseline).
+  - `SC.url` & `SUPPORT ME.url` — Support and distribution shortcut URLs copied from RJ AIO Metadata baseline (tracked in git).
 
 ---
 
 ## 5. What Does NOT Exist Yet
 
-- **Phase 4 — End-to-End Integration & Multi-Language Stress Testing:**
-  - Comprehensive automated batch test harnesses, moderation error recovery, and non-English locale verification.
-- **Phase 5 — Production Packaging Pipeline & Release:**
-  - AST obfuscation bundler (`esbuild` + `javascript-obfuscator`), zip packaging, and store deployment artifacts.
+- **Phase 4 — Sub-phase 4.2 (Release Documentation & Milestone Finalization):**
+  - Final factual documentation overhaul across `docs/ARCHITECTURE.md`, `README.md`, `DESIGN.md`, `CHANGELOG.md`, `src/manifest.json`, and final merge of `dev` into `main`.
 
 ---
 
 ## 6. Testing & Build Verification Status
 
 - `src/manifest.json` verified valid Manifest V3 JSON.
-- `src/core/FlowDOM.js` verified valid syntax via `node --check`.
-- `src/core/FlowStorage.js` verified valid syntax via `node --check`.
-- `src/core/QueueManager.js` verified valid syntax via `node --check`.
-- `src/services/FlowSettingsService.js` verified valid syntax via `node --check`.
-- `src/services/FlowIngredientService.js` verified valid syntax via `node --check`.
-- `src/services/FlowPromptService.js` verified valid syntax via `node --check`.
-- `src/services/FlowWatcherService.js` verified valid syntax via `node --check`.
-- `src/services/FlowDownloadService.js` verified valid syntax via `node --check`.
-- `src/services/FlowActionService.js` verified valid syntax via `node --check`.
-- `src/services/LoggerService.js` verified valid syntax via `node --check`.
-- All 10 core automation engine and service modules verified syntax-valid (0 errors).
-- `src/styles/variables.css` and `src/styles/components.css` verified valid CSS tokens.
-- `src/popup/popup.html` and `src/popup/popup.css` verified.
-- `src/popup/popup.js` verified valid syntax via `node --check`.
-- `src/overlay/CustomSelect.js` verified valid syntax via `node --check`.
-- `src/overlay/overlay.css` verified valid CSS tokens.
-- `src/overlay/FlowHUDTemplates.js` verified valid syntax via `node --check`.
-- `src/overlay/FlowHUDHost.js` verified valid syntax via `node --check`.
-- `src/content/content_loader.js` verified valid syntax via `node --check`.
-- `src/content/content_main.js` verified valid syntax via `node --check`.
-- `src/background/service_worker.js` verified valid syntax via `node --check`.
+- `package.json` verified valid JSON and dependencies installed (`esbuild`, `fs-extra`, `javascript-obfuscator`).
+- `build.js` and `obfuscator.config.js` verified syntax-valid via `node --check`.
+- `npm run build` executed successfully:
+  - Bundled 4 standalone ES modules into `dist/LOAD THIS FOLDER/` (218.7kb main content script resolving all 18 internal modules).
+  - Obfuscated 4 target JS files with zero syntax errors (`node --check` passed).
+  - Copied static assets (`styles/`, `assets/`, `overlay/overlay.css`, `popup/`) and distribution URLs (`SC.url`, `SUPPORT ME.url`) into `dist/`.
+  - Generated release zip package `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB) and mirror alias `releases/v3.0.0.zip`.
 - All 18 JS modules across `src/` verified passing `node --check` (0 errors).
-- `icons/` and `src/assets/icons/` verified with 4 branding assets each.
 - Strict Zero Native Emoji Policy verified across all documentation and files.
-- UI tokens standardization, vertical font centering, button sizes equalization, and dropdown boundary clipping verified syntax-valid.
-- Redesigned queue toolbar templates, multi-select checkboxes, sort mode handles, and single mode placeholder verified syntax-valid.
-- Multi-select bulk delete, HTML5 drag-and-drop sort reordering, and Single vs Batch parameter mode bindings verified syntax-valid and functionally tested.
-- Conditional Batch vs Single parameter orchestration, one-time header setup, item-specific resolution downloads, and pure text ingredient hygiene verified syntax-valid and functionally tested via comprehensive automated test suite.
-- Dual row badges (live params badge + always-visible status badge with pre-run READY vs NOT READY states), stripped progress percentages, and video output multiplier x1-x4 support verified syntax-valid and functionally tested via automated test suite.
-- Live aspect ratio and outputs badge synchronization across single and batch parameter changes, row handle vertical centering, and footer queue summary with idle prompt icon and running progress spinner verified syntax-valid and functionally tested.
-- Multi-row batch tile collection across virtual scroll rows for multi-output downloads, scrollIntoView card context menu invocation, and post-download Escape dismissal safety verified syntax-valid and functionally tested via simulation.
-- Working tree active on branch `task/dual-mode-ui`.
+- Working tree active on branch `task/packaging-and-release`.
 
 ---
 
 ## 7. Immediate Next Step
 
-- Phase 3 is [COMPLETE]. Proceed with **Phase 4: End-to-End Integration & Multi-Language Stress Testing** on `flow.google.com` (Sub-phase 4.1: Text-to-Image & Text-to-Video Batch Validation).
+- Sub-phase 4.1 is [COMPLETE]. Proceed with **Sub-phase 4.2: Factual Documentation Overhaul & Milestone Finalization** (synchronize `ARCHITECTURE.md`, `README.md`, `DESIGN.md`, `CHANGELOG.md`, and `src/manifest.json`).
+
 

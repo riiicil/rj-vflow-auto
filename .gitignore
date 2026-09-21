@@ -27,3 +27,9 @@ scratch/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local build tooling & lockfiles
+package-lock.json
+build.js
+package.json
+obfuscator.config.js

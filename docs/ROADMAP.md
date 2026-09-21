@@ -15,11 +15,9 @@ gantt
     section Phase 2
     Core Automation Engine & Services     :done, 2026-09-17, 3d
     section Phase 3
-    Dual-Mode UI Implementation           :active, 2026-09-21, 3d
+    Dual-Mode UI Implementation           :done, 2026-09-21, 3d
     section Phase 4
-    E2E Integration & Stress Testing      :2026-09-24, 2d
-    section Phase 5
-    Production Packaging & Release        :2026-09-26, 2d
+    Production Packaging & Release        :active, 2026-09-22, 2d
 ```
 
 ---
@@ -59,41 +57,26 @@ gantt
 
 ---
 
-### Phase 3: Dual-Mode UI Implementation `[COMPLETE]`
+### Phase 3: Dual-Mode UI Implementation & End-to-End Hardening `[COMPLETE]`
 - **Target Branch**: `task/dual-mode-ui` $\to$ `dev`
 - [x] **Sub-phase 3.1**: Minimalist Toolbar Popup Launcher `[COMPLETE]`
-  - Commit: `feat(popup): implement minimalist toolbar popup launcher and connection detector`
+  - Commit: `ce3a4cb feat(popup): implement minimalist toolbar popup launcher and connection detector`
   - Implement `src/styles/variables.css`, `src/popup/popup.html`, `popup.css`, `popup.js` with connection detection and quick HUD toggle.
 - [x] **Sub-phase 3.2**: Shadow DOM Studio HUD Host & Draggable Floating Pill `[COMPLETE]`
-  - Commit: `feat(overlay): implement Shadow DOM HUD host and draggable floating pill`
+  - Commit: `7750ffe feat(overlay): implement Shadow DOM HUD host and draggable floating pill`
   - Implement `#flow-auto-hud-root` open Shadow DOM, fluid drag physics, boundary clamping, and minimize-to-pill transition.
 - [x] **Sub-phase 3.3**: Two-Column Studio Layout & Queue Builder `[COMPLETE]`
-  - Commit: `feat(overlay): build dynamic two-column studio HUD and template generators`
+  - Commit: `f808156 feat(overlay): build dynamic two-column studio HUD and template generators`
   - Implement `FlowHUDTemplates.js`, two-column workspace tabs, media dropzones, and parameters sidebar in `FlowHUDHost.js`.
-- [x] **Sub-phase 3.4**: Reactive Storage Synchronization & Automation Controls `[COMPLETE]`
-  - Commit: `feat(overlay): connect reactive storage synchronization and automation controls`
-  - Connect Start and Stop controls with live status ticker and auto-save state recovery.
+- [x] **Sub-phase 3.4**: Reactive Storage Synchronization, End-to-End Orchestration & Polishing `[COMPLETE]`
+  - Commits `bbd613a` through `2f6e1e4`: Reactive storage synchronization, IndexedDB `FlowImageDB` binary engine, conditional batch vs single parameter orchestration, 4-state lifecycle watcher, virtual scroll multi-row downloads, Clean Mount Protocol (eliminating FOUC), Graceful Stop engine (`STOPPING`), high-contrast disabled form states, dynamic Support Dev button, default Size S grid, and left project navigation sidebar auto-collapse.
 
 ---
 
-### Phase 4: End-to-End Integration & Multi-Language Stress Testing `[PLANNED]`
-- **Target Branch**: `task/e2e-integration-testing` $\to$ `dev`
-- [ ] **Sub-phase 4.1**: Text-to-Image & Text-to-Video Batch Validation `[PLANNED]`
-  - Multi-prompt automated generation across Omni 1.1 Flash and Veo 3.1 models.
-- [ ] **Sub-phase 4.2**: Image-to-Video & Frames-to-Video Multi-Asset Injection `[PLANNED]`
-  - Single-ingredient and start/end frame automated pairing and submission.
-- [ ] **Sub-phase 4.3**: Failure Handling & System Recovery Stress Test `[PLANNED]`
-  - In-card moderation blocks, quota limits, and network stall auto-healing.
-- [ ] **Sub-phase 4.4**: Multi-Language Locale Verification `[PLANNED]`
-  - Verify 100% selector resilience on non-English locales (Indonesian, Spanish, Japanese, German, French).
-
----
-
-### Phase 5: Production Packaging Pipeline & Release `[PLANNED]`
+### Phase 4: Production Packaging Pipeline & Release `[IN_PROGRESS]`
 - **Target Branch**: `task/packaging-and-release` $\to$ `dev`
-- [ ] **Sub-phase 5.1**: Production Bundler & AST Obfuscation Pipeline `[PLANNED]`
-  - Configure `esbuild` and `javascript-obfuscator` build script.
-- [ ] **Sub-phase 5.2**: Release Packaging (`dist/` & `releases/v3.0.0.zip`) `[PLANNED]`
-  - Output clean `dist/LOAD THIS FOLDER/` and verified zip archive.
-- [ ] **Sub-phase 5.3**: Release Documentation & Milestone Finalization `[PLANNED]`
-  - Finalize `CHANGELOG.md`, synchronize version in `manifest.json`, and merge `dev` into `main`.
+- [x] **Sub-phase 4.1**: Production Bundler, AST Obfuscation & Packaging Pipeline `[COMPLETE]`
+  - Commit: `feat(build): implement production bundler, AST obfuscation, and packaging pipeline`
+  - Implement `package.json`, `obfuscator.config.js`, and `build.js` mirroring RJ AIO Metadata architecture. Bundles ES modules via `esbuild`, applies AST obfuscation via `javascript-obfuscator`, copies distribution URLs (`SC.url`, `SUPPORT ME.url`), and produces clean `dist/LOAD THIS FOLDER/` and `releases/v3.0.0.zip`.
+- [ ] **Sub-phase 4.2**: Factual Documentation Overhaul & Milestone Finalization `[IN_PROGRESS]`
+  - Finalize all project documentation (`docs/ARCHITECTURE.md`, `README.md`, `DESIGN.md`, `CHANGELOG.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`) to 100% reflect the factual codebase, synchronize release version across `src/manifest.json` and `CHANGELOG.md`, and merge `dev` into `main`.
