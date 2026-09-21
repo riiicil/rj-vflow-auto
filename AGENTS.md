@@ -1,4 +1,4 @@
-# AGENTS.md — RJ V-Flow Auto (Next-Gen v3.0)
+# AGENTS.md — RJ V-Flow Auto
 
 > **Mandatory first-read for every AI agent working on this project.**  
 > Read this file completely before taking any action or modifying code.

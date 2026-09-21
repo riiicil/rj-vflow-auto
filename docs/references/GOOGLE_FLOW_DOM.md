@@ -12,13 +12,13 @@
 
 Google Flow runs on a modern, decoupled web application stack. All legacy extension assumptions (React Fiber `__reactFiber$`, Slate `data-slate-editor`, and Chrome DevTools Protocol injection via `chrome.debugger`) are completely obsolete and eliminated.
 
-| Architectural Layer | Real Google Flow Implementation | Next-Gen v3.0 Integration Strategy |
+| Architectural Layer | Real Google Flow Implementation | Extension Integration Strategy |
 | :--- | :--- | :--- |
 | **Component Model** | **Google Angular Custom Elements** (`<flow-*>`) | Target native custom tags and hierarchical component scopes directly. |
 | **UI Framework** | **Angular Material & CDK** (`<mat-*>`, `cdk-*`) | Interact via native click events, Material toggle groups, and CDK overlay containers. |
 | **Rich Text Editor** | **ProseMirror Engine** (`flow-rich-text-editor div.ProseMirror`) | Inject text natively via `document.execCommand('insertText')` + native `InputEvent` dispatch. Zero CDP required. |
-| **Iconography** | **Google Material Symbols** (Ligature font) | **CRITICAL MULTI-LANGUAGE KEY**: Material Symbols use ligature strings (`settings_2`, `arrow_forward`, `more_vert`, `download`, `swap_horiz`, `cancel`). These ligature strings are internal font glyph identifiers and are **never translated by browser locales or Google Translate**. |
-| **Gallery Viewport** | **Angular CDK Virtual Scroll** (`cdk-virtual-scroll-viewport`) | Always monitor the newest generation batch at top index 0 (`:first-child`) because older tiles are unmounted from the DOM upon scroll. |
+| **Iconography** | **Google Material Symbols** (Ligature font) | **CRITICAL MULTI-LANGUAGE KEY**: Material Symbols use ligature strings (`settings_2`, `arrow_forward`, `more_vert`, `download`, `swap_horiz`, `cancel`, `dashboard`, `left_panel_close`). These ligature strings are internal font glyph identifiers and are **never translated by browser locales or Google Translate**. |
+| **Gallery Viewport** | **Angular CDK Virtual Scroll** (`cdk-virtual-scroll-viewport`) | Monitor newest generation batch across all virtual scroll rows until reaching baseline top tile or expected count. |
 | **Execution Trigger** | Native Button `.click()` / `KeyboardEvent('Enter')` | 100% native DOM event dispatching. Safe from Google anti-bot suspicious flags. |
 
 ---

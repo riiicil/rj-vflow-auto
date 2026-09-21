@@ -76,7 +76,9 @@ fix(watcher): resolve Angular CDK virtual scroll tile indexing race condition
 - Always use non-fast-forward merge:
   ```bash
   git checkout dev
-  git merge --no-ff task/<branch-name>
+  git merge --no-ff task/<branch-name> -m "merge branch 'task/<branch-name>' into dev"
+  git push origin dev
+  git branch -d task/<branch-name>
   ```
 - This preserves the complete historical context and atomic commits of each feature task branch.
 

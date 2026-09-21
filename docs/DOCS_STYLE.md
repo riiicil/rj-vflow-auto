@@ -1,7 +1,7 @@
 # DOCS_STYLE.md — Documentation Standards & Templates
 **Standardization Guide for All Project Documentation in `docs/`**
 
-> **Purpose**: This document establishes rigid structure templates and formatting rules for all documentation across the **RJ V-Flow Auto (Next-Gen v3.0)** repository. Every AI agent and human contributor must adhere to these exact templates to maintain consistency, clarity, and operational continuity across development sessions.
+> **Purpose**: This document establishes rigid structure templates and formatting rules for all documentation across the **RJ V-Flow Auto** repository. Every AI agent and human contributor must adhere to these exact templates to maintain consistency, clarity, and operational continuity across development sessions.
 
 ---
 
@@ -59,7 +59,7 @@
 > `HANDOFF.md` is **NOT** a dump of all past commit descriptions. It is a living, high-signal operational briefing.
 
 ```markdown
-# Agent Handoff Guide — RJ V-Flow Auto (Next-Gen v3.0)
+# Agent Handoff Guide — RJ V-Flow Auto
 
 > **Purpose**: Essential operational context, in-flight state, platform gotchas, and immediate instructions for incoming AI agents resuming work.
 

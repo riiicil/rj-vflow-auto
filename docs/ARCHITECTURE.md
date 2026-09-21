@@ -1,10 +1,10 @@
-# Architecture — RJ V-Flow Auto (Next-Gen v3.0)
+# Architecture — RJ V-Flow Auto
 
 ## 1. System Overview
 
 **RJ V-Flow Auto** is a Chromium browser extension (Manifest V3) specifically engineered for automated multi-mode AI image and video generation on **Google Flow** (`flow.google.com`).
 
-The extension eliminates the fragile, deprecated Chrome DevTools Protocol (`chrome.debugger`) architecture of legacy v2.x in favor of a clean, modern **Zero-CDP Native Event Stream Protocol** and an in-page **Studio Overlay HUD** encapsulated in Shadow DOM.
+The extension eliminates the fragile, deprecated Chrome DevTools Protocol (`chrome.debugger`) architecture of legacy v2.x in favor of a clean, modern **Zero-CDP Native Event Stream Protocol**, an in-page **Studio Overlay HUD** encapsulated in Shadow DOM, a **Hybrid Storage Architecture** combining IndexedDB and `chrome.storage.local`, and a **4-State Lifecycle Watcher** supporting multi-row virtual scroll collection.
 
 ```mermaid
 graph TD
@@ -12,14 +12,19 @@ graph TD
 
     subgraph UI ["User Interface Layer"]
         DualUI -->|Toolbar Action| Popup["Toolbar Popup\n(src/popup/popup.js)"]
-        DualUI -->|In-Page Studio| Overlay["Studio Overlay HUD\n(src/overlay/overlay.js Shadow DOM)"]
+        DualUI -->|In-Page Studio| Overlay["Studio Overlay HUD\n(src/overlay/FlowHUDHost.js Shadow DOM)"]
         Overlay -->|Minimize| Pill["Floating Status Pill\n(Draggable Mini-HUD)"]
-        Overlay -->|Delegates Batch Execution| Orchestrator["Queue Manager\n(src/engine/QueueManager.js)"]
+        Overlay -->|Delegates Batch Execution| Orchestrator["Queue Manager\n(src/core/QueueManager.js)"]
     end
 
-    subgraph Core ["Core Automation Engine (src/engine/)"]
-        Orchestrator <-->|DOM Query & Action| FlowDOM["FlowDOM Library\n(src/engine/FlowDOM.js)"]
-        Orchestrator <-->|Config & Batch State| FlowStorage["Storage Service\n(src/engine/FlowStorage.js)"]
+    subgraph Storage ["Hybrid Storage Layer (src/core/)"]
+        Orchestrator <-->|Config & Batch State| FlowStorage["Storage Service\n(src/core/FlowStorage.js)"]
+        Orchestrator <-->|Raw Binary Blobs / Files| FlowImageDB["IndexedDB Engine 'vflowImageDB'\n(src/core/FlowImageDB.js)"]
+        Overlay <-->|Thumbnail Hydration & Preview| FlowImageDB
+    end
+
+    subgraph Core ["Core Automation Foundation (src/core/ & src/services/)"]
+        Orchestrator <-->|DOM Query & Action| FlowDOM["FlowDOM Selector Engine\n(src/core/FlowDOM.js)"]
         Orchestrator -->|Status & Diagnostic Logs| Logger["Logger Service\n(src/services/LoggerService.js)"]
     end
 
@@ -27,22 +32,20 @@ graph TD
         Orchestrator -->|Configure Model & Aspect Ratio| SettingsSvc["FlowSettingsService.js"]
         Orchestrator -->|Inject Ingredients & Frames| IngredientSvc["FlowIngredientService.js"]
         Orchestrator -->|Inject Text via execCommand| PromptSvc["FlowPromptService.js"]
-        Orchestrator -->|Monitor Generation Completion| WatcherSvc["FlowWatcherService.js"]
+        Orchestrator -->|Monitor 4-State Lifecycle| WatcherSvc["FlowWatcherService.js"]
         Orchestrator -->|Trigger Resolution Downloads| DownloadSvc["FlowDownloadService.js"]
     end
 
     subgraph Target ["Google Flow In-Page Native Stack (flow.google.com)"]
-        SettingsSvc -->|Toggle & Popover Selection| FlowHeader["Header & Grid Settings\n(flow-tile-view-header)"]
-        IngredientSvc -->|Clipboard Paste Injection| FlowIngredients["Ingredients & Frames Bar\n(flow-ingredient-item, flow-frame-slot)"]
+        SettingsSvc -->|Setup Grid & Sidenav Collapse| FlowHeader["Header & Sidenav\n(flow-tile-view-header, flow-project-nav-list)"]
+        IngredientSvc -->|Clipboard Paste Injection| FlowIngredients["Ingredients & Frames Bar\n(flow-ingredient-item, flow-image-ingredient-chip)"]
         PromptSvc -->|ProseMirror Native Event Stream| FlowEditor["ProseMirror Editor\n(flow-rich-text-editor div.ProseMirror)"]
-        WatcherSvc -->|Virtual Scroll Safe Top-Batch| FlowGallery["Gallery Tile Grid\n(flow-grid-tile-container)"]
-        DownloadSvc -->|Ligature Hotbar Action| FlowHotbar["Asset Action Menu\n(mat-icon: settings_2, more_vert, download)"]
+        WatcherSvc -->|Multi-Row Virtual Scroll Traversal| FlowGallery["Gallery Tile Grid\n(div.virtual-scroll-container > div.tile-row)"]
+        DownloadSvc -->|Hotbar Context Menu Automation| FlowHotbar["Asset Action Menu\n(mat-icon: more_vert -> download -> resolution)"]
     end
 
     subgraph Background ["Background Service Worker (src/background/)"]
-        DownloadSvc <-->|chrome.runtime Messages| ServiceWorker["Service Worker\n(src/background/service_worker.js)"]
-        ServiceWorker -->|chrome.downloads API| BrowserDownloads["Browser Download Manager"]
-        ServiceWorker <-->|Multi-Tab Concurrency Lock| TabLock["Session & Tab Concurrency Guard"]
+        ServiceWorker["Service Worker\n(src/background/service_worker.js)"]
     end
 ```
 
@@ -53,14 +56,14 @@ graph TD
 | Layer | Technology | Purpose & Architectural Notes |
 | :--- | :--- | :--- |
 | **Platform Standard** | Chrome Manifest V3 (MV3) | Modern browser extension standard for Chromium browsers |
-| **Runtime & Architecture** | Vanilla JavaScript (ES6 Modules) | Zero bundler bloat during active development; 100% native browser module imports |
-| **Production Bundler** | `esbuild` + `javascript-obfuscator` | Bundle-first release pipeline resolving module dependencies into obfuscated build |
-| **Design System** | Raycast Dark Precision (`DESIGN.md`) | Dark canvas `#07080a`, cyan accent `#57c1ff`, emerald success `#59d499`, strict zero native emoji |
-| **Iconography** | Phosphor Icons / Lucide SVG | Scalable 16px/20px inline SVG components |
+| **Runtime & Architecture** | Vanilla JavaScript (ES6 Modules) | Zero bundler bloat during active development; 100% native browser module imports in `src/` |
+| **Production Bundler** | `esbuild` + `javascript-obfuscator` | Bundle-first release pipeline inlining 18 modules into a single obfuscated `content_main.js` (218.7kb) |
+| **Design System** | Raycast Dark Precision | Dark canvas `#07080a`, surface `#0d0d0d`, elevated `#101111`, card `#121212`, hairline `#242728`, accent cyan `#079183`, accent green `#59d499`, accent red `#ff6161` |
+| **Iconography** | Lucide / Phosphor SVG Icons | Scalable inline vector components. Strict Zero Native Emoji policy |
 | **UI Encapsulation** | Open-Mode Shadow DOM (`#flow-auto-hud-root`) | Complete bidirectional style isolation between Google Flow and Extension HUD |
-| **Storage Engine** | `chrome.storage.local` | Batch state persistence, prompt queues, settings presets, coordinate memory |
-| **DOM Protocol** | Zero-CDP Native Event Stream | Text injection via `execCommand('insertText')` + native `input` & `Enter` dispatch |
-| **Target Framework** | Angular Custom Elements + Angular Material & CDK | Integration target on `flow.google.com` |
+| **Storage Architecture** | Hybrid: IndexedDB + `chrome.storage.local` | High-res image binaries in IndexedDB (`vflowImageDB`); metadata, queue, and settings in `chrome.storage.local` |
+| **DOM Protocol** | Zero-CDP Native Event Stream | Text injection via `execCommand('insertText')` + native `InputEvent` & button clicks |
+| **Target Framework** | Angular Custom Elements + Angular Material & CDK | Target platform on `flow.google.com` |
 
 ---
 
@@ -79,65 +82,106 @@ Reverse engineering confirmed that Google Flow runs on **Angular Custom Elements
 
 ProseMirror does **not** require CDP or `isTrusted: true` synthetic events. It natively listens to standard browser input streams:
 1. **Focus Target**: Focus `div.ProseMirror` using `editor.focus()`.
-2. **Selection Range**: Select any existing contents using `window.getSelection()`.
-3. **Native Text Injection**: Execute `document.execCommand('insertText', false, promptText)`. This triggers ProseMirror's internal document transaction natively.
+2. **Clean Slate**: Initialize with `<p><br class="ProseMirror-trailingBreak"></p>`.
+3. **Native Text Injection**: Execute `document.execCommand('selectAll', false, null)` followed by `document.execCommand('insertText', false, promptText)`. This triggers ProseMirror's internal document transaction natively.
 4. **Input Event Dispatch**: Dispatch a native `new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: promptText })`.
-5. **Form Submission**: Dispatch `KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true })` or trigger `.click()` on the native generate button (`button.generate-icon-button`).
+5. **Form Submission**: Dispatch `.click()` on the native generate button (`button.generate-icon-button` / ligature `arrow_forward`) with sequential settle delays (350ms pre-submit, 600ms post-trigger).
 
 ---
 
 ## 4. Google Flow Native Subsystems & Integration Points
 
-### A. Material Symbols Ligature Mechanics (100% Multi-Language Resilience)
-Google Flow relies on the Google Material Symbols ligature font for its iconography.
+### A. Material Symbols Ligature Mechanics (Multi-Language Resilience)
+Google Flow relies on the Google Material Symbols ligature font for its iconography:
 
 ```html
 <mat-icon class="mat-icon material-symbols-outlined">settings_2</mat-icon>
 <mat-icon class="mat-icon material-symbols-outlined">more_vert</mat-icon>
 <mat-icon class="mat-icon material-symbols-outlined">download</mat-icon>
+<mat-icon class="mat-icon material-symbols-outlined">dashboard</mat-icon>
+<mat-icon class="mat-icon material-symbols-outlined">left_panel_close</mat-icon>
 ```
 
 Ligature font mechanics translate character strings into vector glyphs in the rendering engine. Consequently:
-- Ligature text nodes (`"settings_2"`, `"more_vert"`, `"download"`, `"arrow_forward"`, `"swap_horiz"`, `"cancel"`) are internal font identifiers.
+- Ligature text nodes (`"settings_2"`, `"more_vert"`, `"download"`, `"arrow_forward"`, `"swap_horiz"`, `"cancel"`, `"dashboard"`, `"left_panel_close"`) are internal font identifiers.
 - **They are never translated by Google Translate or browser language locales.**
-- Selectors querying `mat-icon:has-text("settings_2")` are 100% resilient across English, Spanish, Indonesian, Japanese, German, and French interfaces.
+- Selectors querying ligatures are 100% resilient across English, Spanish, Indonesian, Japanese, German, and French interfaces.
 
-### B. Creative Agent Mode Suppression
-Google Flow features a built-in "Creative Agent" (`flow-agent-mode-toggle-chip button.agent-mode-chip`) that intercepts user prompts to rewrite them. This interferes with deterministic batch queues.
-The automation engine inspects `button.agent-mode-chip-checked` on every cycle and automatically clicks it to enforce direct generation mode.
+### B. One-Time Page Setup & Sidenav Collapse
+At the start of queue execution, [`FlowSettingsService`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/services/FlowSettingsService.js) executes an automated one-time page setup:
+1. **Left Navigation Panel Auto-Collapse**: Invokes `ensureSidebarCollapsed()`. If expanded (`left_panel_close`), clicks to collapse it, preventing overlay overlap.
+2. **Grid View & Size S Configuration**: Opens `settings_2`, verifies Grid layout (`dashboard`), toggles Tile Size S (`GRID_SIZE_S_TOGGLE`), and ensures Auto-Clear Prompt switch (`button[name="clear-prompt-on-submit"]`) is enabled.
+3. **Creative Agent Mode Suppression**: Inspects `button.agent-mode-chip-checked` and clicks to disable it with detailed audit logging.
 
-### C. In-Card Failure Detection (Zero Toast Dependency)
-Google Flow **does not display toast notifications** for content moderation policy blocks, system timeouts, or quota rejections.
-Instead, failed tiles remain in a permanent blurred state with warning icon badges inside the card component.
-The automation engine detects completion through `isCardGenerationSuccess(card)`:
-- Confirms the tile has exited loading/rendering state (`flow-tile-loading` absent).
-- Validates the presence of a valid generated video or image element (`video[src]` or `img[src]`).
-- Verifies that error indicator overlays (`mat-icon:has-text("warning")` or `.error-badge`) are absent.
-
-### D. Angular CDK Virtual Scroll Safety
-The gallery view (`flow-grid-tile-container`) is powered by Angular CDK Virtual Scroll (`cdk-virtual-scroll-viewport`). As the user scrolls down, older tiles are removed from the DOM.
-To guarantee reliable state detection:
-- The watcher always monitors index 0 (`flow-grid-tile-container > :first-child`) for the active batch.
-- Historic tiles are never queried from the live DOM once scrolled out of view.
+### C. Reference Media & Frame Ingestion
+- **Image-to-Video & Edit Image**: Ingested via native `ClipboardEvent('paste')` carrying binary `File` objects directly into the ProseMirror editor. Upload consent dialogs are automatically confirmed.
+- **Frame-to-Video (F2V)**: Sequentially dispatches two paste events into the editor (Start Frame first with `expectedChipCount = 1`, followed by End Frame with `expectedChipCount = 2`) separated by 500ms pacing delays. Bypasses empty chip buttons that would otherwise open unwanted selection menus.
 
 ---
 
-## 5. Dual-Mode UI & Shadow DOM Isolation
+## 5. Hybrid Storage Architecture (`FlowImageDB` + `FlowStorage`)
+
+### A. IndexedDB Binary Persistence Engine (`FlowImageDB.js`)
+Storing high-resolution image files in `chrome.storage.local` quickly violates Chrome's strict 5MB quota limit.  
+`FlowImageDB` implements a local browser IndexedDB instance (`vflowImageDB`, store `images`) that stores raw `Blob` and `File` binaries keyed by UUID (`img_{timestamp}_{random}`).
+
+### B. Quota Sanitization & Preview Hydration
+- **Sanitization on Save**: [`FlowStorage.sanitizeQueueForStorage()`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/core/FlowStorage.js#L179-L209) strips large Base64 `dataUrl` strings from queue items whenever an `imageId` is present before persisting metadata to `chrome.storage.local`.
+- **Preview Hydration**: When the Studio HUD initializes or re-renders, [`hydrateQueuePreviews()`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/overlay/FlowHUDHost.js#L189-L220) fetches binaries from IndexedDB and creates in-memory object URLs (`URL.createObjectURL(blob)`), ensuring thumbnails render instantaneously without persisting bloated data in extension storage.
+
+---
+
+## 6. 4-State Generation Lifecycle & Multi-Row Virtual Scroll Watcher
+
+### A. 4-State Lifecycle Protocol
+Google Flow tile generation passes through four distinct phases evaluated by [`FlowWatcherService.getTileStatus()`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/services/FlowWatcherService.js#L120-L255):
+1. **`DEFINITIVE_SUCCESS`**: Valid playable media element (`video[src]` or `img[src]`) present, progress bar absent, and no error badges.
+2. **`DEFINITIVE_FAILURE`**: Tile contains `<flow-error-tile>`, `.error-tile`, `warning` ligature, or `.failed` class.
+3. **`PENDING_RENDERING`**: Active `<flow-pending-tile>`, visible progress bar, or live percentage ticker (`XX%`).
+4. **`BLANK_TRANSITION`**: The 300ms–2000ms window where the progress bar has disappeared but the rendered media source has not yet mounted. A 10-second grace timer protects against false failure timeouts.
+
+### B. Multi-Row Virtual Scroll Batch Collection
+In Google Flow's Size S grid layout, multi-output runs (e.g. landscape 16:9 x3 or x4) span across multiple rows (`div.virtual-scroll-container > div.tile-row`).  
+[`getBatchTileElements()`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/services/FlowWatcherService.js#L59-L111) collects all cards belonging to the batch across all rows up to `expectedCount`, stopping at `previousTopTile`. User-uploaded ingredient tiles are filtered out via [`isIngredientTile()`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/core/FlowDOM.js#L375-L403).
+
+---
+
+## 7. Dual-Mode UI & Shadow DOM Studio HUD
 
 ### A. Minimalist Toolbar Popup (`src/popup/`)
-- Compact footprint (~320px x 180px).
-- Status indicator showing whether the active tab is Google Flow.
-- Direct launch button to focus or open Google Flow and toggle the Studio HUD.
+- Compact 320px footprint.
+- Real-time tab inspection toggling State 1 (Disconnected) vs State 2 (Connected to Google Flow).
+- Direct launch button to focus or open `flow.google.com`.
 
 ### B. In-Page Studio Overlay HUD (`src/overlay/`)
-The Studio HUD is injected into Google Flow tabs inside an open-mode Shadow DOM host:
-```javascript
-const host = document.createElement('div');
-host.id = 'flow-auto-hud-root';
-const shadow = host.attachShadow({ mode: 'open' });
-```
-- **Total CSS Isolation**: Prevents Google Flow's Angular Material stylesheets from contaminating extension UI tokens, and prevents extension styles from breaking Google Flow layout.
+- **Shadow DOM Encapsulation**: Mounted into `#flow-auto-hud-root` with an open shadow root, guaranteeing 100% style isolation from Angular Material.
+- **Clean Mount Protocol**: Select dropdowns are pre-hidden inline (`display: none`), stylesheets are loaded via `Promise.all` with a 150ms timeout gate, and `.is-mounting` suppresses initial CSS transitions, completely eliminating white border flash (FOUC).
 - **Two-Column Studio Layout**:
-  - **Left Column (Queue Builder)**: Dynamic dropzone and prompt rows supporting Text-to-Image/Video, 1-Ingredient Image-to-Video, and 2-Frames Video.
-  - **Right Column (Parameters Sidebar)**: Model family dropdown, aspect ratio toggle, duration selector, and resolution settings.
-- **Collapsible Floating Pill**: Minimizes into a draggable 32px floating pill displaying live batch progress (`#3/12 (45%)`), allowing unobstructed observation of canvas generations.
+  - *Left Column (Queue Builder)*: Toolbar (multi-select, batch/single param mode, bulk delete, sort mode, add row), dynamic dropzone, and queue rows with 50px textareas matching media slots.
+  - *Right Column (Parameters Sidebar)*: Generation mode, model selector, duration/aspect ratio, output multiplier, and target resolution with smart container-aware `.dropup` flipping.
+- **Collapsible Floating Pill**: Minimizes into a compact draggable status pill with synchronized live status reporting (`Idle`, `X queued`, `Processing X/Y (Z%)`).
+- **Interactive Controls & Safety**:
+  - *Animated Border Glow*: Looping hardware-accelerated SVG glow on active generating rows.
+  - *Execution Form Locking*: Locks all form controls during active runs while keeping row containers clickable for read-only parameter inspection.
+  - *Graceful Stop Engine*: Supports `QUEUE_STATES.STOPPING`, finishing active generation and download before halting cleanly.
+  - *Sort Mode Reordering & Click-to-Swap*: HTML5 drag-and-drop row reordering and slot click-to-swap.
+
+---
+
+## 8. In-Page Download Automation (`FlowDownloadService.js`)
+
+Downloads execute purely within the browser tab context:
+1. **Context Menu Automation**: Locates `more_vert` inside the card hotbar (using `scrollIntoView` for multi-row visibility), clicks it to open `div.mat-mdc-menu-content`, and selects `download`.
+2. **Resolution Selection & Tier Fallback**: Matches desired resolution (`1080p`, `4K`, `2K`). If locked on free accounts, automatically falls back to the highest available enabled resolution.
+3. **Sequential Pacing**: Enforces strict 800ms–1000ms delays between downloads to prevent browser download throttling.
+4. **Direct Anchor Fallback**: If menu interaction encounters an obstacle, falls back to direct anchor download (`<a download>`).
+
+---
+
+## 9. Production Packaging Pipeline (`build.js`)
+
+The project implements a bundle-first production packaging architecture:
+- **`esbuild`**: Bundles entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`), inlining all 18 internal modules into standalone scripts inside `dist/LOAD THIS FOLDER/`.
+- **`javascript-obfuscator`**: Applies Manifest V3-safe AST obfuscation (Base64 string arrays, control flow flattening, safe console output).
+- **Asset Optimization**: Copies static assets (`styles/`, `assets/`, `popup/`, `overlay/`) and distribution links (`SC.url`, `SUPPORT ME.url`).
+- **Release Packaging**: Automatically archives distribution packages into `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB).
