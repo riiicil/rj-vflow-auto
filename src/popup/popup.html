@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RJ V-Flow Auto</title>
+  <link rel="stylesheet" href="../styles/variables.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header Bar -->
+    <header class="popup-header">
+      <div class="brand-group">
+        <img src="../assets/logo/logo_rj.png" alt="RJ" class="brand-logo-img">
+        <span class="brand-title">V-Flow</span>
+      </div>
+      <span class="version-tag">v3.0.0</span>
+    </header>
+
+    <!-- Main Content: State 1 vs State 2 -->
+    <main class="popup-content">
+      <!-- State 1: Active Tab is NOT on Google Flow -->
+      <div id="stateDisconnected" class="platform-state-card state-disconnected" style="display: none;">
+        <div class="state-header">
+          <svg class="state-icon icon-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span class="state-title">Google Flow Not Detected</span>
+        </div>
+        <p class="state-desc">
+          Please navigate to <code class="flow-code">flow.google.com</code> to use this automation extension. Or click <a id="btnOpenFlow" class="flow-link">here</a> to open page.
+        </p>
+      </div>
+
+      <!-- State 2: Active Tab IS on Google Flow -->
+      <div id="stateConnected" class="platform-state-card state-connected" style="display: none;">
+        <div class="state-header">
+          <svg class="state-icon icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span class="state-title">Connected to Google Flow</span>
+        </div>
+        <p class="state-desc">
+          Automation engine ready on active tab.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

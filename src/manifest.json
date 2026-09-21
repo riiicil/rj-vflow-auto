@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "RJ V-Flow Auto",
+  "version": "3.0.0",
+  "description": "Automated batch AI video and image generation studio for Google Flow.",
+  "permissions": [
+    "storage",
+    "downloads",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://flow.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "RJ V-Flow Auto",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://flow.google.com/*"
+      ],
+      "js": [
+        "content/content_loader.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/*",
+        "overlay/*",
+        "styles/*",
+        "assets/*",
+        "services/*",
+        "core/*"
+      ],
+      "matches": [
+        "https://flow.google.com/*"
+      ]
+    }
+  ]
+}

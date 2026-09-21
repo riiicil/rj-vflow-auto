@@ -1,71 +1,56 @@
-# Handoff Notes — RJ V-Flow Auto
+# Agent Handoff Guide — RJ V-Flow Auto
 
-> Updated: 2026-06-03. For next agent session continuity.
+> **Purpose**: Essential operational context, in-flight state, platform gotchas, and immediate instructions for incoming AI agents resuming work.
 
-## What Was Just Done
+---
 
-1. **CDP integration** — Added `chrome.debugger` handler in `background.js` with three actions: `insertText`, `click`, `pressEnter`. This was the core fix for the generate button not working.
-2. **`setPromptText` rewrite** — CDP `insertText` (click editor → Ctrl+A → `Input.insertText`) is now primary. `execCommand` and paste simulation are fallbacks.
-3. **`triggerGenerate` rewrite** — CDP `click` is now primary. CDP `pressEnter` is fallback. All DOM-based `dispatchEvent()` simulation removed.
-4. **Queued tile false-positive fix** — `waitForGenerationComplete` now double-confirms completion before declaring done.
-5. **Log cleanup** — `getTileStatus` now uses `_stateCache` to suppress repeated identical tile layer logs.
-6. **Documentation init** — `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`, `docs/session-analysis.md`.
-7. **Git repo init** — First push to `https://github.com/riiicil/rj-vflow-auto.git`.
+## 1. Immediate Operational State
+- **Current Milestone**: Phase 4 (Production Packaging Pipeline & Release) — [COMPLETE]
+- **Active Branch**: `task/packaging-and-release`
+- **Latest Commits**:
+  - `6d6374c` — `feat(build): implement production bundler, AST obfuscation, and packaging pipeline`
+- **Working Tree**: Clean, `npm run build` pipeline verified healthy, 4 standalone ES modules bundled with esbuild into `dist/LOAD THIS FOLDER/`, AST obfuscated with javascript-obfuscator passing `node --check`, `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB) and `releases/v3.0.0.zip` generated, all project documentation synchronized.
 
-### Session 2026-06-02 & 2026-06-03 (branch: dev)
+---
 
-8. **rrweb session analysis** — Compared manual vs extension sessions using rrweb recorder + custom analyzer scripts (in `scripts/dev-tools/`, gitignored). Root cause of 403 identified.
-9. **CDP session lifecycle refactor** — Changed CDP attach/detach from per-action to once-per-run.
-10. **CDP-based Slate Editor Sync** — Fixed prompt duplication/leakage where Slate.js internal React state diverged from the DOM during prompt clearing or switching. We now attach CDP session once at start of runs and query and manipulate Slate editor's fiber instance via CDP `Runtime.evaluate`.
-11. **Grid Reordering & Duration Removal**: Removed `#durationGroup` and re-layout sidepanel grid to group Mode/Model, Ratio/Output, and Quality/Download Mode.
-12. **Download Toast Monitoring & Retries (Slow Mode)**: Introduced a double-confirmation toast wait, 3x retries on failure/timeout, and a fallback to direct download URL.
-13. **Pure Random Prompt Option**: Integrated Whisk's `categoriesRandomPrompt` style keywords generator with 3-10 word generation limits, 250 history-based deduplication, and infinite automated generation loops until stopped.
+## 2. Active In-Flight Context
 
-## Key Context for Next Agent
+Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
+Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
+Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, merged into `dev` (`7b0f1d9`), and pushed to `origin/dev`.
+Phase 4 (Production Packaging Pipeline & Release) is now **[COMPLETE]**:
+1. **Sub-phase 4.1 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (`6d6374c`)**:
+   - **Production Packaging Pipeline (`package.json`, `obfuscator.config.js`, `build.js`)**: Mirrored the production bundling architecture from `RJ_AIO_Metadata`. Added `esbuild`, `fs-extra`, and `javascript-obfuscator` dependencies with `"build": "node build.js"` script.
+   - **Standalone ES Module Bundling**: Bundled entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`) with `esbuild` directly into `dist/LOAD THIS FOLDER/`. `content_main.js` completely inlines and resolves all 18 internal dependencies (`src/core/`, `src/services/`, `src/overlay/`) into a single 218.7kb production bundle.
+   - **AST Obfuscation**: Applied `javascript-obfuscator` with MV3-safe options (`disableConsoleOutput: false`, `debugProtection: false`, `renameGlobals: false`, `selfDefending: false`, `stringArrayEncoding: ['base64']`, `controlFlowFlattening: true`) across all 4 bundled JS files in `LOAD THIS FOLDER/`. Verified all obfuscated files pass `node --check` with 0 syntax errors.
+   - **Distribution Asset Copying**: Copied `manifest.json`, `popup/popup.html`, `popup/popup.css`, `overlay/overlay.css`, `styles/`, and `assets/` into `dist/LOAD THIS FOLDER/`. Copied `README.md`, `LICENSE`, `CHANGELOG.md`, `SC.url`, and `SUPPORT ME.url` into `dist/` root.
+   - **Release Archives**: Generated `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB) and mirror alias `releases/v3.0.0.zip` using PowerShell `Compress-Archive`.
+   - **Local Tooling Hygiene**: Hardened `.gitignore` to exclude `package.json`, `package-lock.json`, `build.js`, `obfuscator.config.js`, `dist/`, `releases/`, and `node_modules/` from git tracking, matching the `RJ_AIO_Metadata` repository baseline.
+2. **Sub-phase 4.2 Factual Documentation Overhaul Complete**:
+   - Overhauled `README.md`, `docs/ARCHITECTURE.md`, `CHANGELOG.md`, `docs/DECISIONS.md` (ADR-001 through ADR-013), `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and `docs/ROADMAP.md` to 100% reflect the factual codebase.
+   - Purged all `(Next-Gen v3.0)` suffixes across all documentation files.
+   - Synchronized version tags to `3.0.0` release.
 
-### Why CDP is required
-- Flow uses Slate.js which checks `event.isTrusted`
-- `dispatchEvent()` from content scripts always produces `isTrusted: false`
-- CDP events from `chrome.debugger` are `isTrusted: true` at the browser level
-- **Do not attempt to revert to DOM-based event simulation — it does not work**
+---
 
-### Why CDP attach-once (the 2026-06-02 change)
-- Flow uses **reCAPTCHA Enterprise** (invisible) to validate every `batchGenerateImages` request
-- reCAPTCHA fires a background network request (`/recaptcha/enterprise/clr`) to refresh its token between generate calls
-- When CDP was attached/detached per-action, Chrome's debugger mode was interrupting these reCAPTCHA requests (status 0 = blocked) — causing token expiry → 403 on subsequent generates
-- Evidence: rrweb recordings showed 8× 403 in extension session vs 0 in manual session; all 403s occurred after reCAPTCHA tokens expired (~3 successful batches in, ~80s into session)
-- Fix: attach CDP once at automation start, detach at end — reCAPTCHA requests can complete normally between CDP actions
+## 3. Actionable Next Steps for Incoming Agent
 
-### File to understand first
-- `scripts/content.js` — main automation logic (~1960 lines)
-  - `runAutomation()` — CDP attach/detach lifecycle lives here
-  - `setPromptText()` — CDP text insertion
-  - `triggerGenerate()` — CDP button click
-  - `waitForGenerationComplete()` — tile polling with double-confirm
-  - `getTileStatus()` — reads `--blur-amount` and `opacity` from style
-  - `findGenerateButton()` — scoring-based button detection (target score: 110)
-  - `configureSettings()` — settings modal interaction
-  - `downloadNewResults()` — context menu download flow
+1. **Release Milestone Finalization**:
+   - Target branch: `task/packaging-and-release` (active).
+   - Merge `task/packaging-and-release` into `dev` via `git merge --no-ff`.
+   - Subsequently merge `dev` into `main` and push to remote origin upon explicit human user instruction.
 
-### The CDP debugger banner
-Chrome shows `"RJ V-Flow Auto started debugging this browser"` during each generate action. With the attach-once change, the banner now **stays visible for the entire automation run** (not just per-action). This is expected and cannot be suppressed from extension code. To hide it, launch Chrome with `--silent-debugger-extension-api`.
+---
 
-## Open Issues / Potential Work
+## 4. Critical Gotchas & Architectural Traps
 
-| Issue | Priority | Notes |
-|---|---|---|
-| Multi-output (`outputs > 1`) not extensively tested post-CDP | Medium | Tile detection logic handles multiple new tiles, but verify |
-| Settings trigger sometimes matches twice (log shows 2x `Settings trigger matched`) | Low | Cosmetic — settings are still applied correctly |
-| Model names may drift if Flow updates their UI labels | Medium | Model matching is text-based — if Flow renames models, `configureSettings` will fail |
-| Download quality selector for video (`findDownloadMenuItem`) | Low | Was reported as potentially picking wrong menu item in early testing; appeared resolved but monitor |
-| Chrome debugger banner now stays visible entire run | Low | Expected side-effect of attach-once. Only solvable via Chrome flag outside extension. |
-
-## Testing Checklist for Next Session
-
-Before any changes, verify:
-- [ ] `text-image` mode: multi-prompt execution clears prior prompt perfectly and enters new prompt correctly (Slate internal state verified).
-- [ ] `text-video` mode: multi-prompt execution works with CDP.
-- [ ] `img-to-vid` mode: prompt clear and generate button click via CDP works.
-- [ ] `edit-image` mode: prompt clear and generate button click via CDP works.
-- [ ] Stop button mid-run detaches CDP cleanly (check service worker console).
-- [ ] Tab close during run: verify `cdpSessions` is cleaned up via `onDetach` listener.
+- **Zero English-Label Dependency**: Never query elements using localized English `aria-label` text (e.g. `[aria-label="Start generation"]`, `[aria-label="Tile grid settings"]`). Always use Material Symbols ligatures (`settings_2`, `more_vert`, `download`, `arrow_forward`, `swap_horiz`, `cancel`, `dashboard`, `left_panel_close`), custom tags (`flow-*`), or internal CSS classes (`.settings-trigger-button`, `.agent-mode-chip`, `.generate-icon-button`).
+- **Zero-CDP Mandate**: Never introduce `chrome.debugger` or CDP synthetic events. All text injection must use `document.execCommand('insertText')` + native `InputEvent` dispatch on `flow-rich-text-editor.prompt-input div.ProseMirror`.
+- **Transient Blank Phase Trap**: Google Flow has a 300ms–2000ms blank transition phase between progress bar removal and media element attachment. Never classify a tile as failed simply because `!isRendering && !isSuccess`; only classify as failed if `isCardGenerationFailed()` returns true or the 10-second grace timer expires.
+- **Permanent Progress Bar Container Gotcha**: `<flow-video-tile>` always has an element with class `.hover-overlay-has-progress-bar` in the DOM as its hover container even when idle or finished! NEVER use `.hover-overlay-has-progress-bar` as an indicator of an active progress bar; check `.progress-bar`, `div.progress-bar-fill`, or `<flow-pending-tile>`.
+- **In-Card Failure Detection**: Google Flow does not display toasts for content moderation blocks or quota limits. Asset tiles remain permanently blurred with warning badges. Card success must be validated via `isCardGenerationSuccess(card)`.
+- **Image Tile Tag Differences**: Video tiles use `img.thumbnail` while image generation tiles (`flow-image-tile`) use `img.image`. `CARD_MEDIA` selector must include both.
+- **Virtual Scroll Multi-Row Batch Spanning**: When Google Flow runs in Grid Size S, multi-output generations (x3 or x4) span across multiple `div.tile-row` wrappers. Never assume index 0 contains the entire batch; always use `FlowWatcherService.getBatchTileElements()` to collect all cards up to `expectedCount`.
+- **Uploaded Ingredient Tile Filtering**: User-uploaded images/videos appear in the gallery as tiles with filename extensions and no `redo` hotbar action. Always filter via `isIngredientTile()` so raw reference assets are never counted as generated outputs.
+- **IndexedDB Binary Storage**: High-resolution image references must never be written to `chrome.storage.local` as Base64. Always route binaries through `FlowImageDB.saveImage()` and strip Base64 via `FlowStorage.sanitizeQueueForStorage()`.
+- **Clean Mount Protocol**: When modifying HUD layout templates, keep native `<select>` elements styled with `display: none;` inline to prevent FOUC / white border flash before `CustomSelect.initAll()` attaches.
