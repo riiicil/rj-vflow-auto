@@ -8,11 +8,12 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `fix(dom): multi-language resilient grid size selector and localization audit`
   - `feat(ui): omni duration visibility fix and finished queue dual action buttons`
   - `feat(engine): pure background image rpc, tiered upscale fallback, and smooth progress advancement`
   - `feat(engine): support multi-output image parsing, SPrCad upscaling, and authenticated downloads`
   - `fix(engine): harmonize logger and unify native generation trigger with pre-armed reCAPTCHA`
-- **Working Tree**: Finished queue dual action buttons (`Clear All` & `Reset Queue`) active upon batch completion / stop. `Reset Queue` resets all finished items back to `READY` status while preserving prompt text, ingredients, frames, and parameters. `Clear All` wipes all rows and returns to empty dropzone. Omni 1.1 Flash duration controls visibility dynamically synchronized across single and batch modes. Pure background RPC active for image modes. Production bundle in `dist/LOAD THIS FOLDER/` updated. Verified via `npm run build`.
+- **Working Tree**: Multi-language resilient DOM engine active. Header Grid Size S/M/L resolved via structural positional LTR indexing (`index 0 = Small`, `index 1 = Medium`, `index 2 = Large`) over the 3-button toggle group without `mat-icon`, eliminating English text collisions (e.g. Indonesian "S" = Sedang/Medium). Clear prompt switch backed by Material Symbol ligature `ink_eraser`. Native Material ligature `chrome_extension` added for video Ingredients toggle. Duration selector supports numerical matching (`8` matches `8s` and `8 dtk`). Zero English text attributes in `flow_bridge.js` and `FlowDOM.js`. Production bundle in `dist/LOAD THIS FOLDER/` updated. Verified via `npm run build`.
 
 ---
 

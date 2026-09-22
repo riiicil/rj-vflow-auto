@@ -1,6 +1,6 @@
 # Current Project State — RJ V-Flow Auto
 
-*Last Updated: 2026-09-22*<br>
+*Last Updated: 2026-09-23*<br>
 *Active Branch: `task/fix-image-generation-trigger`*<br>
 *Current Milestone: Post-Phase 4 Maintenance & Engine Hardening*
 
@@ -8,6 +8,7 @@
 
 ## 1. Current Phase Progress
 
+- **Engine Hardening — Multi-Language Resilient DOM Engine, Grid Size Positional LTR Indexing & Localization Audit**: [COMPLETE] (Audited real user forensic recordings on Indonesian `id-ID` locale; resolved Grid Size S setup failure where `span:has-text("S")` collided with Indonesian 'Sedang' (Medium) instead of 'Kecil' (Small); replaced all localized text queries with structural positional LTR indexing (`index 0 = Small`, `index 1 = Medium`, `index 2 = Large`) over the 3-button toggle group without `mat-icon`; enhanced `findClearPromptSwitch` with Material ligature `ink_eraser`; aligned video Ingredients toggle with Google Flow's native Material ligature `chrome_extension`; implemented numerical duration matching so `8s` matches `8s` (EN) and `8 dtk` (ID); purged all remaining English `[aria-label]` strings from `flow_bridge.js` and `FlowDOM.js`; compiled and validated via `npm run build`)
 - **Phase 1 — Cleanup & Governance Foundation**: [COMPLETE] (Legacy branch isolated and pushed to remote origin, gitignore hardened, root zip archives and legacy version folders purged, complete governance documentation suite established, root AGENTS.md, DESIGN.md, README.md, CHANGELOG.md, LICENSE, branding icons, and clean src/manifest.json scaffold established; merged into dev `7838930`)
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented, tested, and verified; merged into dev `c14ca68`)
 - **Phase 3 — Dual-Mode UI Implementation & End-to-End Hardening**: [COMPLETE] (Two-column Studio HUD in Shadow DOM, drag physics, dark precision styling, dual row badges, multi-select checkboxes, sort mode drag-and-drop reordering, single vs batch parameter bindings, IndexedDB binary storage engine, multi-row batch tile collection across virtual scroll rows for multi-output downloads, prompt validation, granular monotonic progress counter, complete form controls disabling during batch execution with read-only parameter inspection on row clicks, dynamic QUEUED status badges, animated SVG border glow on running rows, Clean Mount Protocol eliminating FOUC, Graceful Stop engine with QUEUE_STATES.STOPPING, uploaded ingredient filtering, high-contrast disabled form controls, dynamic Support Dev button, default Size S grid view, left project navigation sidebar auto-collapse, and agent mode logging polish; merged into dev `7b0f1d9`)

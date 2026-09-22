@@ -14,10 +14,11 @@ export const SELECTORS = {
   TOOLS_BUTTON_GROUP: 'flow-tile-view-header .tools-button-group',
   SETTINGS_2_BUTTON: 'flow-tile-view-header .tools-button-group button:has(mat-icon:has-text("settings_2"))',
   OVERLAY_PANE: 'div.cdk-overlay-pane',
-  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
-  GRID_SIZE_S_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("S")) button, mat-button-toggle:has(span:has-text("S")) button',
-  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button, mat-button-toggle:has(span:has-text("M")) button',
-  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
+  GRID_LAYOUT_TOGGLE: 'flow-tile-view-settings mat-button-toggle:has(mat-icon:has-text("dashboard")) button, div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
+  GRID_SIZE_S_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:first-of-type button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:first-of-type button',
+  GRID_SIZE_M_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(2) button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(2) button',
+  GRID_SIZE_L_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(3) button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(3) button',
+  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], div.cdk-overlay-pane button[name="clear-prompt-on-submit"]',
 
   // Project Sidenav / Left Navigation
   SIDEBAR_COLLAPSE_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has-text("left_panel_close")',
@@ -81,7 +82,9 @@ export const LIGATURES = {
   DELETE: 'delete',
   DASHBOARD: 'dashboard',
   LEFT_PANEL_CLOSE: 'left_panel_close',
-  LEFT_PANEL_OPEN: 'left_panel_open'
+  LEFT_PANEL_OPEN: 'left_panel_open',
+  CHROME_EXTENSION: 'chrome_extension',
+  INK_ERASER: 'ink_eraser'
 };
 
 /**
@@ -408,7 +411,7 @@ export function isIngredientTile(tile) {
 
   if (hotbar && imgOrVideo && !hasProgressBar) {
     const icons = Array.from(hotbar.querySelectorAll('mat-icon')).map(m => (m.textContent || '').trim());
-    const hasRedo = icons.includes('redo') || !!hotbar.querySelector('[aria-label="Reuse prompt"]');
+    const hasRedo = icons.includes('redo') || queryIcon('redo', hotbar) !== null;
     if (!hasRedo) {
       return true;
     }

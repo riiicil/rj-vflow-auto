@@ -208,7 +208,8 @@
 
   function clearPromptUI() {
     try {
-      const clearBtn = document.querySelector('button.clear-button, button[aria-label="Clear prompt"]');
+      const clearBtn = document.querySelector('button.clear-button') ||
+        Array.from(document.querySelectorAll('button mat-icon')).find(i => (i.textContent || '').trim() === 'close')?.closest('button');
       if (clearBtn) {
         clearBtn.click();
       }
@@ -746,7 +747,7 @@
     // 3. Locate the generate button in Google Flow DOM
     const btn = document.querySelector('flow-generate-icon-button button') ||
                 document.querySelector('button.generate-icon-button') ||
-                document.querySelector('button[aria-label="Start generation"]');
+                Array.from(document.querySelectorAll('button mat-icon')).find(i => (i.textContent || '').trim() === 'arrow_forward')?.closest('button');
 
     if (!btn) {
       throw new Error('Generate button not found in page DOM');
