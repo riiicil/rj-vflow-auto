@@ -2,7 +2,7 @@
 
 *Last Updated: 2026-09-23*<br>
 *Active Branch: `task/fix-image-generation-trigger`*<br>
-*Current Milestone: Post-Phase 4 Maintenance & Engine Hardening*
+*Current Milestone: Engine Hardening & Multi-Language Modernization (v3.1.0 Release)*
 
 ---
 
