@@ -509,12 +509,13 @@ export class FlowHUDHost {
             targetItems.forEach(it => {
               it.model = val;
             });
-            this.syncModelUI(val);
+            const activeMode = targetItems[0]?.mode;
+            this.syncModelUI(val, activeMode);
             await this.saveCurrentQueue();
           }
         } else {
           await saveConfig({ model: val });
-          this.syncModelUI(val);
+          this.syncModelUI(val, this.activeMode);
         }
         this.updateAllRowBadges();
       });
@@ -618,6 +619,40 @@ export class FlowHUDHost {
         } catch (err) {
           logger.error('[FlowHUDHost] Failed to open donation link', err);
         }
+      });
+    }
+
+    const btnClearAllQueue = this.shadow.getElementById('btnClearAllQueue');
+    if (btnClearAllQueue) {
+      btnClearAllQueue.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.isRunning) return;
+        this.queueItems = [];
+        this.activeRowIdx = null;
+        this.lastSelectedIdx = null;
+        this.renderQueueContent();
+        this.updateSelectionUI();
+        this.updateStartButtonState();
+        await this.saveCurrentQueue();
+      });
+    }
+
+    const btnResetQueue = this.shadow.getElementById('btnResetQueue');
+    if (btnResetQueue) {
+      btnResetQueue.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.isRunning) return;
+        this.queueItems.forEach(it => {
+          it.status = 'pending';
+          it.error = null;
+        });
+        this.renderQueueContent();
+        this.updateAllRowBadges();
+        this.updateSelectionUI();
+        this.updateStartButtonState();
+        await this.saveCurrentQueue();
       });
     }
 
@@ -1941,21 +1976,64 @@ export class FlowHUDHost {
    */
   updateStartButtonState() {
     const btnStart = this.shadow?.getElementById('btnStartQueue');
+    const btnClearAll = this.shadow?.getElementById('btnClearAllQueue');
+    const btnReset = this.shadow?.getElementById('btnResetQueue');
+    const btnSupport = this.shadow?.getElementById('btnSupportDev');
     if (!btnStart) return;
 
     const currentState = queueManager.getState();
-    if (currentState === QUEUE_STATES.RUNNING) {
+    const isRunning = (currentState === QUEUE_STATES.RUNNING);
+    const isStopping = (currentState === QUEUE_STATES.STOPPING);
+
+    if (isRunning) {
+      if (btnClearAll) btnClearAll.style.display = 'none';
+      if (btnReset) btnReset.style.display = 'none';
+      btnStart.style.display = 'inline-flex';
       btnStart.disabled = false;
       btnStart.classList.remove('is-disabled', 'is-stopping');
       btnStart.title = 'Stop running generation';
       return;
     }
-    if (currentState === QUEUE_STATES.STOPPING) {
+
+    if (isStopping) {
+      if (btnClearAll) btnClearAll.style.display = 'none';
+      if (btnReset) btnReset.style.display = 'none';
+      btnStart.style.display = 'inline-flex';
       btnStart.disabled = true;
       btnStart.classList.add('is-disabled', 'is-stopping');
       btnStart.title = 'Stopping generation (finishing active item)...';
       return;
     }
+
+    // When IDLE / STOPPED:
+    const totalRows = this.queueItems.length;
+    const pendingCount = this.queueItems.filter(it => (it.status || 'pending').toLowerCase() === 'pending').length;
+    const finishedCount = this.queueItems.filter(it => {
+      const s = (it.status || '').toLowerCase();
+      return s === 'completed' || s === 'failed';
+    }).length;
+
+    // Condition: All rows in the queue are processed (totalRows > 0, 0 pending, and all rows finished)
+    const isQueueFinished = (totalRows > 0 && pendingCount === 0 && finishedCount === totalRows);
+
+    if (isQueueFinished) {
+      // Hide Start & Support buttons, Show Clear All & Reset Queue buttons
+      btnStart.style.display = 'none';
+      if (btnSupport) {
+        btnSupport.style.display = 'none';
+        btnSupport.classList.remove('is-visible');
+        this.stopSupportTicker();
+      }
+      if (btnClearAll) btnClearAll.style.display = 'inline-flex';
+      if (btnReset) btnReset.style.display = 'inline-flex';
+      this.updateQueueSummaryUI(false);
+      return;
+    }
+
+    // Normal state: Show Start, Hide Clear All & Reset Queue
+    if (btnClearAll) btnClearAll.style.display = 'none';
+    if (btnReset) btnReset.style.display = 'none';
+    btnStart.style.display = 'inline-flex';
 
     if (this.isSortMode) {
       btnStart.disabled = true;
@@ -1965,10 +2043,11 @@ export class FlowHUDHost {
       return;
     }
 
-    const totalRows = this.queueItems.length;
-    const allReady = totalRows > 0 && this.queueItems.every(it => {
+    const allReady = totalRows > 0 && pendingCount > 0 && this.queueItems.every(it => {
+      const s = (it.status || '').toLowerCase();
+      if (s === 'completed' || s === 'failed') return true;
       const rowMode = (this.paramMode === 'single' && it.mode) ? it.mode : this.activeMode;
-      const info = getRowStatusInfo(it, rowMode, this.isRunning);
+      const info = getRowStatusInfo(it, rowMode, false);
       return info.label !== 'NOT READY';
     });
 
@@ -1977,6 +2056,8 @@ export class FlowHUDHost {
       btnStart.classList.add('is-disabled');
       if (totalRows === 0) {
         btnStart.title = 'Add at least one row to start generation';
+      } else if (pendingCount === 0) {
+        btnStart.title = 'All items processed';
       } else {
         btnStart.title = 'Complete prompt and required images for all rows to start';
       }
@@ -2352,9 +2433,11 @@ export class FlowHUDHost {
     // 1. Generation Mode
     const mode = item.mode || this.activeMode || 'text-to-video';
     const selMode = this.shadow.getElementById('selGenerationMode');
-    if (selMode && selMode.value !== mode) {
-      selMode.value = mode;
-      CustomSelect.refresh(selMode);
+    if (selMode) {
+      if (selMode.value !== mode) {
+        selMode.value = mode;
+        CustomSelect.refresh(selMode);
+      }
       this.syncModeUI(mode);
     }
 
@@ -2363,10 +2446,12 @@ export class FlowHUDHost {
     const defaultModel = isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2';
     const model = normalizeModelForMode(mode, item.model || defaultModel);
     const selModel = this.shadow.getElementById('selModelFamily');
-    if (selModel && selModel.value !== model) {
-      selModel.value = model;
-      CustomSelect.refresh(selModel);
-      this.syncModelUI(model);
+    if (selModel) {
+      if (selModel.value !== model) {
+        selModel.value = model;
+        CustomSelect.refresh(selModel);
+      }
+      this.syncModelUI(model, mode);
     }
 
     // 3. Duration (Omni only)
@@ -2548,7 +2633,7 @@ export class FlowHUDHost {
     }
 
     // Duration is strictly for Omni 1.1 Flash in video mode
-    this.syncModelUI(selModel?.value || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2'));
+    this.syncModelUI(selModel?.value || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2'), mode);
 
     const selRes = this.shadow.getElementById('selResolution');
     if (selRes) {
@@ -2560,10 +2645,12 @@ export class FlowHUDHost {
   /**
    * Synchronizes duration visibility when Model changes (strictly Omni 1.1 Flash only).
    */
-  syncModelUI(model) {
-    const isVideo = this.activeMode !== 'text-to-image' && this.activeMode !== 'edit-image';
+  syncModelUI(model, mode = null) {
+    const selMode = this.shadow?.getElementById('selGenerationMode');
+    const effectiveMode = mode || (this.paramMode === 'single' && this.activeRowIdx !== null && this.queueItems[this.activeRowIdx]?.mode) || selMode?.value || this.activeMode || 'text-to-video';
+    const isVideo = effectiveMode !== 'text-to-image' && effectiveMode !== 'edit-image';
     const isOmni = model === 'Omni 1.1 Flash';
-    const grpDuration = this.shadow.getElementById('grpDuration');
+    const grpDuration = this.shadow?.getElementById('grpDuration');
     if (grpDuration) {
       grpDuration.style.display = (isVideo && isOmni) ? 'flex' : 'none';
     }
@@ -2663,6 +2750,8 @@ export class FlowHUDHost {
     this.queueItems = await getQueue();
     await this.hydrateQueuePreviews();
     this.renderQueueContent();
+    this.updateSelectionUI();
+    this.updateStartButtonState();
   }
 
   minimize() {

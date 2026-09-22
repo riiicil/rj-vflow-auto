@@ -8,11 +8,11 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `feat(ui): omni duration visibility fix and finished queue dual action buttons`
   - `feat(engine): pure background image rpc, tiered upscale fallback, and smooth progress advancement`
   - `feat(engine): support multi-output image parsing, SPrCad upscaling, and authenticated downloads`
   - `fix(engine): harmonize logger and unify native generation trigger with pre-armed reCAPTCHA`
-  - `fix(engine): sync UI generation via reCAPTCHA execution hook and native trigger dispatch`
-- **Working Tree**: Pure background RPC for image generation active with Zero DOM Interaction (no page popovers, no grid setting, no ProseMirror text injection, no synthetic tile mounting). Pure background reference image uploads via RPC `maseQ` for `edit-image` mode. Tiered upscale resolution fallback (`4K` -> `2K` -> `1K/Original`) active in `QueueManager.js`. Smooth progress ticker advancing HUD footer percentage (15% -> 80% -> 85% -> 99% -> 100%) without freezing. Proven native DOM click pipeline (`simulateHumanClick`) preserved 100% for all Video modes (`Veo 3.1 Family`, `Omni 1.1 Flash`). Production bundle in `dist/LOAD THIS FOLDER/` updated. Verified via `npm run build`.
+- **Working Tree**: Finished queue dual action buttons (`Clear All` & `Reset Queue`) active upon batch completion / stop. `Reset Queue` resets all finished items back to `READY` status while preserving prompt text, ingredients, frames, and parameters. `Clear All` wipes all rows and returns to empty dropzone. Omni 1.1 Flash duration controls visibility dynamically synchronized across single and batch modes. Pure background RPC active for image modes. Production bundle in `dist/LOAD THIS FOLDER/` updated. Verified via `npm run build`.
 
 ---
 
