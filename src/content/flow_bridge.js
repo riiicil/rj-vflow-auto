@@ -60,11 +60,44 @@
     }).toUpperCase();
   }
 
+  let originalGrecaptchaExecute = null;
+  let preMintedToken = null;
+
+  function hookGrecaptcha() {
+    if (window.grecaptcha?.enterprise?.execute) {
+      if (window.grecaptcha.enterprise.__rj_hooked__) return true;
+
+      originalGrecaptchaExecute = window.grecaptcha.enterprise.execute;
+      window.grecaptcha.enterprise.execute = async function (siteKey, options) {
+        console.log('[RJ FlowBridge] grecaptcha.enterprise.execute intercepted:', siteKey, options);
+        if (preMintedToken && (options?.action === 'IMAGE_GENERATION' || !options?.action)) {
+          console.log('[RJ FlowBridge] Supplying pre-minted clean reCAPTCHA token to Google Flow!');
+          const token = preMintedToken;
+          preMintedToken = null;
+          return token;
+        }
+        return originalGrecaptchaExecute.apply(this, arguments);
+      };
+      window.grecaptcha.enterprise.__rj_hooked__ = true;
+      console.log('[RJ FlowBridge] Successfully hooked grecaptcha.enterprise.execute');
+      return true;
+    }
+    return false;
+  }
+
+  // Continuously ensure hook is attached as early as possible
+  const hookPoll = setInterval(() => {
+    if (hookGrecaptcha()) {
+      clearInterval(hookPoll);
+    }
+  }, 150);
+
   function waitForGrecaptcha(timeout = 25000) {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       const check = () => {
         if (window.grecaptcha?.enterprise?.execute) {
+          hookGrecaptcha();
           return resolve(window.grecaptcha.enterprise);
         }
         if (Date.now() - start > timeout) {
@@ -86,7 +119,9 @@
 
     try {
       await waitForGrecaptcha();
-      return await window.grecaptcha.enterprise.execute(SITE_KEY, {
+      hookGrecaptcha();
+      const execFn = originalGrecaptchaExecute || window.grecaptcha.enterprise.execute;
+      return await execFn.call(window.grecaptcha.enterprise, SITE_KEY, {
         action: pageAction
       });
     } finally {
@@ -126,11 +161,6 @@
 
   function clearPromptUI() {
     try {
-      const editor = document.querySelector('.ProseMirror[contenteditable="true"]');
-      if (editor) {
-        editor.innerHTML = '<p><br></p>';
-        editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContent' }));
-      }
       const clearBtn = document.querySelector('button.clear-button, button[aria-label="Clear prompt"]');
       if (clearBtn) {
         clearBtn.click();
@@ -283,14 +313,108 @@
     };
   }
 
+  async function handleTriggerGenerateWithCaptcha(params = {}) {
+    console.log('[RJ FlowBridge] Preparing clean reCAPTCHA token for generate trigger...');
+    hookGrecaptcha();
+
+    // 1. Mint token in clean microtask context (no synthetic click on stack)
+    let token = null;
+    try {
+      token = await mintCaptcha('IMAGE_GENERATION');
+      console.log('[RJ FlowBridge] Pre-minted clean reCAPTCHA token:', token ? (token.slice(0, 20) + '...') : 'null');
+      preMintedToken = token;
+    } catch (err) {
+      console.warn('[RJ FlowBridge] Token pre-minting error (proceeding to click):', err);
+    }
+
+    // 2. Populate any hidden reCAPTCHA response textareas
+    if (token) {
+      const textareas = document.querySelectorAll('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
+      textareas.forEach(ta => {
+        try {
+          ta.value = token;
+          ta.dispatchEvent(new Event('input', { bubbles: true }));
+          ta.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
+      });
+    }
+
+    // 3. Locate the generate button in Google Flow DOM
+    const btn = document.querySelector('flow-generate-icon-button button') ||
+                document.querySelector('button.generate-icon-button') ||
+                document.querySelector('button[aria-label="Start generation"]');
+
+    if (!btn) {
+      throw new Error('[RJ FlowBridge] Generate button not found in page DOM');
+    }
+
+    const icon = btn.querySelector('mat-icon') || btn;
+    const rect = icon.getBoundingClientRect();
+    const clientX = rect.left + rect.width / 2;
+    const clientY = rect.top + rect.height / 2;
+
+    const commonOpts = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+      clientX,
+      clientY
+    };
+
+    console.log('[RJ FlowBridge] Dispatching native trigger in MAIN world at', clientX, clientY);
+
+    btn.focus();
+    if (typeof PointerEvent === 'function') {
+      icon.dispatchEvent(new PointerEvent('pointerdown', { ...commonOpts, buttons: 1, pressure: 0.5 }));
+    }
+    icon.dispatchEvent(new MouseEvent('mousedown', { ...commonOpts, buttons: 1 }));
+
+    await new Promise(r => setTimeout(r, 60));
+
+    if (typeof PointerEvent === 'function') {
+      icon.dispatchEvent(new PointerEvent('pointerup', { ...commonOpts, buttons: 0, pressure: 0 }));
+    }
+    icon.dispatchEvent(new MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
+
+    btn.click();
+
+    // 4. Secondary fallback: check if button is still enabled after 350ms
+    await new Promise(r => setTimeout(r, 350));
+    const isStillReady = !btn.hasAttribute('disabled') && !btn.classList.contains('mat-mdc-button-disabled');
+    if (isStillReady) {
+      console.log('[RJ FlowBridge] Generate button still enabled, dispatching ProseMirror Enter fallback in MAIN world');
+      const editor = document.querySelector('.ProseMirror[contenteditable="true"]');
+      if (editor) {
+        editor.focus();
+        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+        editor.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+      }
+    }
+
+    return {
+      success: true,
+      tokenSupplied: Boolean(token)
+    };
+  }
+
   // ─── Dual-Channel Event & PostMessage Dispatcher ──────────────────────────
+  const handledRequestIds = new Set();
+
   async function handleBridgeRequest(detail) {
     const { requestId, action, payload } = detail || {};
     if (!requestId || !action) return;
 
+    // Prevent duplicate processing from dual-channel dispatch
+    if (handledRequestIds.has(requestId)) return;
+    handledRequestIds.add(requestId);
+    setTimeout(() => handledRequestIds.delete(requestId), 60000);
+
     try {
       let result;
-      if (action === 'GENERATE_IMAGE') {
+      if (action === 'TRIGGER_GENERATE_WITH_CAPTCHA') {
+        result = await handleTriggerGenerateWithCaptcha(payload || {});
+      } else if (action === 'GENERATE_IMAGE') {
         result = await handleGenerateImage(payload || {});
       } else if (action === 'MINT_CAPTCHA') {
         const token = await mintCaptcha(payload?.pageAction || 'IMAGE_GENERATION');

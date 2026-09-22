@@ -259,36 +259,27 @@ export class FlowPromptService {
     // 1. Visibly inject prompt into ProseMirror so user sees active prompt in the box
     this.setPrompt(promptText);
 
-    // 2. Branching: Image modes use MAIN-world RPC bridge to bypass 0-credit botguard click barriers
-    const isImage = (mode && (mode.includes('image') || mode === 'text-to-image' || mode === 'edit-image')) ||
-                    (model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
+    // 2. Strict branching: Image modes (text-to-image, edit-image, or Nano Banana models)
+    // IMPORTANT: image-to-video and frames are VIDEO modes and must NEVER be treated as image!
+    const isImage = mode === 'text-to-image' || mode === 'edit-image' ||
+      (!mode && model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
 
-    if (isImage) {
-      logger.info(`[FlowPromptService] Utilizing MAIN world bridge for image generation (${model || 'Nano Banana 2'}, ratio: ${aspectRatio}, count: ${count})`);
-      try {
-        const bridgeRes = await flowBridgeClient.generateImage({
-          prompt: promptText,
-          model: model || 'Nano Banana 2',
-          aspectRatio: aspectRatio || '16:9',
-          count: count || 1,
-          seed,
-          refMediaIds,
-          baseMediaId
-        });
-
-        logger.info('[FlowPromptService] MAIN world bridge generation triggered successfully:', bridgeRes);
-        await sleep(350);
-        this.clearPrompt();
-        return true;
-      } catch (bridgeErr) {
-        logger.warn('[FlowPromptService] Bridge RPC failed, attempting DOM click fallback:', bridgeErr);
-      }
-    }
-
-    // 3. For Video mode or fallback: wait for button readiness and dispatch native DOM click
+    // Wait for generate button readiness before dispatching trigger
     await this.waitForGenerateButtonReady(timeout).catch(() => {});
     await sleep(350);
 
+    if (isImage) {
+      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — triggering generation via MAIN world captcha bridge`);
+      try {
+        await flowBridgeClient.triggerGenerateWithCaptcha();
+        await sleep(500);
+        return true;
+      } catch (bridgeErr) {
+        logger.warn('[FlowPromptService] Bridge captcha trigger failed, attempting native DOM click fallback:', bridgeErr);
+      }
+    }
+
+    // 3. For Video mode (Veo 3.1, Omni) or fallback: dispatch native DOM click
     return await this.triggerGenerate();
   }
 }

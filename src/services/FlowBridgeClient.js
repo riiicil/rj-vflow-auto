@@ -112,6 +112,15 @@ class FlowBridgeClient {
   }
 
   /**
+   * Triggers generation directly in the MAIN world with a pre-minted clean reCAPTCHA token.
+   * Feeds Angular's native UI code with a genuine token and initiates generation with full DOM UI sync.
+   */
+  async triggerGenerateWithCaptcha() {
+    logger.info('[FlowBridgeClient] Dispatching TRIGGER_GENERATE_WITH_CAPTCHA via MAIN world bridge');
+    return await this.request('TRIGGER_GENERATE_WITH_CAPTCHA', {});
+  }
+
+  /**
    * Mints a reCAPTCHA Enterprise token in the MAIN world for a given action.
    */
   async mintCaptcha(pageAction = 'IMAGE_GENERATION') {
