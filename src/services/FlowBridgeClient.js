@@ -152,6 +152,14 @@ class FlowBridgeClient {
     logger.info(`[FlowBridgeClient] Dispatching FETCH_IMAGE_DATA via MAIN world bridge for ${params.mediaId || params.url}`);
     return await this.request('FETCH_IMAGE_DATA', params, 30000);
   }
+
+  /**
+   * Uploads reference image binary via RPC maseQ in the MAIN world for Edit-Image mode.
+   */
+  async uploadImage(params) {
+    logger.info(`[FlowBridgeClient] Dispatching UPLOAD_IMAGE via MAIN world bridge (${params.fileName || 'upload.jpg'})`);
+    return await this.request('UPLOAD_IMAGE', params, 60000);
+  }
 }
 
 export const flowBridgeClient = new FlowBridgeClient();

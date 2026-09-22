@@ -48,6 +48,7 @@
   const RPC_GEN_IMAGE = 'ogiZ0b';
   const RPC_UPSCALE_IMAGE = 'SPrCad';
   const RPC_MEDIA = 'as29s';
+  const RPC_UPLOAD_IMAGE = 'maseQ';
 
   const ASPECT_MAP = {
     '1:1': 1,
@@ -342,62 +343,6 @@
   }
 
   /**
-   * Prepend synthetic tile cards to Google Flow's gallery DOM for immediate visual display.
-   * Adheres strictly to Trusted Types CSP: uses document.createElement, textContent,
-   * and appendChild instead of innerHTML.
-   */
-  function mountSyntheticGalleryTiles(images, prompt) {
-    try {
-      const container = document.querySelector('div.virtual-scroll-container, cdk-virtual-scroll-viewport .cdk-virtual-scroll-content-wrapper, cdk-virtual-scroll-viewport');
-      if (!container) return;
-
-      const row = document.createElement('div');
-      row.className = 'tile-row rj-synthetic-batch';
-      row.style.cssText = 'padding: 8px 0; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 12px; z-index: 5; position: relative; width: 100%;';
-
-      images.forEach((img, idx) => {
-        const card = document.createElement('div');
-        card.className = 'flow-tile-container rj-synthetic-card';
-        card.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #242728; background: #0d0d0d; width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
-
-        const thumbWrap = document.createElement('div');
-        thumbWrap.style.cssText = 'position: relative; width: 100%; aspect-ratio: 16/9; background: #141517; display: flex; align-items: center; justify-content: center; overflow: hidden;';
-
-        const imgEl = document.createElement('img');
-        imgEl.className = 'thumbnail';
-        imgEl.src = img.dataUrl || img.url;
-        imgEl.alt = prompt || `Generated image ${idx + 1}`;
-        imgEl.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
-        thumbWrap.appendChild(imgEl);
-
-        const footer = document.createElement('div');
-        footer.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #8f969c; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1c1e;';
-
-        const promptSpan = document.createElement('span');
-        promptSpan.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;';
-        promptSpan.title = prompt || 'Image';
-        promptSpan.textContent = prompt || 'Image';
-
-        const badge = document.createElement('span');
-        badge.style.cssText = 'color: #57c1ff; font-weight: 600; font-size: 10px;';
-        badge.textContent = `READY ${idx + 1}/${images.length}`;
-
-        footer.appendChild(promptSpan);
-        footer.appendChild(badge);
-
-        card.appendChild(thumbWrap);
-        card.appendChild(footer);
-        row.appendChild(card);
-      });
-
-      container.insertBefore(row, container.firstChild);
-      logger.success(`Mounted ${images.length} generated image tile(s) into gallery DOM (CSP-safe)`);
-    } catch (err) {
-      logger.warn('Synthetic card mount notice (non-fatal):', err);
-    }
-  }
-
-  /**
    * Executes FlowService.UpsampleImage (RPC SPrCad) to upscale a media asset to 2K or 4K.
    * Returns a self-contained data:image/jpeg;base64,... URL directly from Google's response.
    */
@@ -438,43 +383,50 @@
     const responseText = await executeBatchRpc(RPC_UPSCALE_IMAGE, innerPayload);
 
     let base64 = null;
-    try {
-      const body = responseText.startsWith(")]}'") ? responseText.slice(responseText.indexOf('\n') + 1) : responseText;
-      let index = 0;
-      while (index < body.length) {
-        const start = body.indexOf('[', index);
-        if (start === -1) break;
-        const nextNewline = body.indexOf('\n', start);
-        const candidateSlice = nextNewline !== -1 ? body.slice(start, nextNewline).trim() : body.slice(start).trim();
-        try {
-          const parsed = JSON.parse(candidateSlice);
-          index = start + Math.max(1, candidateSlice.length);
-          if (Array.isArray(parsed)) {
-            for (const entry of parsed) {
-              if (Array.isArray(entry) && entry[0] === 'wrb.fr' && entry[1] === RPC_UPSCALE_IMAGE) {
-                const payloadRaw = entry[2];
-                const p = typeof payloadRaw === 'string' ? JSON.parse(payloadRaw) : payloadRaw;
-                if (Array.isArray(p) && p.length > 1 && typeof p[1] === 'string' && p[1].length > 100) {
-                  base64 = p[1];
-                  break;
-                }
-              }
+    let rpcError = null;
+
+    const marker = '"SPrCad"';
+    const markerIdx = responseText.indexOf(marker);
+
+    if (markerIdx !== -1) {
+      const afterMarker = responseText.slice(markerIdx + marker.length);
+      const commaIdx = afterMarker.indexOf(',');
+      if (commaIdx !== -1) {
+        const payloadSection = afterMarker.slice(commaIdx + 1).trimStart();
+        if (payloadSection.startsWith('null')) {
+          rpcError = `${resolution} upscale returned null payload (tier may be locked or quota exceeded on this account)`;
+        } else if (payloadSection.startsWith('"')) {
+          let strEnd = -1;
+          for (let i = 1; i < payloadSection.length; i++) {
+            if (payloadSection[i] === '"' && payloadSection[i - 1] !== '\\') {
+              strEnd = i;
+              break;
             }
           }
-        } catch (_) {
-          index = start + 1;
+          if (strEnd !== -1) {
+            try {
+              const rawJsonStr = JSON.parse(payloadSection.slice(0, strEnd + 1));
+              const inner = typeof rawJsonStr === 'string' ? JSON.parse(rawJsonStr) : rawJsonStr;
+              if (Array.isArray(inner) && inner.length > 1 && typeof inner[1] === 'string' && inner[1].length > 100) {
+                base64 = inner[1];
+              }
+            } catch (err) {
+              logger.warn('Failed parsing inner SPrCad string payload:', err);
+            }
+          }
         }
-        if (base64) break;
       }
-    } catch (parseErr) {
-      logger.warn('Failed parsing SPrCad response JSON chunks:', parseErr);
     }
 
-    if (!base64) {
+    if (!base64 && !rpcError) {
       const b64Match = responseText.match(/"([A-Za-z0-9+/=]{1000,})"/);
       if (b64Match) {
         base64 = b64Match[1];
       }
+    }
+
+    if (rpcError) {
+      throw new Error(`[FlowBridge] ${rpcError}`);
     }
 
     if (!base64) {
@@ -494,8 +446,9 @@
   }
 
   /**
-   * Fetches the authentic image binary in the MAIN world using the active Google session cookies.
-   * Converts the binary to a self-contained Base64 Data URL to prevent 403 AccessDenied errors.
+   * Fetches the authentic image binary in the MAIN world.
+   * Converts the binary to a self-contained Base64 Data URL.
+   * Uses mode: 'cors' without credentials: 'include' to respect wildcard '*' CORS headers.
    */
   async function handleFetchImageDataUrl(params) {
     const { url, mediaId } = params || {};
@@ -509,19 +462,19 @@
       throw new Error('[FlowBridge] URL or mediaId required to fetch image data');
     }
 
-    logger.info(`Fetching image binary in MAIN world for ${mediaId || targetUrl}...`);
+    logger.info(`Fetching image binary for ${mediaId || targetUrl}...`);
 
     let blob = null;
     try {
       const res = await fetch(targetUrl, {
-        credentials: 'include',
+        mode: 'cors',
         headers: { 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' }
       });
       if (res.ok) {
         blob = await res.blob();
       }
     } catch (fetchErr) {
-      logger.warn('Direct authenticated fetch failed:', fetchErr);
+      logger.warn('Direct fetch notice:', fetchErr);
     }
 
     if (!blob || blob.type.includes('xml') || blob.size < 500) {
@@ -533,7 +486,7 @@
           if (matchCdn) {
             const cdnUrl = matchCdn[0].replace(/\\"/g, '').replace(/\\\//g, '/');
             logger.info(`Resolved CDN URL via as29s: ${cdnUrl.slice(0, 60)}...`);
-            const cdnRes = await fetch(cdnUrl, { credentials: 'include' });
+            const cdnRes = await fetch(cdnUrl, { mode: 'cors' });
             if (cdnRes.ok) {
               const cdnBlob = await cdnRes.blob();
               if (cdnBlob.size > 500 && !cdnBlob.type.includes('xml')) {
@@ -542,7 +495,7 @@
             }
           }
         } catch (asErr) {
-          logger.warn('as29s resolution failed:', asErr);
+          logger.warn('as29s resolution notice:', asErr);
         }
       }
     }
@@ -564,6 +517,84 @@
       dataUrl,
       sizeBytes: blob.size,
       mimeType: blob.type
+    };
+  }
+
+  /**
+   * Uploads reference image binary via RPC maseQ (FlowService.UploadImage) in the MAIN world.
+   * Enables 100% background reference ingestion for Edit-Image mode without touching page DOM.
+   */
+  async function handleUploadImage(params) {
+    const { base64, mimeType = 'image/jpeg', fileName = 'upload.jpg', projectId = getProjectId() } = params || {};
+    if (!base64) {
+      throw new Error('[FlowBridge] Base64 image data required for upload');
+    }
+    if (!projectId) {
+      throw new Error('[FlowBridge] ProjectId required for reference upload');
+    }
+
+    logger.info(`Uploading reference image (${Math.round(base64.length / 1024)} KB) via maseQ RPC...`);
+
+    const cleanB64 = base64.includes(',') ? base64.split(',')[1] : base64;
+    const captchaToken = await mintCaptcha('IMAGE_GENERATION');
+
+    const contextEnvelope = [
+      null,
+      SURFACE_ID,
+      null,
+      null,
+      null,
+      projectId,
+      null,
+      null,
+      null,
+      null,
+      [captchaToken, 1]
+    ];
+
+    const innerPayload = [
+      contextEnvelope,
+      cleanB64,
+      mimeType,
+      1,
+      null,
+      null,
+      null,
+      null,
+      fileName,
+      null,
+      clientUuid(),
+      clientUuid()
+    ];
+
+    const responseText = await executeBatchRpc(RPC_UPLOAD_IMAGE, innerPayload);
+
+    let mediaId = null;
+    try {
+      const match = responseText.match(/\["wrb\.fr","maseQ","(\[\[[\s\S]*?\]\])"/);
+      if (match) {
+        const inner = JSON.parse(JSON.parse(`"${match[1]}"`));
+        if (Array.isArray(inner) && Array.isArray(inner[0]) && inner[0][0]) {
+          mediaId = inner[0][0];
+        }
+      }
+    } catch (_) {}
+
+    if (!mediaId) {
+      const uuidMatch = responseText.match(/\[\\?"([0-9a-fA-F-]{36})\\?"/);
+      if (uuidMatch) {
+        mediaId = uuidMatch[1];
+      }
+    }
+
+    if (!mediaId) {
+      throw new Error('[FlowBridge] Failed to extract mediaId from maseQ upload response');
+    }
+
+    logger.success(`Reference image uploaded successfully, mediaId: ${mediaId}`);
+    return {
+      success: true,
+      mediaId
     };
   }
 
@@ -673,13 +704,8 @@
     const images = parseImagesFromBatchResponse(responseText);
     logger.info(`Parsed ${images.length} image(s) from ogiZ0b response`);
 
-    // Auto-clear UI prompt box so the user sees the prompt was submitted cleanly
+    // Auto-clear UI prompt box if needed
     clearPromptUI();
-
-    // Mount synthetic gallery tiles for visual feedback
-    if (images.length > 0) {
-      mountSyntheticGalleryTiles(images, prompt.trim());
-    }
 
     return {
       success: true,
@@ -803,6 +829,8 @@
         result = await handleUpscaleImage(payload || {});
       } else if (action === 'FETCH_IMAGE_DATA') {
         result = await handleFetchImageDataUrl(payload || {});
+      } else if (action === 'UPLOAD_IMAGE') {
+        result = await handleUploadImage(payload || {});
       } else if (action === 'MINT_CAPTCHA') {
         const token = await mintCaptcha(payload?.pageAction || 'IMAGE_GENERATION');
         result = { token };

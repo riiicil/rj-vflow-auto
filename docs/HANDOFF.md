@@ -8,11 +8,11 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `feat(engine): pure background image rpc, tiered upscale fallback, and smooth progress advancement`
+  - `feat(engine): support multi-output image parsing, SPrCad upscaling, and authenticated downloads`
   - `fix(engine): harmonize logger and unify native generation trigger with pre-armed reCAPTCHA`
   - `fix(engine): sync UI generation via reCAPTCHA execution hook and native trigger dispatch`
-  - `feat(engine): implement Option C MAIN-world reCAPTCHA and batchexecute RPC bridge for image generation`
-  - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
-- **Working Tree**: Clean, verified Option C MAIN-world batchexecute RPC bridge (`ogiZ0b`) active for image generation with multi-output recursive JSON/regex parsing (x1-x4), SPrCad (`UpsampleImage`) 2K/4K upscaling returning direct Base64 images, in-page authenticated image fetching converting to self-contained Base64 Data URLs, CSP-safe `document.createElement` tile mounting, native DOM click pipeline active for all video modes, background `chrome.downloads` handler active for reliable downloading, all logging harmonized under `[RJ V-Flow Auto]`, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated.
+- **Working Tree**: Pure background RPC for image generation active with Zero DOM Interaction (no page popovers, no grid setting, no ProseMirror text injection, no synthetic tile mounting). Pure background reference image uploads via RPC `maseQ` for `edit-image` mode. Tiered upscale resolution fallback (`4K` -> `2K` -> `1K/Original`) active in `QueueManager.js`. Smooth progress ticker advancing HUD footer percentage (15% -> 80% -> 85% -> 99% -> 100%) without freezing. Proven native DOM click pipeline (`simulateHumanClick`) preserved 100% for all Video modes (`Veo 3.1 Family`, `Omni 1.1 Flash`). Production bundle in `dist/LOAD THIS FOLDER/` updated. Verified via `npm run build`.
 
 ---
 

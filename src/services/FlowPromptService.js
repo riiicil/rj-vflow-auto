@@ -264,20 +264,13 @@ export class FlowPromptService {
     refMediaIds = [],
     baseMediaId = null
   } = {}) {
-    if (clearBefore) {
-      this.clearPrompt();
-    }
-
-    // 1. Visibly inject prompt into ProseMirror so user sees active prompt in the box
-    this.setPrompt(promptText);
-
-    // 2. Strict branching: Image modes (text-to-image, edit-image, or Nano Banana models)
+    // 1. Strict branching: Image modes (text-to-image, edit-image, or Nano Banana models)
     // IMPORTANT: image-to-video and frames are VIDEO modes and must NEVER be treated as image!
     const isImage = mode === 'text-to-image' || mode === 'edit-image' ||
       (!mode && model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
 
     if (isImage) {
-      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — routing via Option C MAIN bridge (ogiZ0b RPC)`);
+      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — routing via pure background RPC (ogiZ0b)`);
       try {
         const bridgeRes = await flowBridgeClient.generateImage({
           prompt: promptText,
@@ -290,8 +283,6 @@ export class FlowPromptService {
         });
 
         logger.success(`[FlowPromptService] Option C bridge RPC succeeded (${bridgeRes.images?.length || 0} images ready)`);
-        await sleep(350);
-        this.clearPrompt();
         return {
           success: true,
           isBridge: true,
@@ -304,7 +295,13 @@ export class FlowPromptService {
       }
     }
 
-    // 3. For Video modes (text-to-video, image-to-video, frames): wait for button readiness and dispatch native DOM click
+    // 2. For Video modes (text-to-video, image-to-video, frames):
+    // Inject prompt into ProseMirror, wait for button readiness, and dispatch native DOM click
+    if (clearBefore) {
+      this.clearPrompt();
+    }
+    this.setPrompt(promptText);
+
     await this.waitForGenerateButtonReady(timeout).catch(() => {});
     await sleep(350);
 
