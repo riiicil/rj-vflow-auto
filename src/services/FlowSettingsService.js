@@ -60,29 +60,60 @@ export class FlowSettingsService {
    * Specifically locates the 'Clear prompt on submit' toggle switch.
    * Strictly avoids other switches in the header popover (e.g. Sound on hover, Silent videos).
    */
+  /**
+   * Specifically locates the 'Clear prompt on submit' toggle switch.
+   * Strictly avoids other switches in the header popover (e.g. Sound on hover, Silent videos).
+   * 100% resilient across languages via exact element name and Material Symbol ligature 'ink_eraser'.
+   */
   findClearPromptSwitch(pane = document) {
-    // 1. Direct query by exact button name or aria-label (Flow modern MDC switch)
+    // 1. Direct query by exact button name (modern MDC switch, programmatic attribute)
     let sw = query('button[name="clear-prompt-on-submit"]', pane) ||
-      query('button[aria-label*="Clear prompt on submit" i]', pane) ||
-      query('button[aria-label*="Clear prompt" i]', pane);
+      query('button[name="clear-prompt-on-submit"]', document);
     if (sw) return sw;
 
-    // Search in document if pane was scoped narrowly
-    sw = query('button[name="clear-prompt-on-submit"]', document) ||
-      query('button[aria-label*="Clear prompt on submit" i]', document) ||
-      query('button[aria-label*="Clear prompt" i]', document);
-    if (sw) return sw;
-
-    // 2. Search mat-slide-toggle / mat-mdc-slide-toggle containing text "Clear prompt"
-    const toggles = queryAll('mat-slide-toggle, .mat-mdc-slide-toggle', document);
-    for (const toggle of toggles) {
-      if (toggle.textContent && toggle.textContent.toLowerCase().includes('clear prompt')) {
-        return toggle.querySelector('button[role="switch"]') || toggle.querySelector('button') || toggle;
+    // 2. Query by ligature icon 'ink_eraser' (glyph name is invariant across all languages)
+    const eraserIcon = queryIcon(LIGATURES.INK_ERASER || 'ink_eraser', pane) ||
+      queryIcon(LIGATURES.INK_ERASER || 'ink_eraser', document);
+    if (eraserIcon) {
+      const container = eraserIcon.closest('.toggle-container, flow-tile-view-settings > div, mat-slide-toggle, .mat-mdc-slide-toggle');
+      if (container) {
+        const btn = container.querySelector('button[role="switch"], button');
+        if (btn) return btn;
       }
     }
 
-    // 3. Fallback: query with SELECTORS.CLEAR_PROMPT_SWITCH
+    // 3. Fallback to SELECTORS.CLEAR_PROMPT_SWITCH
     return query(SELECTORS.CLEAR_PROMPT_SWITCH, pane) || query(SELECTORS.CLEAR_PROMPT_SWITCH, document);
+  }
+
+  /**
+   * Resolves the target tile size toggle (Small, Medium, Large) in a multi-language resilient manner.
+   * Targets the 3-toggle size group (group without mat-icon) and identifies options by screen LTR index:
+   * 0 = Small (S / K / P / 小), 1 = Medium (M / S / 中), 2 = Large (L / B / G / 大).
+   */
+  findGridSizeToggle(size = 'S', pane = document) {
+    const groups = Array.from(pane.querySelectorAll('flow-tile-view-settings mat-button-toggle-group, div.cdk-overlay-pane mat-button-toggle-group'));
+    const sizeGroup = groups.find(g => g.querySelectorAll('mat-button-toggle').length === 3 || !g.querySelector('mat-icon'));
+    if (sizeGroup) {
+      const toggles = Array.from(sizeGroup.querySelectorAll('mat-button-toggle'));
+      // Sort toggles by left coordinate to guarantee LTR index: Small (0), Medium (1), Large (2)
+      toggles.sort((a, b) => {
+        const rectA = a.getBoundingClientRect();
+        const rectB = b.getBoundingClientRect();
+        return (rectA.left || rectA.x || 0) - (rectB.left || rectB.x || 0);
+      });
+
+      const indexMap = { 'S': 0, 'SMALL': 0, 'M': 1, 'MEDIUM': 1, 'L': 2, 'LARGE': 2 };
+      const targetIdx = indexMap[String(size).toUpperCase()] ?? 0;
+      const targetToggle = toggles[targetIdx];
+      if (targetToggle) {
+        return targetToggle.querySelector('button') || targetToggle;
+      }
+    }
+
+    // Direct CSS selector fallback
+    const sel = size === 'M' ? SELECTORS.GRID_SIZE_M_TOGGLE : (size === 'L' ? SELECTORS.GRID_SIZE_L_TOGGLE : SELECTORS.GRID_SIZE_S_TOGGLE);
+    return query(sel, pane) || query(sel, document);
   }
 
   /**
@@ -152,12 +183,16 @@ export class FlowSettingsService {
         await sleep(300);
       }
 
-      // 2. Tile size S toggle
-      const sizeSBtn = query(SELECTORS.GRID_SIZE_S_TOGGLE, pane) ||
-        query('mat-button-toggle:has(span:has-text("S")) button', document);
+      // 2. Tile size S toggle (positional LTR index 0: S in EN, K in ID, P in FR, etc.)
+      const sizeSBtn = this.findGridSizeToggle('S', pane);
       if (sizeSBtn && !this.isToggleChecked(sizeSBtn)) {
         simulateClick(sizeSBtn);
         await sleep(300);
+        logger.info('[FlowSettingsService] Grid tile size S selected');
+      } else if (sizeSBtn) {
+        logger.info('[FlowSettingsService] Grid tile size S already selected');
+      } else {
+        logger.warn('[FlowSettingsService] Grid tile size toggle not found in settings pane');
       }
 
       // 3. Clear prompt switch (TARGET ONLY Clear Prompt on submit, never Sound on hover!)
@@ -292,7 +327,7 @@ export class FlowSettingsService {
     // Normalized fast-path: if model is already selected in trigger label, bypass opening menu
     const currentTriggerText = (modelTrigger.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const targetNorm = targetModel.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (currentTriggerText && targetNorm && (currentTriggerText.includes(targetNorm) || targetNorm.includes(currentTriggerText))) {
+    if (currentTriggerText && targetNorm && currentTriggerText === targetNorm) {
       return;
     }
 
@@ -308,19 +343,30 @@ export class FlowSettingsService {
       return;
     }
 
-    // Find target model menu item
+    // Find target model menu item: exact text match first
     const menuButtonsSelector = `${SELECTORS.MENU_ITEM_BUTTON}, button[role="menuitem"], .mat-mdc-menu-item`;
-    let targetItem = queryByText(menuButtonsSelector, targetModel, menuPanel) ||
-      queryByTextContains(menuButtonsSelector, targetModel, menuPanel);
+    let targetItem = queryByText(menuButtonsSelector, targetModel, menuPanel);
 
-    // Flexible fallback: match without punctuation/hyphens
+    // Exact normalized match second (prevents substring conflicts e.g. nanobanana2 matching nanobanana2lite)
     if (!targetItem) {
       const allItems = queryAll(menuButtonsSelector, menuPanel);
-      for (const item of allItems) {
+      targetItem = allItems.find(item => {
         const normItem = (item.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (normItem.includes(targetNorm) || targetNorm.includes(normItem)) {
-          targetItem = item;
-          break;
+        return normItem === targetNorm;
+      });
+    }
+
+    // Flexible fallback only if no exact match exists
+    if (!targetItem) {
+      targetItem = queryByTextContains(menuButtonsSelector, targetModel, menuPanel);
+      if (!targetItem) {
+        const allItems = queryAll(menuButtonsSelector, menuPanel);
+        for (const item of allItems) {
+          const normItem = (item.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normItem.includes(targetNorm) || targetNorm.includes(normItem)) {
+            targetItem = item;
+            break;
+          }
         }
       }
     }
@@ -394,20 +440,24 @@ export class FlowSettingsService {
 
     // Sub-mode: Ingredients vs Frames (Video mode)
     if (mode === MEDIA_MODES.IMAGE_TO_VIDEO || subMode === 'ingredients') {
-      const ingBtn = queryButtonByIcon('shopping_bag', popover) ||
+      const ingBtn = queryButtonByIcon(LIGATURES.CHROME_EXTENSION || 'chrome_extension', popover) ||
+        queryButtonByIcon('shopping_bag', popover) ||
         queryButtonByIcon('auto_awesome', popover) ||
+        query('flow-toggles[aria-label*="video" i] mat-button-toggle:nth-of-type(1) button', popover) ||
+        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(1) button', popover) ||
         queryByText('mat-button-toggle button', 'Ingredients', popover) ||
-        queryByTextContains('mat-button-toggle button', 'Ingredients', popover) ||
-        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(2) button', popover);
+        queryByText('mat-button-toggle button', 'Bahan', popover);
       if (ingBtn && !this.isToggleChecked(ingBtn)) {
         simulateClick(ingBtn);
         await sleep(300);
       }
     } else if (subMode === 'frames' || mode === MEDIA_MODES.FRAMES_TO_VIDEO) {
       const framesBtn = queryButtonByIcon(LIGATURES.FRAMES, popover) ||
+        queryButtonByIcon('crop_free', popover) ||
+        query('flow-toggles[aria-label*="video" i] mat-button-toggle:nth-of-type(2) button', popover) ||
+        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(2) button', popover) ||
         queryByText('mat-button-toggle button', 'Frames', popover) ||
-        queryByTextContains('mat-button-toggle button', 'Frames', popover) ||
-        query('mat-button-toggle-group:nth-of-type(2) mat-button-toggle:nth-of-type(1) button', popover);
+        queryByText('mat-button-toggle button', 'Frame', popover);
       if (framesBtn && !this.isToggleChecked(framesBtn)) {
         simulateClick(framesBtn);
         await sleep(300);
@@ -449,12 +499,28 @@ export class FlowSettingsService {
 
   /**
    * Sets video duration (Omni 1.1 Flash only).
+   * Matches duration numerically so '8s' matches '8s' (EN), '8 dtk' (ID), etc.
    */
   async selectDuration(duration, popover = document) {
     if (!duration) return;
 
-    const durationBtn = queryByText(SELECTORS.BUTTON_TOGGLE, duration, popover) ||
-      queryByTextContains(SELECTORS.BUTTON_TOGGLE, duration, popover);
+    // Extract numerical digits (e.g. '8s' -> '8', '10 dtk' -> '10')
+    const numMatch = String(duration).match(/\d+/);
+    const num = numMatch ? numMatch[0] : String(duration);
+
+    // 1. Search button toggles whose text contains the duration number
+    const allToggles = queryAll('flow-prompt-box-settings mat-button-toggle button, mat-button-toggle button', popover);
+    let durationBtn = allToggles.find(btn => {
+      const txt = (btn.textContent || '').trim().toLowerCase();
+      return txt === `${num}s` || txt === `${num} dtk` || txt.startsWith(num);
+    });
+
+    // 2. Fallback: query by text token
+    if (!durationBtn) {
+      durationBtn = queryByText(SELECTORS.BUTTON_TOGGLE, duration, popover) ||
+        queryByTextContains(SELECTORS.BUTTON_TOGGLE, duration, popover);
+    }
+
     if (durationBtn && !this.isToggleChecked(durationBtn)) {
       simulateClick(durationBtn);
       await sleep(300);

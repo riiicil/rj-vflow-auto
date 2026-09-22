@@ -6,9 +6,10 @@
  */
 
 import { flowHUDHost } from '../overlay/FlowHUDHost.js';
+import { logger } from '../services/LoggerService.js';
 
 (async function initFlowAuto() {
-  console.log('[RJ V-Flow Auto] Content script initialized on Google Flow.');
+  logger.info('Content script initialized on Google Flow.');
 
   try {
     // 1. Mount the Shadow DOM HUD Host

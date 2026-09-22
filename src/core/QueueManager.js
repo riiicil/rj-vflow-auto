@@ -22,6 +22,7 @@ import { flowIngredientService } from '../services/FlowIngredientService.js';
 import { flowPromptService } from '../services/FlowPromptService.js';
 import { flowWatcherService } from '../services/FlowWatcherService.js';
 import { flowDownloadService } from '../services/FlowDownloadService.js';
+import { flowBridgeClient } from '../services/FlowBridgeClient.js';
 import { logger } from '../services/LoggerService.js';
 import { flowImageDB } from './FlowImageDB.js';
 
@@ -180,28 +181,36 @@ export class QueueManager {
       const paramMode = cfg.paramMode || 'batch';
       logger.info(`QueueManager loop initiated with ${pendingItems.length} pending item(s) in [${paramMode.toUpperCase()}] mode`);
 
-      // 1. One-Time Page Setup Execution: Sidebar collapse, Grid layout, size S, auto-clear prompt, and agent mode suppression
-      logger.step('one-time setup', 'Executing one-time page setup (collapse sidebar, grid layout, size S, auto-clear prompt)');
-      try {
-        await flowSettingsService.ensureSidebarCollapsed();
-        await flowSettingsService.setupHeaderGridAndClearPrompt();
-        await flowSettingsService.ensureAgentModeOff();
-      } catch (setupErr) {
-        logger.warn('[QueueManager] One-time page setup warning', setupErr);
-      }
+      const hasVideoItem = pendingItems.some(it => {
+        const m = it.mode || cfg.mode || 'text-to-video';
+        return m !== 'text-to-image' && m !== 'edit-image';
+      });
 
-      // 2. Parameter Branching Orchestration:
-      // If paramMode === 'batch': call applySettings(batchConfig) once before loop
-      if (paramMode === 'batch') {
-        const isVideo = cfg.mode !== 'text-to-image' && cfg.mode !== 'edit-image';
-        logger.step('batch settings', `${cfg.mode || 'text-to-video'} | ${cfg.model || 'default'} | ratio: ${cfg.aspectRatio || '16:9'}`);
-        await flowSettingsService.applySettings({
-          mode: cfg.mode,
-          model: cfg.model,
-          aspectRatio: cfg.aspectRatio,
-          duration: cfg.duration,
-          outputCount: cfg.outputCount || 1
-        });
+      if (hasVideoItem) {
+        // 1. One-Time Page Setup Execution for Video: Sidebar collapse, Grid layout, size S, auto-clear prompt, and agent mode suppression
+        logger.step('one-time setup', 'Executing one-time page setup for video generation (collapse sidebar, grid layout, size S, auto-clear prompt)');
+        try {
+          await flowSettingsService.ensureSidebarCollapsed();
+          await flowSettingsService.setupHeaderGridAndClearPrompt();
+          await flowSettingsService.ensureAgentModeOff();
+        } catch (setupErr) {
+          logger.warn('[QueueManager] One-time page setup warning', setupErr);
+        }
+
+        // 2. Parameter Branching Orchestration:
+        // If paramMode === 'batch': call applySettings(batchConfig) once before loop
+        if (paramMode === 'batch') {
+          logger.step('batch settings', `${cfg.mode || 'text-to-video'} | ${cfg.model || 'default'} | ratio: ${cfg.aspectRatio || '16:9'}`);
+          await flowSettingsService.applySettings({
+            mode: cfg.mode,
+            model: cfg.model,
+            aspectRatio: cfg.aspectRatio,
+            duration: cfg.duration,
+            outputCount: cfg.outputCount || 1
+          });
+        }
+      } else {
+        logger.info('[QueueManager] Pure image generation batch detected — bypassing all page DOM setup & popovers.');
       }
 
       while (this.state === QUEUE_STATES.RUNNING) {
@@ -279,171 +288,378 @@ export class QueueManager {
     try {
       const cfg = await getConfig();
 
-      // 1. Stage: INJECTING — Apply settings & parameters
-      await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'init', percent: 2 });
-
-      // Parameter Branching:
-      // If Single mode: read nextItem configuration and call applySettings(nextItem) on every iteration
-      // If Batch mode: skip opening prompt settings popover; reuse pre-configured settings
-      if (paramMode === 'single') {
-        const mode = item.mode || cfg.mode || 'text-to-video';
-        const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
-        const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
-        const model = normalizeModelForMode(mode, rawModel);
-        const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
-        const duration = item.duration || cfg.duration || '6s';
-        const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
-
-        logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'parameters', percent: 5 });
-        await flowSettingsService.applySettings({
-          mode,
-          model,
-          aspectRatio,
-          duration,
-          outputCount
-        });
-      } else {
-        logger.step('parameters (batch)', 'Batch mode active: utilizing pre-configured settings (skipping settings popover)');
-      }
-
-      // 2. Prepare Reference Ingredients / Frames
-      if (item.ingredients && item.ingredients.length > 0) {
-        logger.step('ingredients', `${item.ingredients.length} media file(s)`);
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients', percent: 8 });
-        await flowIngredientService.clearIngredients();
-        for (const ing of item.ingredients) {
-          let mediaPayload = (ing && typeof ing === 'object' ? (ing.dataUrl || ing) : ing);
-          let mediaName = (ing && typeof ing === 'object' ? ing.name : 'ingredient.png') || 'ingredient.png';
-          if (ing && ing.imageId) {
-            const dbRecord = await flowImageDB.getImage(ing.imageId);
-            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
-              mediaPayload = dbRecord.blob || dbRecord.file;
-              mediaName = dbRecord.name || mediaName;
-            }
-          }
-          await flowIngredientService.injectMediaToFlow(mediaPayload, mediaName);
-        }
-        await new Promise(r => setTimeout(r, 600));
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients_ready', percent: 11 });
-      } else if (item.frames && (item.frames.start || item.frames.end)) {
-        logger.step('frames', 'Injecting start & end frames');
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames', percent: 8 });
-        await flowIngredientService.clearIngredients();
-        await new Promise(r => setTimeout(r, 400));
-
-        let currentChipTarget = 0;
-        if (item.frames.start) {
-          let startPayload = (typeof item.frames.start === 'object' ? item.frames.start.dataUrl : item.frames.start) || item.frames.start;
-          let startName = item.frames.start?.name || 'start_frame.png';
-          if (item.frames.start?.imageId) {
-            const dbRecord = await flowImageDB.getImage(item.frames.start.imageId);
-            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
-              startPayload = dbRecord.blob || dbRecord.file;
-              startName = dbRecord.name || startName;
-            }
-          }
-          currentChipTarget++;
-          await flowIngredientService.setFrameSlot('start', startPayload, startName, currentChipTarget);
-          await new Promise(r => setTimeout(r, 500));
-        }
-        if (item.frames.end) {
-          let endPayload = (typeof item.frames.end === 'object' ? item.frames.end.dataUrl : item.frames.end) || item.frames.end;
-          let endName = item.frames.end?.name || 'end_frame.png';
-          if (item.frames.end?.imageId) {
-            const dbRecord = await flowImageDB.getImage(item.frames.end.imageId);
-            if (dbRecord && (dbRecord.blob || dbRecord.file)) {
-              endPayload = dbRecord.blob || dbRecord.file;
-              endName = dbRecord.name || endName;
-            }
-          }
-          currentChipTarget++;
-          await flowIngredientService.setFrameSlot('end', endPayload, endName, currentChipTarget);
-          await new Promise(r => setTimeout(r, 500));
-        }
-        await new Promise(r => setTimeout(r, 600));
-        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames_ready', percent: 11 });
-      } else {
-        // Pure text prompt: ensure no residual chips remain
-        await flowIngredientService.clearIngredients();
-      }
-
-      // 3. Capture baseline top tile before submission
-      const previousTopTile = flowWatcherService.getTopTileCard();
-
-      // 4. Submit prompt via native ProseMirror injection
-      logger.step('prompt injection', item.prompt);
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'prompt', percent: 13 });
-      await flowPromptService.submitPrompt(item.prompt);
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'submitted', percent: 15 });
-
-      // 5. Stage: GENERATING — Watch batch resolution across all virtual scroll rows
-      await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'spawning', percent: 18 });
-      const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
-      const watchResult = await flowWatcherService.waitForGeneration(
-        previousTopTile,
-        expectedOutputCount,
-        (progress) => {
-          const live = progress.percent || 0;
-          const mappedPercent = Math.max(18, Math.min(85, Math.round(15 + (live / 100) * 70)));
-          this.notifyProgress({
-            itemId,
-            status: QUEUE_STATUS.GENERATING,
-            percent: mappedPercent,
-            livePercent: live,
-            progress
-          });
-        },
-        180000,
-        item.prompt
-      );
-
-      // 6. Stage: DOWNLOADING — Handle asset downloads
+      const mode = item.mode || cfg.mode || 'text-to-video';
+      const isImageMode = (mode === 'text-to-image' || mode === 'edit-image');
+      const isVideo = !isImageMode;
+      const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
+      const model = normalizeModelForMode(mode, rawModel);
+      const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
+      const duration = item.duration || cfg.duration || '6s';
+      const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
       const shouldDownload = item.autoDownload !== undefined ? item.autoDownload : cfg.autoDownload;
 
-      if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
-        const successfulTiles = watchResult.tiles.filter(t => t.isSuccess);
-        if (successfulTiles.length > 0) {
+      if (isImageMode) {
+        // =========================================================================
+        // IMAGE GENERATION PIPELINE (100% Background RPC — Zero DOM Interactions)
+        // =========================================================================
+
+        // Row status badge immediately transitions to GENERATING (skipping INJECTING)
+        await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING, error: null });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'init', percent: 10 });
+
+        let baseMediaId = item.baseMediaId || null;
+        const refMediaIds = [...(item.refMediaIds || [])];
+
+        // For edit-image mode: upload reference image ingredients via RPC maseQ in background
+        if (mode === 'edit-image' && item.ingredients && item.ingredients.length > 0) {
+          logger.step('ingredients (bg)', `Uploading ${item.ingredients.length} reference image(s) via background RPC...`);
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'uploading_references', percent: 12 });
+          for (let idx = 0; idx < item.ingredients.length; idx++) {
+            const ing = item.ingredients[idx];
+            let mediaPayload = (ing && typeof ing === 'object' ? (ing.dataUrl || ing) : ing);
+            let mediaName = (ing && typeof ing === 'object' ? ing.name : `reference_${idx + 1}.png`) || `reference_${idx + 1}.png`;
+            let mimeType = 'image/png';
+
+            if (ing && ing.imageId) {
+              const dbRecord = await flowImageDB.getImage(ing.imageId);
+              if (dbRecord) {
+                mediaPayload = dbRecord.blob || dbRecord.file || dbRecord.dataUrl || mediaPayload;
+                mediaName = dbRecord.name || mediaName;
+                if (dbRecord.mimeType) mimeType = dbRecord.mimeType;
+              }
+            }
+
+            let base64String = null;
+            if (mediaPayload instanceof Blob) {
+              base64String = await new Promise((res, rej) => {
+                const reader = new FileReader();
+                reader.onload = () => res(reader.result);
+                reader.onerror = rej;
+                reader.readAsDataURL(mediaPayload);
+              });
+              mimeType = mediaPayload.type || mimeType;
+            } else if (typeof mediaPayload === 'string') {
+              base64String = mediaPayload;
+              if (base64String.startsWith('data:')) {
+                const m = base64String.match(/^data:([^;]+);base64,/);
+                if (m) mimeType = m[1];
+              }
+            }
+
+            if (base64String) {
+              const uploadRes = await flowBridgeClient.uploadImage({
+                base64: base64String,
+                mimeType,
+                fileName: mediaName
+              });
+              if (uploadRes && uploadRes.mediaId) {
+                if (!baseMediaId && idx === 0) {
+                  baseMediaId = uploadRes.mediaId;
+                } else {
+                  refMediaIds.push(uploadRes.mediaId);
+                }
+              }
+            }
+          }
+        }
+
+        // Smooth progress ticker while awaiting ogiZ0b background RPC generation (15% -> 80%)
+        let progressPercent = 15;
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'generating', percent: progressPercent });
+        const progressTicker = setInterval(() => {
+          if (progressPercent < 80) {
+            progressPercent += Math.max(1, Math.round((82 - progressPercent) * 0.15));
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.GENERATING,
+              step: 'generating',
+              percent: progressPercent
+            });
+          }
+        }, 600);
+
+        let submitResult;
+        try {
+          logger.step('image generation (bg)', `Dispatching ogiZ0b RPC for "${(item.prompt || '').slice(0, 30)}..." (${model}, count: ${outputCount})`);
+          submitResult = await flowPromptService.submitPrompt(item.prompt, {
+            mode,
+            model,
+            aspectRatio,
+            count: outputCount,
+            seed: item.seed,
+            refMediaIds,
+            baseMediaId
+          });
+        } finally {
+          clearInterval(progressTicker);
+        }
+
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'ready', percent: 85 });
+
+        const images = submitResult?.images || [];
+        if (images.length === 0) {
+          throw new Error('[QueueManager] Image generation returned no media (possible moderation or quota limit)');
+        }
+
+        logger.success(`[QueueManager] Background RPC generated ${images.length} image(s) successfully!`);
+
+        // Stage: DOWNLOADING with Tiered Resolution Fallback (4K -> 2K -> 1K/Original)
+        if (shouldDownload && images.length > 0) {
           await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
           this.notifyProgress({
             itemId,
             status: QUEUE_STATUS.DOWNLOADING,
             percent: 85,
-            downloadProgress: { current: 0, total: successfulTiles.length }
+            downloadProgress: { current: 0, total: images.length }
           });
 
-          const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
-          const defaultRes = isImage ? (cfg.imageResolution || '2K') : (cfg.videoResolution || '1080p');
-          const targetRes = item.resolution || cfg.targetResolution || defaultRes;
-          logger.step('download', `Downloading ${successfulTiles.length} asset(s) at ${targetRes}`);
-          await flowDownloadService.downloadBatchTiles(successfulTiles, {
-            targetResolution: targetRes,
-            delayBetweenMs: 1000,
-            onProgress: (current, total) => {
-              const dlRowPercent = Math.min(99, Math.round(85 + (current / total) * 14));
-              this.notifyProgress({
-                itemId,
-                status: QUEUE_STATUS.DOWNLOADING,
-                percent: dlRowPercent,
-                downloadProgress: { current, total }
-              });
+          const defaultRes = cfg.imageResolution || '2K';
+          const targetRes = (item.resolution || cfg.targetResolution || defaultRes).toUpperCase();
+          logger.step('download', `Downloading ${images.length} image(s) with target resolution: ${targetRes}`);
+
+          // Determine tiered resolution fallback candidates
+          const candidateResolutions = [];
+          if (targetRes === '4K') {
+            candidateResolutions.push('4K', '2K');
+          } else if (targetRes === '2K') {
+            candidateResolutions.push('2K');
+          }
+
+          for (let i = 0; i < images.length; i++) {
+            const img = images[i];
+            let downloadPayloadUrl = null;
+            let resolvedRes = '1K';
+
+            // 1. Attempt tiered upscale via RPC SPrCad
+            if (candidateResolutions.length > 0 && img.mediaId) {
+              for (const tier of candidateResolutions) {
+                try {
+                  logger.step('upscale', `Upscaling variant ${i + 1}/${images.length} (${img.mediaId.slice(0, 8)}) to ${tier}...`);
+                  const upResult = await flowBridgeClient.upscaleImage({
+                    mediaId: img.mediaId,
+                    resolution: tier
+                  });
+                  if (upResult && upResult.dataUrl) {
+                    downloadPayloadUrl = upResult.dataUrl;
+                    resolvedRes = tier;
+                    logger.success(`Variant ${i + 1} upscaled to ${tier} successfully!`);
+                    break;
+                  }
+                } catch (upErr) {
+                  logger.warn(`Variant ${i + 1} ${tier} upscale failed/locked:`, upErr.message || upErr);
+                }
+              }
             }
-          });
-        }
-      }
 
-      // 7. Stage: COMPLETED or FAILED
-      if (watchResult.success) {
-        logger.success(`Item ${itemId} generated & processed successfully!`);
+            // 2. Fallback: Fetch authenticated original image binary
+            if (!downloadPayloadUrl) {
+              try {
+                logger.step('fetch_image', `Fetching authenticated original image data for variant ${i + 1}/${images.length}...`);
+                const fetchResult = await flowBridgeClient.fetchImageDataUrl({
+                  url: img.url,
+                  mediaId: img.mediaId
+                });
+                if (fetchResult && fetchResult.dataUrl) {
+                  downloadPayloadUrl = fetchResult.dataUrl;
+                  resolvedRes = '1K';
+                }
+              } catch (fetchErr) {
+                logger.warn(`Authenticated fetch failed for variant ${i + 1}:`, fetchErr.message || fetchErr);
+              }
+            }
+
+            const finalUrl = downloadPayloadUrl || img.url;
+            const safePrompt = (item.prompt || 'image').slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
+            const resTag = resolvedRes !== '1K' ? `_${resolvedRes}` : '';
+            const filename = `rj_flow_${safePrompt}_${(img.mediaId || Date.now()).toString().slice(0, 8)}${resTag}_${i + 1}.jpg`;
+
+            logger.info(`Triggering download for variant ${i + 1}/${images.length}: ${filename}`);
+            await flowDownloadService.downloadUrl(finalUrl, filename);
+
+            const dlPercent = Math.min(99, Math.round(85 + ((i + 1) / images.length) * 14));
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.DOWNLOADING,
+              percent: dlPercent,
+              downloadProgress: { current: i + 1, total: images.length }
+            });
+
+            if (i < images.length - 1) {
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        }
+
+        // Stage: COMPLETED
         await updateQueueItem(itemId, {
           status: QUEUE_STATUS.COMPLETED,
           completedAt: Date.now()
         });
         this.notifyProgress({ itemId, status: QUEUE_STATUS.COMPLETED, percent: 100 });
+        logger.success(`Item ${itemId} generated & processed successfully!`);
+
       } else {
-        throw new Error('[QueueManager] Generation tiles failed or were moderation-blocked');
+        // =========================================================================
+        // VIDEO GENERATION PIPELINE (Native DOM Pipeline + FlowWatcherService)
+        // =========================================================================
+        await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'init', percent: 2 });
+
+        if (paramMode === 'single') {
+          logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'parameters', percent: 5 });
+          await flowSettingsService.applySettings({
+            mode,
+            model,
+            aspectRatio,
+            duration,
+            outputCount
+          });
+        } else {
+          logger.step('parameters (batch)', 'Batch mode active: utilizing pre-configured settings (skipping settings popover)');
+        }
+
+        // Prepare Reference Ingredients / Frames via DOM
+        if (item.ingredients && item.ingredients.length > 0) {
+          logger.step('ingredients', `${item.ingredients.length} media file(s)`);
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients', percent: 8 });
+          await flowIngredientService.clearIngredients();
+          for (const ing of item.ingredients) {
+            let mediaPayload = (ing && typeof ing === 'object' ? (ing.dataUrl || ing) : ing);
+            let mediaName = (ing && typeof ing === 'object' ? ing.name : 'ingredient.png') || 'ingredient.png';
+            if (ing && ing.imageId) {
+              const dbRecord = await flowImageDB.getImage(ing.imageId);
+              if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+                mediaPayload = dbRecord.blob || dbRecord.file;
+                mediaName = dbRecord.name || mediaName;
+              }
+            }
+            await flowIngredientService.injectMediaToFlow(mediaPayload, mediaName);
+          }
+          await new Promise(r => setTimeout(r, 600));
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'ingredients_ready', percent: 11 });
+        } else if (item.frames && (item.frames.start || item.frames.end)) {
+          logger.step('frames', 'Injecting start & end frames');
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames', percent: 8 });
+          await flowIngredientService.clearIngredients();
+          await new Promise(r => setTimeout(r, 400));
+
+          let currentChipTarget = 0;
+          if (item.frames.start) {
+            let startPayload = (typeof item.frames.start === 'object' ? item.frames.start.dataUrl : item.frames.start) || item.frames.start;
+            let startName = item.frames.start?.name || 'start_frame.png';
+            if (item.frames.start?.imageId) {
+              const dbRecord = await flowImageDB.getImage(item.frames.start.imageId);
+              if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+                startPayload = dbRecord.blob || dbRecord.file;
+                startName = dbRecord.name || startName;
+              }
+            }
+            currentChipTarget++;
+            await flowIngredientService.setFrameSlot('start', startPayload, startName, currentChipTarget);
+            await new Promise(r => setTimeout(r, 500));
+          }
+          if (item.frames.end) {
+            let endPayload = (typeof item.frames.end === 'object' ? item.frames.end.dataUrl : item.frames.end) || item.frames.end;
+            let endName = item.frames.end?.name || 'end_frame.png';
+            if (item.frames.end?.imageId) {
+              const dbRecord = await flowImageDB.getImage(item.frames.end.imageId);
+              if (dbRecord && (dbRecord.blob || dbRecord.file)) {
+                endPayload = dbRecord.blob || dbRecord.file;
+                endName = dbRecord.name || endName;
+              }
+            }
+            currentChipTarget++;
+            await flowIngredientService.setFrameSlot('end', endPayload, endName, currentChipTarget);
+            await new Promise(r => setTimeout(r, 500));
+          }
+          await new Promise(r => setTimeout(r, 600));
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'frames_ready', percent: 11 });
+        } else {
+          // Pure text prompt: ensure no residual chips remain
+          await flowIngredientService.clearIngredients();
+        }
+
+        // Settling pause & capture baseline top tile before submission
+        await new Promise(r => setTimeout(r, 450));
+        const previousTopTile = flowWatcherService.getTopTileCard();
+
+        // Submit prompt via native ProseMirror injection & generate button click
+        logger.step('prompt injection', item.prompt);
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'prompt', percent: 13 });
+        await flowPromptService.submitPrompt(item.prompt, {
+          mode,
+          model,
+          aspectRatio,
+          count: outputCount,
+          seed: item.seed
+        });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'submitted', percent: 15 });
+
+        // VIDEO GENERATION via native DOM trigger & FlowWatcherService
+        await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'spawning', percent: 18 });
+        const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
+        const watchResult = await flowWatcherService.waitForGeneration(
+          previousTopTile,
+          expectedOutputCount,
+          (progress) => {
+            const live = progress.percent || 0;
+            const mappedPercent = Math.max(18, Math.min(85, Math.round(15 + (live / 100) * 70)));
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.GENERATING,
+              percent: mappedPercent,
+              livePercent: live,
+              progress
+            });
+          },
+          180000,
+          item.prompt
+        );
+
+        // Stage: DOWNLOADING for Video
+        if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
+          const successfulTiles = watchResult.tiles.filter(t => t.isSuccess);
+          if (successfulTiles.length > 0) {
+            await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.DOWNLOADING,
+              percent: 85,
+              downloadProgress: { current: 0, total: successfulTiles.length }
+            });
+
+            const defaultRes = cfg.videoResolution || '1080p';
+            const targetRes = item.resolution || cfg.targetResolution || defaultRes;
+            logger.step('download', `Downloading ${successfulTiles.length} asset(s) at ${targetRes}`);
+            await flowDownloadService.downloadBatchTiles(successfulTiles, {
+              targetResolution: targetRes,
+              delayBetweenMs: 1000,
+              onProgress: (current, total) => {
+                const dlRowPercent = Math.min(99, Math.round(85 + (current / total) * 14));
+                this.notifyProgress({
+                  itemId,
+                  status: QUEUE_STATUS.DOWNLOADING,
+                  percent: dlRowPercent,
+                  downloadProgress: { current, total }
+                });
+              }
+            });
+          }
+        }
+
+        // Stage: COMPLETED or FAILED
+        if (watchResult.success) {
+          logger.success(`Item ${itemId} generated & processed successfully!`);
+          await updateQueueItem(itemId, {
+            status: QUEUE_STATUS.COMPLETED,
+            completedAt: Date.now()
+          });
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.COMPLETED, percent: 100 });
+        } else {
+          throw new Error('[QueueManager] Generation tiles failed or were moderation-blocked');
+        }
       }
 
     } catch (err) {

@@ -31,7 +31,8 @@ export const ICONS = {
   COIN: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path></svg>`,
   CARD: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>`,
   PIZZA: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 11h.01"></path><path d="M11 15h.01"></path><path d="M16 16h.01"></path><path d="m2 2 20 7-9 13Z"></path><path d="M16 11a4 4 0 0 1-4 4"></path></svg>`,
-  HEART: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>`
+  HEART: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>`,
+  REFRESH: `<svg class="rj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path></svg>`
 };
 
 export const DONATION_URL = 'https://s.id/rjsupport';
@@ -233,6 +234,14 @@ export function renderStudioLayout() {
               <span id="supportDevIcon">${ICONS.COFFEE}</span>
               <span id="supportDevText">Send a coffee</span>
             </span>
+          </button>
+          <button class="rj-btn rj-btn-danger rj-btn-sm" id="btnClearAllQueue" type="button" title="Clear all rows from queue" style="display: none;">
+            ${ICONS.TRASH}
+            <span>Clear all</span>
+          </button>
+          <button class="rj-btn rj-btn-secondary rj-btn-sm" id="btnResetQueue" type="button" title="Reset all finished rows to ready" style="display: none;">
+            ${ICONS.REFRESH}
+            <span>Reset queue</span>
           </button>
           <button class="rj-btn rj-btn-accent rj-btn-sm" id="btnStartQueue" type="button" title="Start batch generation">
             ${ICONS.PLAY}

@@ -15,9 +15,12 @@ import {
   waitForElement,
   waitForCondition,
   simulateClick,
+  simulateHumanClick,
   simulateEnter,
   sleep
 } from '../core/FlowDOM.js';
+import { logger } from './LoggerService.js';
+import { flowBridgeClient } from './FlowBridgeClient.js';
 
 export class FlowPromptService {
   /**
@@ -46,15 +49,39 @@ export class FlowPromptService {
 
     editor.focus();
 
-    // Reset inner HTML to clean empty paragraph structure
-    editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    const win = editor.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
 
-    // Select all and delete via execCommand to keep ProseMirror internal state aligned
+    // Select existing contents via Selection API
+    const sel = win?.getSelection?.();
+    if (sel && editor.ownerDocument?.createRange) {
+      try {
+        const range = editor.ownerDocument.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+
+    // Select all and delete via execCommand
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
 
+    // Fallback: reset inner HTML if any lingering text remains
+    if ((editor.textContent || '').trim() !== '') {
+      editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    }
+
     // Dispatch native input event
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    if (win && typeof win.InputEvent === 'function') {
+      editor.dispatchEvent(new win.InputEvent('input', {
+        bubbles: true,
+        composed: true,
+        inputType: 'deleteContentBackward'
+      }));
+    } else {
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     return true;
   }
 
@@ -73,22 +100,62 @@ export class FlowPromptService {
 
     editor.focus();
 
-    // Prepare clean paragraph node
-    editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    const win = editor.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+
+    // Select existing contents via Selection API
+    const sel = win?.getSelection?.();
+    if (sel && editor.ownerDocument?.createRange) {
+      try {
+        const range = editor.ownerDocument.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+    document.execCommand('selectAll', false, null);
+
+    // Dispatch beforeinput event with insertText
+    if (win && typeof win.InputEvent === 'function') {
+      try {
+        editor.dispatchEvent(new win.InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          inputType: 'insertText',
+          data: promptText
+        }));
+      } catch (_) {}
+    }
 
     // Select all and insert text using native execCommand
-    document.execCommand('selectAll', false, null);
     document.execCommand('insertText', false, promptText);
 
     // Dispatch input event to notify Angular change detection and ProseMirror document state
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    if (win && typeof win.InputEvent === 'function') {
+      editor.dispatchEvent(new win.InputEvent('input', {
+        bubbles: true,
+        composed: true,
+        inputType: 'insertText',
+        data: promptText
+      }));
+    } else {
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 
-    // Verify injected text matches
+    // Fallback: direct textContent assignment with input dispatch if execCommand did not register
     const currentText = this.getPromptText();
     if (currentText !== promptText.trim()) {
-      // Fallback: direct textContent assignment with input dispatch if execCommand did not register
       editor.innerHTML = `<p>${promptText}</p>`;
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      if (win && typeof win.InputEvent === 'function') {
+        editor.dispatchEvent(new win.InputEvent('input', {
+          bubbles: true,
+          composed: true,
+          inputType: 'insertText',
+          data: promptText
+        }));
+      } else {
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+      }
     }
 
     return true;
@@ -119,7 +186,8 @@ export class FlowPromptService {
   }
 
   /**
-   * Triggers generation by executing native click on the generate button.
+   * Triggers generation by executing native pointer click directly on the generate button,
+   * with multi-tier fallback to ProseMirror Enter keydown and host wrapper click.
    */
   async triggerGenerate() {
     const ready = await this.waitForGenerateButtonReady(5000).catch(() => false);
@@ -132,28 +200,116 @@ export class FlowPromptService {
       throw new Error('[FlowPromptService] Generate button not found');
     }
 
-    simulateClick(btn);
+    const editor = this.getEditorNode();
+
+    // Blur editor to commit ProseMirror transaction state
+    if (editor && typeof editor.blur === 'function') {
+      try { editor.blur(); } catch (_) {}
+    }
+    if (typeof btn.focus === 'function') {
+      try { btn.focus(); } catch (_) {}
+    }
+
+    // 1. Primary trigger: simulateHumanClick directly on the <button> element
+    await simulateHumanClick(btn, { holdMs: 110, microMoves: true });
+    await sleep(350);
+
+    // 2. Fallback check: if the button is still enabled, Flow did not consume the click
+    if (this.isGenerateButtonReady()) {
+      logger.warn('[FlowPromptService] Primary generate click not consumed, attempting target icon click');
+      const icon = btn.querySelector('mat-icon') || btn;
+      await simulateHumanClick(icon, { holdMs: 90, microMoves: true });
+      await sleep(350);
+
+      if (this.isGenerateButtonReady()) {
+        logger.warn('[FlowPromptService] Icon click not consumed, attempting native button.click() fallback');
+        try { btn.click(); } catch (_) {}
+        await sleep(350);
+
+        if (this.isGenerateButtonReady()) {
+          logger.warn('[FlowPromptService] Click fallback not consumed, attempting ProseMirror Enter fallback');
+          if (editor) {
+            editor.focus();
+            simulateEnter(editor);
+            await sleep(350);
+          }
+
+          if (this.isGenerateButtonReady()) {
+            logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button click');
+            const hostEl = btn.closest('flow-generate-icon-button') || btn;
+            await simulateHumanClick(hostEl, { holdMs: 90, microMoves: false });
+          }
+        }
+      }
+    }
+
     // Pacing delay: allows Google Flow canvas to initiate generation request
-    await sleep(600);
+    await sleep(400);
     return true;
   }
 
   /**
-   * High-level orchestrator: Clears prior text, sets target prompt,
-   * waits for button readiness, and triggers generation.
+   * High-level orchestrator: Clears prior text, visibly injects prompt into ProseMirror,
+   * pre-arms clean reCAPTCHA Enterprise tokens for free image generation modes,
+   * and routes execution natively through the unified DOM trigger pipeline.
    */
-  async submitPrompt(promptText, { clearBefore = true, timeout = 5000 } = {}) {
+  async submitPrompt(promptText, {
+    clearBefore = true,
+    timeout = 5000,
+    mode = null,
+    model = null,
+    aspectRatio = '16:9',
+    count = 1,
+    seed = null,
+    refMediaIds = [],
+    baseMediaId = null
+  } = {}) {
+    // 1. Strict branching: Image modes (text-to-image, edit-image, or Nano Banana models)
+    // IMPORTANT: image-to-video and frames are VIDEO modes and must NEVER be treated as image!
+    const isImage = mode === 'text-to-image' || mode === 'edit-image' ||
+      (!mode && model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
+
+    if (isImage) {
+      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — routing via pure background RPC (ogiZ0b)`);
+      try {
+        const bridgeRes = await flowBridgeClient.generateImage({
+          prompt: promptText,
+          model: model || 'Nano Banana 2',
+          aspectRatio: aspectRatio || '16:9',
+          count: count || 1,
+          seed,
+          refMediaIds,
+          baseMediaId
+        });
+
+        logger.success(`[FlowPromptService] Option C bridge RPC succeeded (${bridgeRes.images?.length || 0} images ready)`);
+        return {
+          success: true,
+          isBridge: true,
+          images: bridgeRes.images || [],
+          count: bridgeRes.images?.length || count
+        };
+      } catch (bridgeErr) {
+        logger.error('[FlowPromptService] Option C bridge RPC failed:', bridgeErr);
+        throw bridgeErr;
+      }
+    }
+
+    // 2. For Video modes (text-to-video, image-to-video, frames):
+    // Inject prompt into ProseMirror, wait for button readiness, and dispatch native DOM click
     if (clearBefore) {
       this.clearPrompt();
     }
-
     this.setPrompt(promptText);
-    await this.waitForGenerateButtonReady(timeout);
 
-    // Pacing delay: ensures InputEvent has settled before triggering Generate
+    await this.waitForGenerateButtonReady(timeout).catch(() => {});
     await sleep(350);
 
-    return await this.triggerGenerate();
+    const clickSuccess = await this.triggerGenerate();
+    return {
+      success: clickSuccess,
+      isBridge: false
+    };
   }
 }
 

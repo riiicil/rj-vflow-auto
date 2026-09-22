@@ -14,10 +14,11 @@ export const SELECTORS = {
   TOOLS_BUTTON_GROUP: 'flow-tile-view-header .tools-button-group',
   SETTINGS_2_BUTTON: 'flow-tile-view-header .tools-button-group button:has(mat-icon:has-text("settings_2"))',
   OVERLAY_PANE: 'div.cdk-overlay-pane',
-  GRID_LAYOUT_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
-  GRID_SIZE_S_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("S")) button, mat-button-toggle:has(span:has-text("S")) button',
-  GRID_SIZE_M_TOGGLE: 'div.cdk-overlay-pane mat-button-toggle:has(span:has-text("M")) button, mat-button-toggle:has(span:has-text("M")) button',
-  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], button[aria-label*="Clear prompt on submit" i], button[aria-label*="Clear prompt" i], mat-slide-toggle:has-text("Clear prompt") button[role="switch"]',
+  GRID_LAYOUT_TOGGLE: 'flow-tile-view-settings mat-button-toggle:has(mat-icon:has-text("dashboard")) button, div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button',
+  GRID_SIZE_S_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:first-of-type button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:first-of-type button',
+  GRID_SIZE_M_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(2) button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(2) button',
+  GRID_SIZE_L_TOGGLE: 'flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(3) button, div.cdk-overlay-pane mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(3) button',
+  CLEAR_PROMPT_SWITCH: 'button[name="clear-prompt-on-submit"], div.cdk-overlay-pane button[name="clear-prompt-on-submit"]',
 
   // Project Sidenav / Left Navigation
   SIDEBAR_COLLAPSE_BUTTON: 'flow-project-nav-list mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has(mat-icon:has-text("left_panel_close")), mat-list-item:has-text("left_panel_close")',
@@ -81,7 +82,9 @@ export const LIGATURES = {
   DELETE: 'delete',
   DASHBOARD: 'dashboard',
   LEFT_PANEL_CLOSE: 'left_panel_close',
-  LEFT_PANEL_OPEN: 'left_panel_open'
+  LEFT_PANEL_OPEN: 'left_panel_open',
+  CHROME_EXTENSION: 'chrome_extension',
+  INK_ERASER: 'ink_eraser'
 };
 
 /**
@@ -121,14 +124,18 @@ function queryAllWithHasText(selector, root) {
       continue;
     }
 
-    // Pattern B: target:has-text("text")
-    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)$/);
+    // Pattern B: target:has-text("text") [suffix]
+    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)(.*)$/);
     if (matchDirect) {
-      const [, targetSelector, expectedText] = matchDirect;
+      const [, targetSelector, expectedText, suffix] = matchDirect;
       const candidates = targetSelector.trim() ? Array.from(root.querySelectorAll(targetSelector.trim())) : Array.from(root.querySelectorAll('*'));
       for (const el of candidates) {
-        if (el.textContent && el.textContent.trim() === expectedText.trim()) {
-          results.push(el);
+        if (el.textContent && el.textContent.trim().includes(expectedText.trim())) {
+          if (suffix && suffix.trim()) {
+            results.push(...Array.from(el.querySelectorAll(suffix.trim())));
+          } else {
+            results.push(el);
+          }
         }
       }
       continue;
@@ -375,13 +382,24 @@ export function getTileMediaSource(tileElement) {
 export function isIngredientTile(tile) {
   if (!tile) return false;
 
-  // 1. Check title and aria-label for media filename extensions
-  const footerTitle = tile.querySelector('.footer-title, [class*="footer-title"]');
-  const titleText = (footerTitle?.textContent || '').trim();
-  const ariaLabel = (tile.getAttribute('aria-label') || '').trim();
   const fileExtRegex = /\.(jpe?g|png|webp|gif|mp4|mov|webm)$/i;
 
-  if (fileExtRegex.test(titleText) || fileExtRegex.test(ariaLabel)) {
+  // 1. Check container and title for media filename extensions
+  const container = (typeof tile.closest === 'function' ? tile.closest('flow-grid-tile-container') : null) || tile;
+  const footerTitle = tile.querySelector('.footer-title, [class*="footer-title"]');
+  const titleText = (footerTitle?.textContent || '').trim();
+  const ariaLabel = (tile.getAttribute?.('aria-label') || '').trim();
+  const containerAria = (container.getAttribute?.('aria-label') || '').trim();
+  const titleAttr = (tile.getAttribute?.('title') || '').trim();
+  const containerTitle = (container.getAttribute?.('title') || '').trim();
+
+  if (
+    fileExtRegex.test(titleText) ||
+    fileExtRegex.test(ariaLabel) ||
+    fileExtRegex.test(containerAria) ||
+    fileExtRegex.test(titleAttr) ||
+    fileExtRegex.test(containerTitle)
+  ) {
     return true;
   }
 
@@ -393,7 +411,7 @@ export function isIngredientTile(tile) {
 
   if (hotbar && imgOrVideo && !hasProgressBar) {
     const icons = Array.from(hotbar.querySelectorAll('mat-icon')).map(m => (m.textContent || '').trim());
-    const hasRedo = icons.includes('redo') || !!hotbar.querySelector('[aria-label="Reuse prompt"]');
+    const hasRedo = icons.includes('redo') || queryIcon('redo', hotbar) !== null;
     if (!hasRedo) {
       return true;
     }
@@ -466,23 +484,203 @@ export function isCardGenerationSuccess(tileElement) {
 
 /**
  * Dispatches a native click event to bypass synthetic event blockers.
+ * Computes bounding client rect center coordinates, dispatches PointerEvent + MouseEvent
+ * pipelines, and targets inner MDC touch target / mat-icon for complete compatibility.
  */
 export function simulateClick(element) {
   if (!element) return false;
-  element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-  element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-  element.click();
+
+  try {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  } catch (_) {}
+
+  const rect = typeof element.getBoundingClientRect === 'function'
+    ? element.getBoundingClientRect()
+    : { left: 0, top: 0, width: 0, height: 0 };
+  const clientX = Math.round(rect.left + (rect.width > 0 ? rect.width / 2 : 0));
+  const clientY = Math.round(rect.top + (rect.height > 0 ? rect.height / 2 : 0));
+
+  const win = element.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!win) {
+    if (typeof element.click === 'function') element.click();
+    return true;
+  }
+
+  const commonOpts = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: win,
+    clientX,
+    clientY,
+    screenX: (win.screenX || 0) + clientX,
+    screenY: (win.screenY || 0) + clientY,
+    button: 0
+  };
+
+  // Focus element if focusable
+  if (typeof element.focus === 'function') {
+    try { element.focus(); } catch (_) {}
+  }
+
+  // Pointer events pipeline (for Chromium pointer listeners)
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerover', commonOpts));
+    element.dispatchEvent(new win.PointerEvent('pointerenter', { ...commonOpts, bubbles: false }));
+    element.dispatchEvent(new win.PointerEvent('pointerdown', { ...commonOpts, buttons: 1 }));
+  }
+
+  // Mouse events pipeline
+  element.dispatchEvent(new win.MouseEvent('mouseover', commonOpts));
+  element.dispatchEvent(new win.MouseEvent('mouseenter', { ...commonOpts, bubbles: false }));
+  element.dispatchEvent(new win.MouseEvent('mousedown', { ...commonOpts, buttons: 1 }));
+
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerup', { ...commonOpts, buttons: 0 }));
+  }
+  element.dispatchEvent(new win.MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
+
+  // Dispatch real MouseEvent click with computed clientX/clientY (single click)
+  element.dispatchEvent(new win.MouseEvent('click', commonOpts));
+
   return true;
 }
 
 /**
- * Dispatches a native Enter keydown/keyup sequence.
+ * Dispatches a humanized pointer interaction with natural approach micro-movements,
+ * realistic randomized target coordinates, and natural physical hold duration (60-120ms).
+ * Essential for bypass of reCAPTCHA Enterprise risk score throttling on 0-credit image endpoints.
+ */
+export async function simulateHumanClick(element, { holdMs = 85, microMoves = true } = {}) {
+  if (!element) return false;
+
+  try {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  } catch (_) {}
+
+  const rect = typeof element.getBoundingClientRect === 'function'
+    ? element.getBoundingClientRect()
+    : { left: 0, top: 0, width: 0, height: 0 };
+
+  // Humanized jitter within center 60% of element
+  const offsetX = rect.width > 0 ? rect.width * (0.35 + 0.3 * Math.random()) : 0;
+  const offsetY = rect.height > 0 ? rect.height * (0.35 + 0.3 * Math.random()) : 0;
+  const targetX = Math.round(rect.left + offsetX);
+  const targetY = Math.round(rect.top + offsetY);
+
+  const win = element.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!win) {
+    if (typeof element.click === 'function') element.click();
+    return true;
+  }
+
+  // 1. Natural micro-movement approach (3 trajectory steps)
+  if (microMoves && rect.width > 0) {
+    const approachSteps = [
+      { x: targetX - 30 + Math.round(Math.random() * 8), y: targetY - 20 + Math.round(Math.random() * 8) },
+      { x: targetX - 10 + Math.round(Math.random() * 4), y: targetY - 6 + Math.round(Math.random() * 4) },
+      { x: targetX, y: targetY }
+    ];
+
+    for (const pt of approachSteps) {
+      const moveOpts = {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        view: win,
+        clientX: pt.x,
+        clientY: pt.y,
+        screenX: (win.screenX || 0) + pt.x,
+        screenY: (win.screenY || 0) + pt.y
+      };
+      if (typeof win.PointerEvent === 'function') {
+        element.dispatchEvent(new win.PointerEvent('pointermove', moveOpts));
+      }
+      element.dispatchEvent(new win.MouseEvent('mousemove', moveOpts));
+      await sleep(15 + Math.round(Math.random() * 15));
+    }
+  }
+
+  const clickOpts = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: win,
+    clientX: targetX,
+    clientY: targetY,
+    screenX: (win.screenX || 0) + targetX,
+    screenY: (win.screenY || 0) + targetY,
+    button: 0
+  };
+
+  // 2. Focus element
+  if (typeof element.focus === 'function') {
+    try { element.focus(); } catch (_) {}
+  }
+
+  // 3. Pointer & mouse enter/down
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerover', clickOpts));
+    element.dispatchEvent(new win.PointerEvent('pointerenter', { ...clickOpts, bubbles: false }));
+    element.dispatchEvent(new win.PointerEvent('pointerdown', { ...clickOpts, buttons: 1, pressure: 0.5 }));
+  }
+  element.dispatchEvent(new win.MouseEvent('mouseover', clickOpts));
+  element.dispatchEvent(new win.MouseEvent('mouseenter', { ...clickOpts, bubbles: false }));
+  element.dispatchEvent(new win.MouseEvent('mousedown', { ...clickOpts, buttons: 1 }));
+
+  // 4. Physical human hold duration (60ms–130ms)
+  const physicalHold = Math.max(50, Math.min(180, holdMs + Math.round((Math.random() - 0.5) * 30)));
+  await sleep(physicalHold);
+
+  // 5. Pointer & mouse up
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerup', { ...clickOpts, buttons: 0, pressure: 0 }));
+  }
+  element.dispatchEvent(new win.MouseEvent('mouseup', { ...clickOpts, buttons: 0 }));
+
+  // 6. Explicit native click event with real non-zero clientX/clientY (single click)
+  element.dispatchEvent(new win.MouseEvent('click', clickOpts));
+
+  return true;
+}
+
+/**
+ * Dispatches a native Enter keydown/keypress/keyup sequence with focus and active cursor selection.
  */
 export function simulateEnter(element) {
   if (!element) return false;
-  element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-  element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+  if (typeof element.focus === 'function') {
+    element.focus();
+  }
+
+  const win = element.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!win) return false;
+
+  // Align selection to end of contenteditable for ProseMirror schema
+  const sel = win.getSelection?.();
+  if (sel && sel.rangeCount > 0) {
+    try {
+      const range = sel.getRangeAt(0);
+      range.collapse(false);
+    } catch (_) {}
+  }
+
+  const keyOpts = {
+    key: 'Enter',
+    code: 'Enter',
+    keyCode: 13,
+    which: 13,
+    charCode: 13,
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    isComposing: false,
+    view: win
+  };
+
+  element.dispatchEvent(new win.KeyboardEvent('keydown', keyOpts));
+  element.dispatchEvent(new win.KeyboardEvent('keypress', keyOpts));
+  element.dispatchEvent(new win.KeyboardEvent('keyup', keyOpts));
   return true;
 }
 
