@@ -369,7 +369,8 @@ export class QueueManager {
         await flowIngredientService.clearIngredients();
       }
 
-      // 3. Capture baseline top tile before submission
+      // 3. Settling pause & capture baseline top tile before submission
+      await new Promise(r => setTimeout(r, 450));
       const previousTopTile = flowWatcherService.getTopTileCard();
 
       // 4. Submit prompt via native ProseMirror injection

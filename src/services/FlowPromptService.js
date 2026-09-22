@@ -46,15 +46,39 @@ export class FlowPromptService {
 
     editor.focus();
 
-    // Reset inner HTML to clean empty paragraph structure
-    editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    const win = editor.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
 
-    // Select all and delete via execCommand to keep ProseMirror internal state aligned
+    // Select existing contents via Selection API
+    const sel = win?.getSelection?.();
+    if (sel && editor.ownerDocument?.createRange) {
+      try {
+        const range = editor.ownerDocument.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+
+    // Select all and delete via execCommand
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
 
+    // Fallback: reset inner HTML if any lingering text remains
+    if ((editor.textContent || '').trim() !== '') {
+      editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    }
+
     // Dispatch native input event
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    if (win && typeof win.InputEvent === 'function') {
+      editor.dispatchEvent(new win.InputEvent('input', {
+        bubbles: true,
+        composed: true,
+        inputType: 'deleteContentBackward'
+      }));
+    } else {
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     return true;
   }
 
@@ -73,22 +97,62 @@ export class FlowPromptService {
 
     editor.focus();
 
-    // Prepare clean paragraph node
-    editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
+    const win = editor.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+
+    // Select existing contents via Selection API
+    const sel = win?.getSelection?.();
+    if (sel && editor.ownerDocument?.createRange) {
+      try {
+        const range = editor.ownerDocument.createRange();
+        range.selectNodeContents(editor);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+    document.execCommand('selectAll', false, null);
+
+    // Dispatch beforeinput event with insertText
+    if (win && typeof win.InputEvent === 'function') {
+      try {
+        editor.dispatchEvent(new win.InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          inputType: 'insertText',
+          data: promptText
+        }));
+      } catch (_) {}
+    }
 
     // Select all and insert text using native execCommand
-    document.execCommand('selectAll', false, null);
     document.execCommand('insertText', false, promptText);
 
     // Dispatch input event to notify Angular change detection and ProseMirror document state
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    if (win && typeof win.InputEvent === 'function') {
+      editor.dispatchEvent(new win.InputEvent('input', {
+        bubbles: true,
+        composed: true,
+        inputType: 'insertText',
+        data: promptText
+      }));
+    } else {
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 
-    // Verify injected text matches
+    // Fallback: direct textContent assignment with input dispatch if execCommand did not register
     const currentText = this.getPromptText();
     if (currentText !== promptText.trim()) {
-      // Fallback: direct textContent assignment with input dispatch if execCommand did not register
       editor.innerHTML = `<p>${promptText}</p>`;
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      if (win && typeof win.InputEvent === 'function') {
+        editor.dispatchEvent(new win.InputEvent('input', {
+          bubbles: true,
+          composed: true,
+          inputType: 'insertText',
+          data: promptText
+        }));
+      } else {
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+      }
     }
 
     return true;
@@ -119,7 +183,9 @@ export class FlowPromptService {
   }
 
   /**
-   * Triggers generation by executing native click on the generate button.
+   * Triggers generation by executing native click on the generate button,
+   * with multi-tier fallback to ProseMirror Enter keydown and inner icon click
+   * if the primary click was swallowed by Angular change detection.
    */
   async triggerGenerate() {
     const ready = await this.waitForGenerateButtonReady(5000).catch(() => false);
@@ -132,9 +198,31 @@ export class FlowPromptService {
       throw new Error('[FlowPromptService] Generate button not found');
     }
 
+    const editor = this.getEditorNode();
+
+    // 1. Primary trigger: simulateClick on generate button
     simulateClick(btn);
+    await sleep(250);
+
+    // 2. Fallback check: if the button is still enabled, Flow did not consume the click
+    if (this.isGenerateButtonReady()) {
+      // Secondary fallback: ProseMirror native Enter submission
+      if (editor) {
+        simulateEnter(editor);
+        await sleep(250);
+      }
+
+      // Tertiary fallback: click directly on inner mat-icon or touch-target
+      if (this.isGenerateButtonReady()) {
+        const innerTarget = btn.querySelector('.mat-mdc-button-touch-target') || btn.querySelector('mat-icon');
+        if (innerTarget) {
+          simulateClick(innerTarget);
+        }
+      }
+    }
+
     // Pacing delay: allows Google Flow canvas to initiate generation request
-    await sleep(600);
+    await sleep(400);
     return true;
   }
 

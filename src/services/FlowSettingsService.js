@@ -292,7 +292,7 @@ export class FlowSettingsService {
     // Normalized fast-path: if model is already selected in trigger label, bypass opening menu
     const currentTriggerText = (modelTrigger.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const targetNorm = targetModel.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (currentTriggerText && targetNorm && (currentTriggerText.includes(targetNorm) || targetNorm.includes(currentTriggerText))) {
+    if (currentTriggerText && targetNorm && currentTriggerText === targetNorm) {
       return;
     }
 
@@ -308,19 +308,30 @@ export class FlowSettingsService {
       return;
     }
 
-    // Find target model menu item
+    // Find target model menu item: exact text match first
     const menuButtonsSelector = `${SELECTORS.MENU_ITEM_BUTTON}, button[role="menuitem"], .mat-mdc-menu-item`;
-    let targetItem = queryByText(menuButtonsSelector, targetModel, menuPanel) ||
-      queryByTextContains(menuButtonsSelector, targetModel, menuPanel);
+    let targetItem = queryByText(menuButtonsSelector, targetModel, menuPanel);
 
-    // Flexible fallback: match without punctuation/hyphens
+    // Exact normalized match second (prevents substring conflicts e.g. nanobanana2 matching nanobanana2lite)
     if (!targetItem) {
       const allItems = queryAll(menuButtonsSelector, menuPanel);
-      for (const item of allItems) {
+      targetItem = allItems.find(item => {
         const normItem = (item.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (normItem.includes(targetNorm) || targetNorm.includes(normItem)) {
-          targetItem = item;
-          break;
+        return normItem === targetNorm;
+      });
+    }
+
+    // Flexible fallback only if no exact match exists
+    if (!targetItem) {
+      targetItem = queryByTextContains(menuButtonsSelector, targetModel, menuPanel);
+      if (!targetItem) {
+        const allItems = queryAll(menuButtonsSelector, menuPanel);
+        for (const item of allItems) {
+          const normItem = (item.textContent || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normItem.includes(targetNorm) || targetNorm.includes(normItem)) {
+            targetItem = item;
+            break;
+          }
         }
       }
     }

@@ -1,8 +1,8 @@
 # Current Project State — RJ V-Flow Auto
 
 *Last Updated: 2026-09-22*<br>
-*Active Branch: `task/packaging-and-release`*<br>
-*Current Milestone: Phase 4 (Production Packaging Pipeline & Release) — [COMPLETE]*
+*Active Branch: `task/fix-image-generation-trigger`*<br>
+*Current Milestone: Post-Phase 4 Maintenance & Engine Hardening*
 
 ---
 
@@ -12,6 +12,7 @@
 - **Phase 2 — Core Automation Engine & Services**: [COMPLETE] (FlowDOM.js, FlowStorage.js, FlowSettingsService.js, FlowIngredientService.js, FlowPromptService.js, FlowWatcherService.js, FlowDownloadService.js, and QueueManager.js fully implemented, tested, and verified; merged into dev `c14ca68`)
 - **Phase 3 — Dual-Mode UI Implementation & End-to-End Hardening**: [COMPLETE] (Two-column Studio HUD in Shadow DOM, drag physics, dark precision styling, dual row badges, multi-select checkboxes, sort mode drag-and-drop reordering, single vs batch parameter bindings, IndexedDB binary storage engine, multi-row batch tile collection across virtual scroll rows for multi-output downloads, prompt validation, granular monotonic progress counter, complete form controls disabling during batch execution with read-only parameter inspection on row clicks, dynamic QUEUED status badges, animated SVG border glow on running rows, Clean Mount Protocol eliminating FOUC, Graceful Stop engine with QUEUE_STATES.STOPPING, uploaded ingredient filtering, high-contrast disabled form controls, dynamic Support Dev button, default Size S grid view, left project navigation sidebar auto-collapse, and agent mode logging polish; merged into dev `7b0f1d9`)
 - **Phase 4 — Production Packaging Pipeline & Release**: [COMPLETE] (Sub-phase 4.1 complete: production packaging pipeline with `package.json`, `obfuscator.config.js`, and `build.js` mirroring RJ AIO Metadata architecture, distribution shortcuts `SC.url` and `SUPPORT ME.url`, standalone ES modules bundling with `esbuild`, AST obfuscation with `javascript-obfuscator`, and automated distribution archive creation `releases/RJ_V-Flow_Auto-v3.0.0.zip` and `releases/v3.0.0.zip`; Sub-phase 4.2 complete: factual documentation overhaul across `docs/ARCHITECTURE.md`, `README.md`, `CHANGELOG.md`, `docs/DECISIONS.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, and `docs/ROADMAP.md`)
+- **Post-Release Hardening — Image Mode Submission & Model Fast-Path**: [IN_PROGRESS] (Resolving image generation prompt injection desynchronization, coordinate-aware PointerEvent click simulation with Enter key fallback, and exact model string matching to prevent Nano Banana 2 vs Nano Banana 2 Lite collision)
 
 ---
 
@@ -25,7 +26,8 @@
 | `task/cleanup-and-governance` | Merged | Phase 1: Cleanup & Governance Foundation (Merged into dev `7838930`) |
 | `task/core-automation-engine` | Merged | Phase 2: Core Automation Engine & Services (Merged into dev `c14ca68`) |
 | `task/dual-mode-ui` | Merged | Phase 3: Dual-Mode UI Implementation & End-to-End Hardening (Merged into dev `7b0f1d9`) |
-| `task/packaging-and-release` | Active | Phase 4: Production Packaging Pipeline & Release (Ready for dev/main merge) |
+| `task/packaging-and-release` | Merged | Phase 4: Production Packaging Pipeline & Release (Merged into dev) |
+| `task/fix-image-generation-trigger` | Active | Engine Hardening: Image mode submission, PointerEvent click, and model fast-path |
 
 ---
 

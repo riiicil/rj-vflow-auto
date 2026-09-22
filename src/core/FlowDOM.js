@@ -466,23 +466,98 @@ export function isCardGenerationSuccess(tileElement) {
 
 /**
  * Dispatches a native click event to bypass synthetic event blockers.
+ * Computes bounding client rect center coordinates, dispatches PointerEvent + MouseEvent
+ * pipelines, and targets inner MDC touch target / mat-icon for complete compatibility.
  */
 export function simulateClick(element) {
   if (!element) return false;
-  element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-  element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-  element.click();
+
+  try {
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  } catch (_) {}
+
+  const rect = typeof element.getBoundingClientRect === 'function'
+    ? element.getBoundingClientRect()
+    : { left: 0, top: 0, width: 0, height: 0 };
+  const clientX = Math.round(rect.left + (rect.width > 0 ? rect.width / 2 : 0));
+  const clientY = Math.round(rect.top + (rect.height > 0 ? rect.height / 2 : 0));
+
+  const win = element.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!win) {
+    if (typeof element.click === 'function') element.click();
+    return true;
+  }
+
+  const commonOpts = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: win,
+    clientX,
+    clientY,
+    screenX: (win.screenX || 0) + clientX,
+    screenY: (win.screenY || 0) + clientY,
+    button: 0
+  };
+
+  // Pointer events pipeline (for Chromium pointer listeners)
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerover', commonOpts));
+    element.dispatchEvent(new win.PointerEvent('pointerenter', commonOpts));
+    element.dispatchEvent(new win.PointerEvent('pointerdown', { ...commonOpts, buttons: 1 }));
+  }
+
+  // Mouse events pipeline
+  element.dispatchEvent(new win.MouseEvent('mouseover', commonOpts));
+  element.dispatchEvent(new win.MouseEvent('mouseenter', commonOpts));
+  element.dispatchEvent(new win.MouseEvent('mousedown', { ...commonOpts, buttons: 1 }));
+
+  if (typeof win.PointerEvent === 'function') {
+    element.dispatchEvent(new win.PointerEvent('pointerup', { ...commonOpts, buttons: 0 }));
+  }
+  element.dispatchEvent(new win.MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
+
+  // Native click
+  if (typeof element.click === 'function') {
+    element.click();
+  }
+
+  // If button has an inner icon or MDC touch target, also ensure event propagates
+  const innerTarget = element.querySelector?.('.mat-mdc-button-touch-target, mat-icon');
+  if (innerTarget && innerTarget !== element) {
+    innerTarget.dispatchEvent(new win.MouseEvent('click', commonOpts));
+  }
+
   return true;
 }
 
 /**
- * Dispatches a native Enter keydown/keyup sequence.
+ * Dispatches a native Enter keydown/keypress/keyup sequence with focus.
  */
 export function simulateEnter(element) {
   if (!element) return false;
-  element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-  element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+  if (typeof element.focus === 'function') {
+    element.focus();
+  }
+
+  const win = element.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!win) return false;
+
+  const keyOpts = {
+    key: 'Enter',
+    code: 'Enter',
+    keyCode: 13,
+    which: 13,
+    charCode: 13,
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    view: win
+  };
+
+  element.dispatchEvent(new win.KeyboardEvent('keydown', keyOpts));
+  element.dispatchEvent(new win.KeyboardEvent('keypress', keyOpts));
+  element.dispatchEvent(new win.KeyboardEvent('keyup', keyOpts));
   return true;
 }
 
