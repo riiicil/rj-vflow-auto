@@ -22,6 +22,7 @@ import { flowIngredientService } from '../services/FlowIngredientService.js';
 import { flowPromptService } from '../services/FlowPromptService.js';
 import { flowWatcherService } from '../services/FlowWatcherService.js';
 import { flowDownloadService } from '../services/FlowDownloadService.js';
+import { flowBridgeClient } from '../services/FlowBridgeClient.js';
 import { logger } from '../services/LoggerService.js';
 import { flowImageDB } from './FlowImageDB.js';
 
@@ -415,14 +416,53 @@ export class QueueManager {
 
           const defaultRes = cfg.imageResolution || '2K';
           const targetRes = item.resolution || cfg.targetResolution || defaultRes;
+          const isHighRes = (targetRes === '2K' || targetRes === '4K');
           logger.step('download', `Downloading ${images.length} image(s) at ${targetRes}`);
 
           for (let i = 0; i < images.length; i++) {
             const img = images[i];
-            const safePrompt = (item.prompt || 'image').slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
-            const filename = `rj_flow_${safePrompt}_${img.mediaId || Date.now()}_${i + 1}.jpg`;
+            let downloadPayloadUrl = null;
 
-            await flowDownloadService.downloadUrl(img.url, filename);
+            // 1. Upscale via RPC SPrCad if 2K or 4K requested
+            if (isHighRes && img.mediaId) {
+              try {
+                logger.step('upscale', `Upscaling variant ${i + 1}/${images.length} (${img.mediaId.slice(0, 8)}) to ${targetRes}...`);
+                const upResult = await flowBridgeClient.upscaleImage({
+                  mediaId: img.mediaId,
+                  resolution: targetRes
+                });
+                if (upResult && upResult.dataUrl) {
+                  downloadPayloadUrl = upResult.dataUrl;
+                  logger.success(`Variant ${i + 1} upscaled to ${targetRes} successfully!`);
+                }
+              } catch (upErr) {
+                logger.warn(`Variant ${i + 1} SPrCad upscale failed, falling back to original resolution:`, upErr);
+              }
+            }
+
+            // 2. Fetch authenticated image data if not yet upscaled (or if Original resolution requested)
+            if (!downloadPayloadUrl) {
+              try {
+                logger.step('fetch_image', `Fetching authenticated image data for variant ${i + 1}/${images.length}...`);
+                const fetchResult = await flowBridgeClient.fetchImageDataUrl({
+                  url: img.url,
+                  mediaId: img.mediaId
+                });
+                if (fetchResult && fetchResult.dataUrl) {
+                  downloadPayloadUrl = fetchResult.dataUrl;
+                }
+              } catch (fetchErr) {
+                logger.warn(`Authenticated fetch failed for variant ${i + 1}:`, fetchErr);
+              }
+            }
+
+            const finalUrl = downloadPayloadUrl || img.url;
+            const safePrompt = (item.prompt || 'image').slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
+            const resTag = isHighRes && downloadPayloadUrl ? `_${targetRes}` : '';
+            const filename = `rj_flow_${safePrompt}_${(img.mediaId || Date.now()).toString().slice(0, 8)}${resTag}_${i + 1}.jpg`;
+
+            logger.info(`Triggering download for variant ${i + 1}/${images.length}: ${filename}`);
+            await flowDownloadService.downloadUrl(finalUrl, filename);
 
             const dlPercent = Math.min(99, Math.round(85 + ((i + 1) / images.length) * 14));
             this.notifyProgress({

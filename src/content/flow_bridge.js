@@ -46,6 +46,8 @@
   const SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
   const SURFACE_ID = 22;
   const RPC_GEN_IMAGE = 'ogiZ0b';
+  const RPC_UPSCALE_IMAGE = 'SPrCad';
+  const RPC_MEDIA = 'as29s';
 
   const ASPECT_MAP = {
     '1:1': 1,
@@ -245,7 +247,9 @@
   }
 
   /**
-   * Extracts generated image CDN URLs and media IDs from batchexecute response.
+   * Extracts all generated image CDN URLs and media IDs from batchexecute response.
+   * Recursively unpacks inner JSON payloads and uses global regex /g sweep
+   * to guarantee capturing all variant images (x1, x2, x3, x4).
    */
   function parseImagesFromBatchResponse(text) {
     const images = [];
@@ -253,61 +257,85 @@
 
     if (!text || typeof text !== 'string') return images;
 
-    function checkString(str) {
-      if (typeof str !== 'string') return;
-      if (str.includes('/image/')) {
-        const match = str.match(/(?:https?:\/\/[^\s"'\\]+)?\/image\/([a-zA-Z0-9_-]+)[^\s"'\\]*/);
-        if (match) {
-          const mediaId = match[1];
-          let fullUrl = match[0];
-          if (!fullUrl.startsWith('http')) {
-            fullUrl = `https://flow-content.google${fullUrl}`;
-          }
-          if (!seen.has(mediaId)) {
-            seen.add(mediaId);
-            images.push({ mediaId, url: fullUrl });
-          }
+    function addImageCandidate(rawUrl, candidateMediaId) {
+      if (!rawUrl && !candidateMediaId) return;
+      let cleanUrl = String(rawUrl || '').replace(/\\"/g, '').replace(/\\\//g, '/').trim();
+      let mediaId = candidateMediaId;
+
+      if (!mediaId && cleanUrl.includes('/image/')) {
+        const idMatch = cleanUrl.match(/\/image\/([a-zA-Z0-9_-]{36}|[a-zA-Z0-9_-]+)/);
+        if (idMatch) mediaId = idMatch[1];
+      }
+
+      if (mediaId && !seen.has(mediaId)) {
+        seen.add(mediaId);
+        if (cleanUrl && !cleanUrl.startsWith('http')) {
+          cleanUrl = `https://flow-content.google${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
         }
+        images.push({
+          mediaId,
+          url: cleanUrl || `https://flow-content.google/image/${mediaId}`
+        });
       }
     }
 
-    function walk(node) {
-      if (!node) return;
-      if (typeof node === 'string') {
-        checkString(node);
-      } else if (Array.isArray(node)) {
-        for (const item of node) walk(item);
-      } else if (typeof node === 'object') {
-        for (const val of Object.values(node)) walk(val);
-      }
-    }
-
-    // 1. Structured chunk walk
+    // 1. Structured batchexecute chunk walk with recursive JSON unpacking
     try {
       const body = text.startsWith(")]}'") ? text.slice(text.indexOf('\n') + 1) : text;
-      const lines = body.split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('[')) {
-          try {
-            const parsed = JSON.parse(trimmed);
-            walk(parsed);
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
+      let index = 0;
+      while (index < body.length) {
+        const start = body.indexOf('[', index);
+        if (start === -1) break;
 
-    // 2. Global regex scan fallback
-    if (images.length === 0) {
-      const regex = /https?:\/\/[a-zA-Z0-9_.-]*flow-content\.google\/image\/([a-zA-Z0-9_-]+)[^\s"'\\]*/g;
-      let m;
-      while ((m = regex.exec(text)) !== null) {
-        const mediaId = m[1];
-        if (!seen.has(mediaId)) {
-          seen.add(mediaId);
-          images.push({ mediaId, url: m[0] });
+        const nextNewline = body.indexOf('\n', start);
+        const candidateSlice = nextNewline !== -1 ? body.slice(start, nextNewline).trim() : body.slice(start).trim();
+
+        try {
+          const parsed = JSON.parse(candidateSlice);
+          index = start + Math.max(1, candidateSlice.length);
+
+          if (Array.isArray(parsed)) {
+            for (const entry of parsed) {
+              if (Array.isArray(entry) && entry[0] === 'wrb.fr' && entry[1] === RPC_GEN_IMAGE) {
+                const payloadRaw = entry[2];
+                let payloadObj = null;
+                try {
+                  payloadObj = typeof payloadRaw === 'string' ? JSON.parse(payloadRaw) : payloadRaw;
+                } catch (_) {}
+
+                if (payloadObj) {
+                  function deepWalk(node) {
+                    if (!node) return;
+                    if (typeof node === 'string') {
+                      if (node.includes('/image/')) {
+                        addImageCandidate(node);
+                      }
+                    } else if (Array.isArray(node)) {
+                      for (const item of node) deepWalk(item);
+                    } else if (typeof node === 'object') {
+                      for (const val of Object.values(node)) deepWalk(val);
+                    }
+                  }
+                  deepWalk(payloadObj);
+                }
+              }
+            }
+          }
+        } catch (_) {
+          index = start + 1;
         }
       }
+    } catch (walkErr) {
+      logger.warn('Structured chunk walk notice:', walkErr);
+    }
+
+    // 2. Global Regex sweep across the entire response text with /g flag to find any remaining variants
+    const globalRegex = /(?:https?:\\?\/\\?\/[a-zA-Z0-9_.-]*flow-content\.google)?\\?\/image\\?\/([a-zA-Z0-9_-]{36}|[a-zA-Z0-9_-]+)(?:[^"'\s,\}\]]*)/g;
+    let m;
+    while ((m = globalRegex.exec(text)) !== null) {
+      const mediaId = m[1];
+      const matchedUrl = m[0];
+      addImageCandidate(matchedUrl, mediaId);
     }
 
     return images;
@@ -315,6 +343,8 @@
 
   /**
    * Prepend synthetic tile cards to Google Flow's gallery DOM for immediate visual display.
+   * Adheres strictly to Trusted Types CSP: uses document.createElement, textContent,
+   * and appendChild instead of innerHTML.
    */
   function mountSyntheticGalleryTiles(images, prompt) {
     try {
@@ -325,27 +355,216 @@
       row.className = 'tile-row rj-synthetic-batch';
       row.style.cssText = 'padding: 8px 0; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 12px; z-index: 5; position: relative; width: 100%;';
 
-      images.forEach((img) => {
+      images.forEach((img, idx) => {
         const card = document.createElement('div');
         card.className = 'flow-tile-container rj-synthetic-card';
         card.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #242728; background: #0d0d0d; width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
-        card.innerHTML = `
-          <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #141517; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-            <img class="thumbnail" src="${img.url}" alt="${prompt || 'Generated image'}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-          </div>
-          <div style="padding: 8px 12px; font-size: 11px; color: #8f969c; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1c1e;">
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;" title="${prompt}">${prompt || 'Image'}</span>
-            <span style="color: #57c1ff; font-weight: 600; font-size: 10px;">READY</span>
-          </div>
-        `;
+
+        const thumbWrap = document.createElement('div');
+        thumbWrap.style.cssText = 'position: relative; width: 100%; aspect-ratio: 16/9; background: #141517; display: flex; align-items: center; justify-content: center; overflow: hidden;';
+
+        const imgEl = document.createElement('img');
+        imgEl.className = 'thumbnail';
+        imgEl.src = img.dataUrl || img.url;
+        imgEl.alt = prompt || `Generated image ${idx + 1}`;
+        imgEl.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
+        thumbWrap.appendChild(imgEl);
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #8f969c; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1c1e;';
+
+        const promptSpan = document.createElement('span');
+        promptSpan.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;';
+        promptSpan.title = prompt || 'Image';
+        promptSpan.textContent = prompt || 'Image';
+
+        const badge = document.createElement('span');
+        badge.style.cssText = 'color: #57c1ff; font-weight: 600; font-size: 10px;';
+        badge.textContent = `READY ${idx + 1}/${images.length}`;
+
+        footer.appendChild(promptSpan);
+        footer.appendChild(badge);
+
+        card.appendChild(thumbWrap);
+        card.appendChild(footer);
         row.appendChild(card);
       });
 
       container.insertBefore(row, container.firstChild);
-      logger.success(`Mounted ${images.length} generated image tile(s) into gallery DOM`);
+      logger.success(`Mounted ${images.length} generated image tile(s) into gallery DOM (CSP-safe)`);
     } catch (err) {
       logger.warn('Synthetic card mount notice (non-fatal):', err);
     }
+  }
+
+  /**
+   * Executes FlowService.UpsampleImage (RPC SPrCad) to upscale a media asset to 2K or 4K.
+   * Returns a self-contained data:image/jpeg;base64,... URL directly from Google's response.
+   */
+  async function handleUpscaleImage(params) {
+    const { mediaId, resolution = '2K', projectId = getProjectId() } = params || {};
+    if (!mediaId) {
+      throw new Error('[FlowBridge] mediaId is required for image upscale');
+    }
+
+    const code = (String(resolution).toUpperCase() === '4K') ? 2 : 1;
+    logger.info(`Requesting ${resolution} upscale for image: ${mediaId} (RPC SPrCad, code: ${code})...`);
+
+    let captchaToken = null;
+    try {
+      captchaToken = await mintCaptcha('IMAGE_GENERATION');
+    } catch (_) {}
+
+    const contextEnvelope = [
+      null,
+      SURFACE_ID,
+      null,
+      null,
+      null,
+      projectId || null,
+      null,
+      null,
+      null,
+      null,
+      captchaToken ? [captchaToken, 1] : null
+    ];
+
+    const innerPayload = [
+      mediaId,
+      code,
+      contextEnvelope
+    ];
+
+    const responseText = await executeBatchRpc(RPC_UPSCALE_IMAGE, innerPayload);
+
+    let base64 = null;
+    try {
+      const body = responseText.startsWith(")]}'") ? responseText.slice(responseText.indexOf('\n') + 1) : responseText;
+      let index = 0;
+      while (index < body.length) {
+        const start = body.indexOf('[', index);
+        if (start === -1) break;
+        const nextNewline = body.indexOf('\n', start);
+        const candidateSlice = nextNewline !== -1 ? body.slice(start, nextNewline).trim() : body.slice(start).trim();
+        try {
+          const parsed = JSON.parse(candidateSlice);
+          index = start + Math.max(1, candidateSlice.length);
+          if (Array.isArray(parsed)) {
+            for (const entry of parsed) {
+              if (Array.isArray(entry) && entry[0] === 'wrb.fr' && entry[1] === RPC_UPSCALE_IMAGE) {
+                const payloadRaw = entry[2];
+                const p = typeof payloadRaw === 'string' ? JSON.parse(payloadRaw) : payloadRaw;
+                if (Array.isArray(p) && p.length > 1 && typeof p[1] === 'string' && p[1].length > 100) {
+                  base64 = p[1];
+                  break;
+                }
+              }
+            }
+          }
+        } catch (_) {
+          index = start + 1;
+        }
+        if (base64) break;
+      }
+    } catch (parseErr) {
+      logger.warn('Failed parsing SPrCad response JSON chunks:', parseErr);
+    }
+
+    if (!base64) {
+      const b64Match = responseText.match(/"([A-Za-z0-9+/=]{1000,})"/);
+      if (b64Match) {
+        base64 = b64Match[1];
+      }
+    }
+
+    if (!base64) {
+      throw new Error(`[FlowBridge] SPrCad upscale response carried no encoded image for mediaId: ${mediaId}`);
+    }
+
+    const mime = 'image/jpeg';
+    const dataUrl = `data:${mime};base64,${base64}`;
+    logger.success(`Upscaled image ${mediaId} to ${resolution} successfully (${Math.round(base64.length / 1024)} KB)`);
+
+    return {
+      success: true,
+      mediaId,
+      resolution,
+      dataUrl
+    };
+  }
+
+  /**
+   * Fetches the authentic image binary in the MAIN world using the active Google session cookies.
+   * Converts the binary to a self-contained Base64 Data URL to prevent 403 AccessDenied errors.
+   */
+  async function handleFetchImageDataUrl(params) {
+    const { url, mediaId } = params || {};
+    let targetUrl = url;
+
+    if (!targetUrl && mediaId) {
+      targetUrl = `https://flow-content.google/image/${mediaId}`;
+    }
+
+    if (!targetUrl) {
+      throw new Error('[FlowBridge] URL or mediaId required to fetch image data');
+    }
+
+    logger.info(`Fetching image binary in MAIN world for ${mediaId || targetUrl}...`);
+
+    let blob = null;
+    try {
+      const res = await fetch(targetUrl, {
+        credentials: 'include',
+        headers: { 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' }
+      });
+      if (res.ok) {
+        blob = await res.blob();
+      }
+    } catch (fetchErr) {
+      logger.warn('Direct authenticated fetch failed:', fetchErr);
+    }
+
+    if (!blob || blob.type.includes('xml') || blob.size < 500) {
+      if (mediaId) {
+        try {
+          logger.info(`Querying as29s RPC for signed CDN URL of ${mediaId}...`);
+          const as29sResp = await executeBatchRpc(RPC_MEDIA, [mediaId]);
+          const matchCdn = as29sResp.match(/https?:\/\/[a-zA-Z0-9_.-]*(?:googleusercontent|flow-content)[^\s"'\\]+/);
+          if (matchCdn) {
+            const cdnUrl = matchCdn[0].replace(/\\"/g, '').replace(/\\\//g, '/');
+            logger.info(`Resolved CDN URL via as29s: ${cdnUrl.slice(0, 60)}...`);
+            const cdnRes = await fetch(cdnUrl, { credentials: 'include' });
+            if (cdnRes.ok) {
+              const cdnBlob = await cdnRes.blob();
+              if (cdnBlob.size > 500 && !cdnBlob.type.includes('xml')) {
+                blob = cdnBlob;
+              }
+            }
+          }
+        } catch (asErr) {
+          logger.warn('as29s resolution failed:', asErr);
+        }
+      }
+    }
+
+    if (!blob || blob.size < 500 || blob.type.includes('xml')) {
+      throw new Error(`Failed to retrieve authentic image data for ${mediaId || targetUrl}`);
+    }
+
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    return {
+      success: true,
+      mediaId,
+      dataUrl,
+      sizeBytes: blob.size,
+      mimeType: blob.type
+    };
   }
 
   async function handleGenerateImage(params) {
@@ -580,6 +799,10 @@
         result = await handleTriggerGenerateWithCaptcha(payload || {});
       } else if (action === 'GENERATE_IMAGE') {
         result = await handleGenerateImage(payload || {});
+      } else if (action === 'UPSCALE_IMAGE') {
+        result = await handleUpscaleImage(payload || {});
+      } else if (action === 'FETCH_IMAGE_DATA') {
+        result = await handleFetchImageDataUrl(payload || {});
       } else if (action === 'MINT_CAPTCHA') {
         const token = await mintCaptcha(payload?.pageAction || 'IMAGE_GENERATION');
         result = { token };

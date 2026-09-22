@@ -12,7 +12,7 @@
   - `fix(engine): sync UI generation via reCAPTCHA execution hook and native trigger dispatch`
   - `feat(engine): implement Option C MAIN-world reCAPTCHA and batchexecute RPC bridge for image generation`
   - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
-- **Working Tree**: Clean, verified Option C MAIN-world batchexecute RPC bridge (`ogiZ0b`) active for image generation with inline URL extraction and synthetic DOM tile mounting, native DOM click pipeline active for all video modes, background `chrome.downloads` handler active for reliable downloading, all logging harmonized under `[RJ V-Flow Auto]`, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated.
+- **Working Tree**: Clean, verified Option C MAIN-world batchexecute RPC bridge (`ogiZ0b`) active for image generation with multi-output recursive JSON/regex parsing (x1-x4), SPrCad (`UpsampleImage`) 2K/4K upscaling returning direct Base64 images, in-page authenticated image fetching converting to self-contained Base64 Data URLs, CSP-safe `document.createElement` tile mounting, native DOM click pipeline active for all video modes, background `chrome.downloads` handler active for reliable downloading, all logging harmonized under `[RJ V-Flow Auto]`, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated.
 
 ---
 
@@ -23,13 +23,16 @@ Phase 2 (Core Automation Engine & Services) was successfully completed across al
 Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, merged into `dev` (`7b0f1d9`), and pushed to `origin/dev`.
 Phase 4 (Production Packaging Pipeline & Release) was completed, bundled, and obfuscated.
 
-### Engine Hardening: Image Mode Trigger Resolution (Option C Batchexecute RPC Bridge)
-- **Problem**: In Google Flow, Video mode (Veo 3.1) executes cleanly with synthetic clicks. Free-tier / 0-credit Image mode (Nano Banana 2, Pro, Lite) enforces strict reCAPTCHA Enterprise bot scoring and internal Angular form synchronization that swallows synthetic button clicks.
-- **Verified Solution (Option C Dual-Pipeline Architecture)**:
-  - **Image Mode (Text-to-Image, Edit-Image)**: Executed via `flowBridgeClient.generateImage()` calling `ogiZ0b` batchexecute RPC directly in the page's MAIN execution world with a freshly minted authentic `IMAGE_GENERATION` reCAPTCHA token and `'x-same-domain': '1'`.
-  - **Inline Media Extraction**: Extracted generated media IDs and signed CDN URLs (`flow-content.google/image/...`) directly from the `ogiZ0b` response payload, eliminating 180s gallery watcher timeouts.
-  - **Synthetic Gallery DOM Mounting**: Mounted preview cards into Google Flow's virtual scroll container so the user visually sees generated images immediately.
-  - **Automated Downloads**: Routed through `flowDownloadService.downloadUrl()` using the background service worker's `chrome.downloads.download()` API (with 1000ms inter-download pacing).
+### Engine Hardening: Image Mode Trigger, Multi-Output & High-Res Upscale Resolution
+- **Problem**:
+  1. Image mode (Nano Banana 2, Pro, Lite) multi-output generations (x2, x3, x4) were truncated to 1 variant because `parseImagesFromBatchResponse` evaluated `entry[2]` with a single non-global regex match.
+  2. Downloading `flow-content.google/image/<mediaId>` via background `chrome.downloads` triggered 403 `AccessDenied` XML responses from Google Cloud Storage because the service worker lacked the user's session cookies, creating broken `.xml` files.
+  3. `mountSyntheticGalleryTiles` attempted to write `.innerHTML`, which threw a Trusted Types CSP violation (`This document requires 'TrustedHTML' assignment`).
+- **Verified Solution**:
+  - **Multi-Output Variant Extraction**: Unpacked recursive `batchexecute` JSON envelopes and added a global `/g` regex sweep across the entire response text, successfully extracting all variant media IDs and URLs (x1 through x4).
+  - **Native 2K / 4K Image Upscaling (`SPrCad`)**: Implemented RPC `SPrCad` (`FlowService.UpsampleImage`) with `code: 1` (2K) and `code: 2` (4K). The response carries the pure Base64 image binary directly in `payload[1]`, which is converted to `data:image/jpeg;base64,...`.
+  - **In-Page Authenticated Fetching**: For Original resolution, images are fetched inside the MAIN world using `fetch(url, { credentials: 'include' })` and converted to Base64 Data URLs via `FileReader`, completely eliminating 403 AccessDenied errors.
+  - **CSP-Safe DOM Tile Mounting**: Rewrote `mountSyntheticGalleryTiles` using standard `document.createElement`, `textContent`, and `appendChild` methods, eliminating the TrustedHTML error.
   - **Video Mode (Veo 3.1 Family, Omni 1.1 Flash)**: 100% preserved on the proven native DOM click trigger pipeline (`simulateHumanClick(btn, { holdMs: 110, microMoves: true })`) and `FlowWatcherService`.
   - **Harmonized Console Logging**: 100% unified under `%c[RJ V-Flow Auto]` with standard design tokens across all files.
 1. **Sub-phase 4.1 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (`6d6374c`)**:

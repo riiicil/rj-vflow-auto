@@ -136,6 +136,22 @@ class FlowBridgeClient {
     const res = await this.request('MINT_CAPTCHA', { pageAction });
     return res?.token;
   }
+
+  /**
+   * Invokes FlowService.UpsampleImage (SPrCad) in the MAIN world to upscale an image to 2K/4K.
+   */
+  async upscaleImage(params) {
+    logger.info(`[FlowBridgeClient] Dispatching UPSCALE_IMAGE via MAIN world bridge for ${params.mediaId} (${params.resolution || '2K'})`);
+    return await this.request('UPSCALE_IMAGE', params, 60000);
+  }
+
+  /**
+   * Fetches authentic image binary in MAIN world with active session cookies and returns Base64 Data URL.
+   */
+  async fetchImageDataUrl(params) {
+    logger.info(`[FlowBridgeClient] Dispatching FETCH_IMAGE_DATA via MAIN world bridge for ${params.mediaId || params.url}`);
+    return await this.request('FETCH_IMAGE_DATA', params, 30000);
+  }
 }
 
 export const flowBridgeClient = new FlowBridgeClient();
