@@ -216,17 +216,30 @@ export class FlowPromptService {
 
     // 2. Fallback check: if the button is still enabled, Flow did not consume the click
     if (this.isGenerateButtonReady()) {
-      logger.warn('[FlowPromptService] Primary generate click not consumed, attempting ProseMirror Enter fallback');
-      if (editor) {
-        editor.focus();
-        simulateEnter(editor);
-        await sleep(350);
-      }
+      logger.warn('[FlowPromptService] Primary generate click not consumed, attempting target icon click');
+      const icon = btn.querySelector('mat-icon') || btn;
+      await simulateHumanClick(icon, { holdMs: 90, microMoves: true });
+      await sleep(350);
 
       if (this.isGenerateButtonReady()) {
-        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button click');
-        const hostEl = btn.closest('flow-generate-icon-button') || btn;
-        await simulateHumanClick(hostEl, { holdMs: 90, microMoves: false });
+        logger.warn('[FlowPromptService] Icon click not consumed, attempting native button.click() fallback');
+        try { btn.click(); } catch (_) {}
+        await sleep(350);
+
+        if (this.isGenerateButtonReady()) {
+          logger.warn('[FlowPromptService] Click fallback not consumed, attempting ProseMirror Enter fallback');
+          if (editor) {
+            editor.focus();
+            simulateEnter(editor);
+            await sleep(350);
+          }
+
+          if (this.isGenerateButtonReady()) {
+            logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button click');
+            const hostEl = btn.closest('flow-generate-icon-button') || btn;
+            await simulateHumanClick(hostEl, { holdMs: 90, microMoves: false });
+          }
+        }
       }
     }
 
@@ -237,9 +250,8 @@ export class FlowPromptService {
 
   /**
    * High-level orchestrator: Clears prior text, visibly injects prompt into ProseMirror,
-   * and routes execution:
-   * - Image modes (text-to-image, edit-image): Dispatches via MAIN-world bridge (ogiZ0b RPC with fresh reCAPTCHA).
-   * - Video modes: Executes native DOM pointer sequence with multi-tier fallback.
+   * pre-arms clean reCAPTCHA Enterprise tokens for free image generation modes,
+   * and routes execution natively through the unified DOM trigger pipeline.
    */
   async submitPrompt(promptText, {
     clearBefore = true,
@@ -269,17 +281,15 @@ export class FlowPromptService {
     await sleep(350);
 
     if (isImage) {
-      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — triggering generation via MAIN world captcha bridge`);
+      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — pre-arming clean reCAPTCHA Enterprise token`);
       try {
-        await flowBridgeClient.triggerGenerateWithCaptcha();
-        await sleep(500);
-        return true;
+        await flowBridgeClient.armCaptchaToken('IMAGE_GENERATION');
       } catch (bridgeErr) {
-        logger.warn('[FlowPromptService] Bridge captcha trigger failed, attempting native DOM click fallback:', bridgeErr);
+        logger.warn('[FlowPromptService] Bridge captcha arming warning (proceeding with native click):', bridgeErr);
       }
     }
 
-    // 3. For Video mode (Veo 3.1, Omni) or fallback: dispatch native DOM click
+    // 3. For all modes (Image, Video, Edit, Frames): dispatch native DOM click pipeline
     return await this.triggerGenerate();
   }
 }

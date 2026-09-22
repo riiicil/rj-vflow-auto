@@ -121,6 +121,15 @@ class FlowBridgeClient {
   }
 
   /**
+   * Pre-arms the MAIN-world bridge with a fresh reCAPTCHA Enterprise token for the given action.
+   * When Angular's native generation click executes, the hook instantly supplies this clean token.
+   */
+  async armCaptchaToken(pageAction = 'IMAGE_GENERATION') {
+    logger.info(`[FlowBridgeClient] Pre-arming reCAPTCHA Enterprise token for action: ${pageAction}`);
+    return await this.request('ARM_CAPTCHA', { pageAction });
+  }
+
+  /**
    * Mints a reCAPTCHA Enterprise token in the MAIN world for a given action.
    */
   async mintCaptcha(pageAction = 'IMAGE_GENERATION') {

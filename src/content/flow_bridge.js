@@ -9,6 +9,7 @@
  * - Direct access to window.WIZ_global_data (CSRF token SNlM0e, session FdrFJe, build bl).
  * - Direct execution of Flow's batchexecute RPCs (ogiZ0b for image generation).
  * - Complete elimination of synthetic DOM click failures and reCAPTCHA bot score drops.
+ * - Unified logging consistent with LoggerService.
  * 
  * Adheres to AGENTS.md (Zero-CDP Protocol, Zero Native Emoji).
  */
@@ -17,6 +18,30 @@
   if (window.__RJ_FLOW_BRIDGE_READY__) {
     return;
   }
+
+  // Unified logger matching LoggerService brand tokens
+  const logger = {
+    prefix: '[RJ V-Flow Auto]',
+    colors: {
+      brand: '#57c1ff',
+      step: '#079183',
+      success: '#59d499',
+      warn: '#e5a93c',
+      error: '#ff5555'
+    },
+    info(msg, ...args) {
+      console.log(`%c${this.prefix} [FlowBridge] ${msg}`, `color: ${this.colors.brand};`, ...args);
+    },
+    success(msg, ...args) {
+      console.log(`%c${this.prefix} [FlowBridge] ${msg}`, `color: ${this.colors.success}; font-weight: bold;`, ...args);
+    },
+    warn(msg, ...args) {
+      console.warn(`%c${this.prefix} [FlowBridge] ${msg}`, `color: ${this.colors.warn}; font-weight: bold;`, ...args);
+    },
+    error(msg, ...args) {
+      console.error(`%c${this.prefix} [FlowBridge] ${msg}`, `color: ${this.colors.error}; font-weight: bold;`, ...args);
+    }
+  };
 
   const SITE_KEY = '6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV';
   const SURFACE_ID = 22;
@@ -69,17 +94,36 @@
 
       originalGrecaptchaExecute = window.grecaptcha.enterprise.execute;
       window.grecaptcha.enterprise.execute = async function (siteKey, options) {
-        console.log('[RJ FlowBridge] grecaptcha.enterprise.execute intercepted:', siteKey, options);
-        if (preMintedToken && (options?.action === 'IMAGE_GENERATION' || !options?.action)) {
-          console.log('[RJ FlowBridge] Supplying pre-minted clean reCAPTCHA token to Google Flow!');
+        const action = options?.action;
+        if (action === 'IMAGE_GENERATION' || action === 'VIDEO_GENERATION') {
+          logger.info(`reCAPTCHA execution requested for action: ${action}`);
+        }
+
+        // 1. Supply pre-minted clean token if armed
+        if (preMintedToken && (action === 'IMAGE_GENERATION' || !action)) {
+          logger.success('Supplying pre-minted clean reCAPTCHA Enterprise token to Google Flow!');
           const token = preMintedToken;
           preMintedToken = null;
           return token;
         }
+
+        // 2. On-demand clean turn token minting for IMAGE_GENERATION if not pre-armed
+        if (action === 'IMAGE_GENERATION' || !action) {
+          logger.info('Minting on-demand clean reCAPTCHA Enterprise token in detached turn...');
+          await new Promise(r => setTimeout(r, 20));
+          try {
+            const token = await originalGrecaptchaExecute.call(window.grecaptcha.enterprise, siteKey, options);
+            logger.success('Supplied on-demand reCAPTCHA Enterprise token to Google Flow!');
+            return token;
+          } catch (err) {
+            logger.warn('On-demand token minting warning (falling back):', err);
+          }
+        }
+
         return originalGrecaptchaExecute.apply(this, arguments);
       };
       window.grecaptcha.enterprise.__rj_hooked__ = true;
-      console.log('[RJ FlowBridge] Successfully hooked grecaptcha.enterprise.execute');
+      logger.info('Successfully hooked grecaptcha.enterprise.execute in MAIN world.');
       return true;
     }
     return false;
@@ -101,7 +145,7 @@
           return resolve(window.grecaptcha.enterprise);
         }
         if (Date.now() - start > timeout) {
-          return reject(new Error('[RJ FlowBridge] reCAPTCHA Enterprise not ready within timeout'));
+          return reject(new Error('reCAPTCHA Enterprise not ready within timeout'));
         }
         setTimeout(check, 150);
       };
@@ -135,7 +179,7 @@
     const sid = wiz.FdrFJe;
     const bl = wiz.cfb2h;
     if (!at) {
-      throw new Error('[RJ FlowBridge] Missing WIZ_global_data.SNlM0e (CSRF token)');
+      throw new Error('Missing WIZ_global_data.SNlM0e (CSRF token)');
     }
     return { at, sid: sid || '', bl: bl || '' };
   }
@@ -192,7 +236,7 @@
     });
 
     if (!response.ok) {
-      throw new Error(`[RJ FlowBridge] Batch RPC HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`Batch RPC HTTP ${response.status}: ${response.statusText}`);
     }
 
     const text = await response.text();
@@ -212,10 +256,10 @@
     } = params;
 
     if (!prompt || !prompt.trim()) {
-      throw new Error('[RJ FlowBridge] Prompt cannot be empty');
+      throw new Error('Prompt cannot be empty');
     }
     if (!projectId) {
-      throw new Error('[RJ FlowBridge] Could not determine Flow projectId from URL');
+      throw new Error('Could not determine Flow projectId from URL');
     }
 
     const wireModel = MODEL_MAP[model] || 'NARWHAL';
@@ -236,10 +280,10 @@
       }
     }
 
-    console.log('[RJ FlowBridge] Minting reCAPTCHA token for IMAGE_GENERATION...');
+    logger.info('Minting reCAPTCHA token for IMAGE_GENERATION...');
     const captchaToken = await mintCaptcha('IMAGE_GENERATION');
     if (!captchaToken) {
-      throw new Error('[RJ FlowBridge] Failed to mint reCAPTCHA token for IMAGE_GENERATION');
+      throw new Error('Failed to mint reCAPTCHA token for IMAGE_GENERATION');
     }
 
     const contextEnvelope = [
@@ -298,7 +342,7 @@
       [clientUuid()]
     ];
 
-    console.log('[RJ FlowBridge] Executing ogiZ0b RPC in MAIN world for model:', wireModel);
+    logger.info(`Executing ogiZ0b RPC in MAIN world for model: ${wireModel}`);
     const responseText = await executeBatchRpc(RPC_GEN_IMAGE, innerPayload);
 
     // Auto-clear UI prompt box so the user sees the prompt was submitted cleanly
@@ -314,17 +358,17 @@
   }
 
   async function handleTriggerGenerateWithCaptcha(params = {}) {
-    console.log('[RJ FlowBridge] Preparing clean reCAPTCHA token for generate trigger...');
+    logger.info('Preparing clean reCAPTCHA token for generate trigger...');
     hookGrecaptcha();
 
     // 1. Mint token in clean microtask context (no synthetic click on stack)
     let token = null;
     try {
       token = await mintCaptcha('IMAGE_GENERATION');
-      console.log('[RJ FlowBridge] Pre-minted clean reCAPTCHA token:', token ? (token.slice(0, 20) + '...') : 'null');
       preMintedToken = token;
+      logger.info(`Pre-minted clean reCAPTCHA token: ${token ? token.slice(0, 20) + '...' : 'null'}`);
     } catch (err) {
-      console.warn('[RJ FlowBridge] Token pre-minting error (proceeding to click):', err);
+      logger.warn('Token pre-minting error (proceeding to click):', err);
     }
 
     // 2. Populate any hidden reCAPTCHA response textareas
@@ -345,13 +389,12 @@
                 document.querySelector('button[aria-label="Start generation"]');
 
     if (!btn) {
-      throw new Error('[RJ FlowBridge] Generate button not found in page DOM');
+      throw new Error('Generate button not found in page DOM');
     }
 
-    const icon = btn.querySelector('mat-icon') || btn;
-    const rect = icon.getBoundingClientRect();
-    const clientX = rect.left + rect.width / 2;
-    const clientY = rect.top + rect.height / 2;
+    const rect = btn.getBoundingClientRect();
+    const clientX = Math.round(rect.left + rect.width / 2);
+    const clientY = Math.round(rect.top + rect.height / 2);
 
     const commonOpts = {
       bubbles: true,
@@ -359,37 +402,38 @@
       composed: true,
       view: window,
       clientX,
-      clientY
+      clientY,
+      screenX: (window.screenX || 0) + clientX,
+      screenY: (window.screenY || 0) + clientY,
+      button: 0
     };
 
-    console.log('[RJ FlowBridge] Dispatching native trigger in MAIN world at', clientX, clientY);
+    logger.info(`Dispatching native trigger on button at (${clientX}, ${clientY})`);
 
-    btn.focus();
+    try { btn.focus(); } catch (_) {}
     if (typeof PointerEvent === 'function') {
-      icon.dispatchEvent(new PointerEvent('pointerdown', { ...commonOpts, buttons: 1, pressure: 0.5 }));
+      btn.dispatchEvent(new PointerEvent('pointerover', commonOpts));
+      btn.dispatchEvent(new PointerEvent('pointerenter', { ...commonOpts, bubbles: false }));
+      btn.dispatchEvent(new PointerEvent('pointerdown', { ...commonOpts, buttons: 1, pressure: 0.5 }));
     }
-    icon.dispatchEvent(new MouseEvent('mousedown', { ...commonOpts, buttons: 1 }));
+    btn.dispatchEvent(new MouseEvent('mouseover', commonOpts));
+    btn.dispatchEvent(new MouseEvent('mouseenter', { ...commonOpts, bubbles: false }));
+    btn.dispatchEvent(new MouseEvent('mousedown', { ...commonOpts, buttons: 1 }));
 
-    await new Promise(r => setTimeout(r, 60));
+    await new Promise(r => setTimeout(r, 90));
 
     if (typeof PointerEvent === 'function') {
-      icon.dispatchEvent(new PointerEvent('pointerup', { ...commonOpts, buttons: 0, pressure: 0 }));
+      btn.dispatchEvent(new PointerEvent('pointerup', { ...commonOpts, buttons: 0, pressure: 0 }));
     }
-    icon.dispatchEvent(new MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
-
-    btn.click();
+    btn.dispatchEvent(new MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
+    btn.dispatchEvent(new MouseEvent('click', commonOpts));
 
     // 4. Secondary fallback: check if button is still enabled after 350ms
     await new Promise(r => setTimeout(r, 350));
     const isStillReady = !btn.hasAttribute('disabled') && !btn.classList.contains('mat-mdc-button-disabled');
     if (isStillReady) {
-      console.log('[RJ FlowBridge] Generate button still enabled, dispatching ProseMirror Enter fallback in MAIN world');
-      const editor = document.querySelector('.ProseMirror[contenteditable="true"]');
-      if (editor) {
-        editor.focus();
-        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-        editor.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-      }
+      logger.warn('Generate button still enabled, attempting native button.click() fallback');
+      try { btn.click(); } catch (_) {}
     }
 
     return {
@@ -412,7 +456,12 @@
 
     try {
       let result;
-      if (action === 'TRIGGER_GENERATE_WITH_CAPTCHA') {
+      if (action === 'ARM_CAPTCHA') {
+        const token = await mintCaptcha(payload?.pageAction || 'IMAGE_GENERATION');
+        preMintedToken = token;
+        logger.info(`Clean reCAPTCHA token armed (${token ? token.slice(0, 20) + '...' : 'null'})`);
+        result = { armed: Boolean(token) };
+      } else if (action === 'TRIGGER_GENERATE_WITH_CAPTCHA') {
         result = await handleTriggerGenerateWithCaptcha(payload || {});
       } else if (action === 'GENERATE_IMAGE') {
         result = await handleGenerateImage(payload || {});
@@ -420,7 +469,7 @@
         const token = await mintCaptcha(payload?.pageAction || 'IMAGE_GENERATION');
         result = { token };
       } else {
-        throw new Error(`[RJ FlowBridge] Unsupported action: ${action}`);
+        throw new Error(`Unsupported action: ${action}`);
       }
 
       const responseDetail = { requestId, success: true, result };
@@ -448,5 +497,5 @@
   });
 
   window.__RJ_FLOW_BRIDGE_READY__ = true;
-  console.log('[RJ V-Flow Auto] Flow MAIN-world bridge loaded and ready.');
+  logger.info('Flow MAIN-world bridge loaded and ready.');
 })();

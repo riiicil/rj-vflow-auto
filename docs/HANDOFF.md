@@ -8,12 +8,11 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `fix(engine): harmonize logger and unify native generation trigger with pre-armed reCAPTCHA`
+  - `fix(engine): sync UI generation via reCAPTCHA execution hook and native trigger dispatch`
   - `feat(engine): implement Option C MAIN-world reCAPTCHA and batchexecute RPC bridge for image generation`
   - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
-  - `fix(engine): add simulateHumanClick telemetry and isolate ingredient tiles in watcher`
-  - `fix(dom): eliminate simulateClick double-click regression and resolve suffix has-text selector`
-  - `fix(engine): resolve image mode prompt submission, simulateClick coordinates, and model fast-path`
-- **Working Tree**: Clean, Option C MAIN-world reCAPTCHA Enterprise and batchexecute RPC bridge (`ogiZ0b`) fully implemented, dual-channel CustomEvent / postMessage communication established, TDZ reference in QueueManager fixed, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
+- **Working Tree**: Clean, unified `FlowPromptService.triggerGenerate()` DOM click pipeline active across all modes, reCAPTCHA Enterprise token pre-armed in MAIN world for image modes, logging completely harmonized under `[RJ V-Flow Auto]` with unified colors, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
 
 ---
 
@@ -24,16 +23,17 @@ Phase 2 (Core Automation Engine & Services) was successfully completed across al
 Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, merged into `dev` (`7b0f1d9`), and pushed to `origin/dev`.
 Phase 4 (Production Packaging Pipeline & Release) was completed, bundled, and obfuscated.
 
-### Engine Hardening: Image Mode Trigger Resolution (Option C Bridge)
+### Engine Hardening: Image Mode Trigger Resolution (Option C Bridge & Unified Pipeline)
 - **Problem**: In Google Flow, Video mode (Veo 3.1) consumes paid quota and executes cleanly with synthetic clicks. Image mode (Nano Banana 2, Pro, Lite) consumes 0 credits and enforces client-side reCAPTCHA Enterprise bot risk evaluation (`recaptcha__en.js`). Synthetic button clicks (`isTrusted: false`) fail bot scoring, so the `<textarea name="g-recaptcha-response">` is never populated, causing Angular and the backend to silently discard the click.
-- **Permanent Solution (Option C & UI-Synced Hook)**:
+- **Permanent Solution (Option C, Pre-Armed Token & Unified Pipeline)**:
   - Injected `flow_bridge.js` into Google Flow's page `MAIN` world (`world: 'MAIN'`).
-  - Hooks `window.grecaptcha.enterprise.execute` to serve pre-minted clean tokens on demand.
-  - Pre-mints a clean reCAPTCHA Enterprise token in a clean microtask context (where `window.event` is undefined / detached from any untrusted event).
-  - Populates hidden `<textarea name="g-recaptcha-response">` elements and invokes `flow-generate-icon-button button.click()` in the MAIN world.
-  - When Angular's native `(click)` handler requests a token, our hook immediately serves the clean token, enabling Angular to insert `<flow-pending-tile>` into the virtual scroll DOM and dispatch the generation natively with 100% UI synchronization.
-  - Strict mode partitioning: `image-to-video` and `frames` are strictly categorized as video modes, preventing accidental routing to image generation.
-  - FlowPromptService retains native DOM click pipeline with multi-tier fallback for Veo 3.1 video mode.
+  - Unified logging: defined `logger` in `flow_bridge.js` matching `LoggerService.js` format and color tokens under `[RJ V-Flow Auto]`.
+  - Standardized ALL generation modes (Image, Video, Edit, Frames) onto `FlowPromptService.triggerGenerate()` using `simulateHumanClick(btn, { holdMs: 110, microMoves: true })`.
+  - For image modes, `submitPrompt()` calls `flowBridgeClient.armCaptchaToken('IMAGE_GENERATION')` right before triggering the native click.
+  - In `flow_bridge.js`, `mintCaptcha('IMAGE_GENERATION')` pre-mints a clean token in a detached microtask context and stores it in `preMintedToken`.
+  - When Angular's native click handler executes and calls `grecaptcha.enterprise.execute(SITE_KEY, { action: 'IMAGE_GENERATION' })`, our hook instantly supplies the clean token. If not pre-armed, an on-demand detached-turn fallback mints a clean token after a 20ms macrotask tick.
+  - Video mode (Veo 3.1) executes through the exact same `triggerGenerate()` pipeline (verified 100% working in console logs, 2/2 videos generated and downloaded).
+  - Enhanced fallback chain in `triggerGenerate()`: primary button click -> icon click -> native `.click()` -> ProseMirror Enter keydown -> host element click.
 1. **Sub-phase 4.1 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (`6d6374c`)**:
    - **Production Packaging Pipeline (`package.json`, `obfuscator.config.js`, `build.js`)**: Mirrored the production bundling architecture from `RJ_AIO_Metadata`. Added `esbuild`, `fs-extra`, and `javascript-obfuscator` dependencies with `"build": "node build.js"` script.
    - **Standalone ES Module Bundling**: Bundled entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`) with `esbuild` directly into `dist/LOAD THIS FOLDER/`. `content_main.js` completely inlines and resolves all 18 internal dependencies (`src/core/`, `src/services/`, `src/overlay/`) into a single 218.7kb production bundle.
