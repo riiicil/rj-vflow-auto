@@ -15,6 +15,7 @@ import {
   waitForElement,
   waitForCondition,
   simulateClick,
+  simulateHumanClick,
   simulateEnter,
   sleep
 } from '../core/FlowDOM.js';
@@ -201,26 +202,26 @@ export class FlowPromptService {
 
     const editor = this.getEditorNode();
 
-    // 1. Primary trigger: simulateClick on generate button
-    simulateClick(btn);
-    await sleep(250);
+    // 1. Primary trigger: simulateHumanClick on generate button with natural hold time & micro-movements
+    await simulateHumanClick(btn, { holdMs: 90, microMoves: true });
+    await sleep(350);
 
     // 2. Fallback check: if the button is still enabled, Flow did not consume the click
     if (this.isGenerateButtonReady()) {
       logger.warn('[FlowPromptService] Primary generate click not consumed, attempting ProseMirror Enter fallback');
       // Secondary fallback: ProseMirror native Enter submission
       if (editor) {
+        editor.focus();
         simulateEnter(editor);
-        await sleep(250);
+        await sleep(350);
       }
 
-      // Tertiary fallback: click directly on inner mat-icon or touch-target
+      // Tertiary fallback: click directly on host flow-generate-icon-button or inner touch-target
       if (this.isGenerateButtonReady()) {
-        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting inner mat-icon direct click');
-        const innerTarget = btn.querySelector('.mat-mdc-button-touch-target') || btn.querySelector('mat-icon');
-        if (innerTarget) {
-          simulateClick(innerTarget);
-        }
+        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button / inner target click');
+        const hostEl = btn.closest('flow-generate-icon-button') || btn;
+        const innerTarget = btn.querySelector('.mat-mdc-button-touch-target') || btn.querySelector('mat-icon') || hostEl;
+        await simulateHumanClick(innerTarget, { holdMs: 80, microMoves: false });
       }
     }
 

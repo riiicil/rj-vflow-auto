@@ -25,13 +25,25 @@ export class FlowWatcherService {
   }
 
   /**
-   * Retrieves the top-most tile card currently in the gallery.
+   * Retrieves the top-most generated tile card currently in the gallery,
+   * explicitly ignoring local uploaded ingredient tiles to prevent false boundary latching.
    */
   getTopTileCard() {
-    return query(SELECTORS.TOP_TILE) ||
-      query('div.virtual-scroll-container flow-tile-container') ||
-      query('flow-tile-container') ||
-      query('flow-video-tile, flow-image-tile, flow-pending-tile');
+    const candidates = queryAll(SELECTORS.TOP_TILE);
+    for (const el of candidates) {
+      if (!isIngredientTile(el)) {
+        return el;
+      }
+    }
+
+    const fallbackCandidates = queryAll('div.virtual-scroll-container flow-tile-container, flow-tile-container, flow-video-tile, flow-image-tile, flow-pending-tile');
+    for (const el of fallbackCandidates) {
+      if (!isIngredientTile(el)) {
+        return el;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -262,8 +274,9 @@ export class FlowWatcherService {
     return await waitForCondition(() => {
       const currentTop = this.getTopTileCard();
       if (!currentTop) return false;
+      if (isIngredientTile(currentTop)) return false;
 
-      // If we had no previous top tile, any top tile indicates the gallery is active
+      // If we had no previous top tile, any top non-ingredient tile indicates the gallery is active
       if (!previousTopTile) return currentTop;
 
       // Return when top tile is a new DOM node prepended at top of gallery

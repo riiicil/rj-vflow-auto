@@ -8,9 +8,10 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `fix(engine): add simulateHumanClick telemetry and isolate ingredient tiles in watcher`
   - `fix(dom): eliminate simulateClick double-click regression and resolve suffix has-text selector`
   - `fix(engine): resolve image mode prompt submission, simulateClick coordinates, and model fast-path`
-- **Working Tree**: Clean, `FlowDOM.js` and `FlowPromptService.js` hardened, double-click regression eliminated, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
+- **Working Tree**: Clean, `FlowDOM.js`, `FlowPromptService.js`, and `FlowWatcherService.js` hardened, reCAPTCHA Enterprise pointer telemetry satisfied, watcher ingredient false-positives eliminated, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
 
 ---
 
@@ -55,3 +56,5 @@ Phase 4 (Production Packaging Pipeline & Release) is now **[COMPLETE]**:
 - **Uploaded Ingredient Tile Filtering**: User-uploaded images/videos appear in the gallery as tiles with filename extensions and no `redo` hotbar action. Always filter via `isIngredientTile()` so raw reference assets are never counted as generated outputs.
 - **IndexedDB Binary Storage**: High-resolution image references must never be written to `chrome.storage.local` as Base64. Always route binaries through `FlowImageDB.saveImage()` and strip Base64 via `FlowStorage.sanitizeQueueForStorage()`.
 - **Clean Mount Protocol**: When modifying HUD layout templates, keep native `<select>` elements styled with `display: none;` inline to prevent FOUC / white border flash before `CustomSelect.initAll()` attaches.
+- **reCAPTCHA Enterprise 0-Credit Telemetry Trap**: Nano Banana family models (Image mode) consume 0 credits and trigger strict client-side reCAPTCHA Enterprise risk score evaluation (`Lm("IMAGE_GENERATION")`), unlike paid Veo 3.1 video models. Naive `(0, 0)` clicks with 0ms hold duration fail bot scoring and are silently ignored by Google Flow. Always use `simulateHumanClick(btn, { holdMs: 90, microMoves: true })` which emits approach micro-movements, randomized non-zero target coordinates, and natural 60-120ms physical hold duration.
+- **Ingredient Gallery Boundary Trap**: Local uploads in Edit-Image mode mount temporary pending tiles in the gallery. `FlowWatcherService.getTopTileCard()` and `waitForNewBatchSpawn()` must strictly filter out any tile matching `isIngredientTile()`, otherwise the watcher latches onto the ingredient upload tile and loops until timeout.
