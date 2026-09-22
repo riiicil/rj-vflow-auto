@@ -8,11 +8,12 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `feat(engine): implement Option C MAIN-world reCAPTCHA and batchexecute RPC bridge for image generation`
   - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
   - `fix(engine): add simulateHumanClick telemetry and isolate ingredient tiles in watcher`
   - `fix(dom): eliminate simulateClick double-click regression and resolve suffix has-text selector`
   - `fix(engine): resolve image mode prompt submission, simulateClick coordinates, and model fast-path`
-- **Working Tree**: Clean, double-click bug on toggle buttons completely eliminated, generate button icon directly targeted, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
+- **Working Tree**: Clean, Option C MAIN-world reCAPTCHA Enterprise and batchexecute RPC bridge (`ogiZ0b`) fully implemented, dual-channel CustomEvent / postMessage communication established, TDZ reference in QueueManager fixed, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
 
 ---
 
@@ -21,7 +22,21 @@
 Phase 1 (Cleanup & Governance Foundation) was successfully completed and merged into `dev` (`7838930`).
 Phase 2 (Core Automation Engine & Services) was successfully completed across all 5 sub-phases and merged into `dev` (`c14ca68`).
 Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, merged into `dev` (`7b0f1d9`), and pushed to `origin/dev`.
-Phase 4 (Production Packaging Pipeline & Release) is now **[COMPLETE]**:
+Phase 4 (Production Packaging Pipeline & Release) was completed, bundled, and obfuscated.
+
+### Engine Hardening: Image Mode Trigger Resolution (Option C Bridge)
+- **Problem**: In Google Flow, Video mode (Veo 3.1) consumes paid quota and executes cleanly with synthetic clicks. Image mode (Nano Banana 2, Pro, Lite) consumes 0 credits and enforces client-side reCAPTCHA Enterprise bot risk evaluation (`recaptcha__en.js`). Synthetic button clicks (`isTrusted: false`) fail bot scoring, so the `<textarea name="g-recaptcha-response">` is never populated, causing Angular and the backend to silently discard the click.
+- **Permanent Solution (Option C)**:
+  - Injected `flow_bridge.js` into Google Flow's page `MAIN` world (`world: 'MAIN'`).
+  - Accesses `window.grecaptcha.enterprise.execute(SITE_KEY, { action: 'IMAGE_GENERATION' })` directly in page context, minting a genuine Enterprise token.
+  - Accesses `window.WIZ_global_data.SNlM0e` (CSRF token `at`), session ID `FdrFJe`, and build label `cfb2h`.
+  - Dispatches native batchexecute POST request to `/_/AiSandboxAngularFrontend/data/batchexecute?rpcids=ogiZ0b` with surface ID 22 and mapped wire models:
+    - `Nano Banana Pro` -> `GEM_PIX_2`
+    - `Nano Banana 2` -> `NARWHAL`
+    - `Nano Banana 2 Lite` -> `HARBOR_SEAL`
+    - Aspect ratios: `1:1` -> `1`, `9:16` -> `2`, `16:9` -> `3`, `3:4` -> `4`, `4:3` -> `5`.
+  - Communicates bidirectionally with the isolated content script (`src/services/FlowBridgeClient.js`) over dual-channel `CustomEvent` and `window.postMessage`.
+  - FlowPromptService retains native DOM click pipeline with multi-tier fallback for Veo 3.1 video mode.
 1. **Sub-phase 4.1 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (`6d6374c`)**:
    - **Production Packaging Pipeline (`package.json`, `obfuscator.config.js`, `build.js`)**: Mirrored the production bundling architecture from `RJ_AIO_Metadata`. Added `esbuild`, `fs-extra`, and `javascript-obfuscator` dependencies with `"build": "node build.js"` script.
    - **Standalone ES Module Bundling**: Bundled entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`) with `esbuild` directly into `dist/LOAD THIS FOLDER/`. `content_main.js` completely inlines and resolves all 18 internal dependencies (`src/core/`, `src/services/`, `src/overlay/`) into a single 218.7kb production bundle.

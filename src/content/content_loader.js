@@ -10,6 +10,14 @@
 
 (async function bootstrapContentScript() {
   try {
+    // 1. Inject MAIN-world bridge script for direct reCAPTCHA and RPC execution
+    const bridge = document.createElement('script');
+    bridge.setAttribute('data-rj-flow-bridge', 'true');
+    bridge.src = chrome.runtime.getURL('content/flow_bridge.js');
+    bridge.async = false;
+    (document.head || document.documentElement).appendChild(bridge);
+
+    // 2. Bootstrap primary isolated content script module
     const scriptUrl = chrome.runtime.getURL('content/content_main.js');
     await import(scriptUrl);
   } catch (err) {

@@ -20,6 +20,7 @@ import {
   sleep
 } from '../core/FlowDOM.js';
 import { logger } from './LoggerService.js';
+import { flowBridgeClient } from './FlowBridgeClient.js';
 
 export class FlowPromptService {
   /**
@@ -185,9 +186,8 @@ export class FlowPromptService {
   }
 
   /**
-   * Triggers generation by executing native click on the generate button,
-   * with multi-tier fallback to ProseMirror Enter keydown and inner icon click
-   * if the primary click was swallowed by Angular change detection.
+   * Triggers generation by executing native pointer click directly on the generate button,
+   * with multi-tier fallback to ProseMirror Enter keydown and host wrapper click.
    */
   async triggerGenerate() {
     const ready = await this.waitForGenerateButtonReady(5000).catch(() => false);
@@ -201,28 +201,32 @@ export class FlowPromptService {
     }
 
     const editor = this.getEditorNode();
-    const target = btn.querySelector('mat-icon') || btn;
 
-    // 1. Primary trigger: simulateHumanClick on generate button icon with natural hold time & micro-movements
-    await simulateHumanClick(target, { holdMs: 90, microMoves: true });
+    // Blur editor to commit ProseMirror transaction state
+    if (editor && typeof editor.blur === 'function') {
+      try { editor.blur(); } catch (_) {}
+    }
+    if (typeof btn.focus === 'function') {
+      try { btn.focus(); } catch (_) {}
+    }
+
+    // 1. Primary trigger: simulateHumanClick directly on the <button> element
+    await simulateHumanClick(btn, { holdMs: 110, microMoves: true });
     await sleep(350);
 
     // 2. Fallback check: if the button is still enabled, Flow did not consume the click
     if (this.isGenerateButtonReady()) {
       logger.warn('[FlowPromptService] Primary generate click not consumed, attempting ProseMirror Enter fallback');
-      // Secondary fallback: ProseMirror native Enter submission
       if (editor) {
         editor.focus();
         simulateEnter(editor);
         await sleep(350);
       }
 
-      // Tertiary fallback: click directly on host flow-generate-icon-button or inner touch-target
       if (this.isGenerateButtonReady()) {
-        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button / inner target click');
+        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting host flow-generate-icon-button click');
         const hostEl = btn.closest('flow-generate-icon-button') || btn;
-        const innerTarget = btn.querySelector('.mat-mdc-button-touch-target') || btn.querySelector('mat-icon') || hostEl;
-        await simulateHumanClick(innerTarget, { holdMs: 80, microMoves: false });
+        await simulateHumanClick(hostEl, { holdMs: 90, microMoves: false });
       }
     }
 
@@ -232,18 +236,57 @@ export class FlowPromptService {
   }
 
   /**
-   * High-level orchestrator: Clears prior text, sets target prompt,
-   * waits for button readiness, and triggers generation.
+   * High-level orchestrator: Clears prior text, visibly injects prompt into ProseMirror,
+   * and routes execution:
+   * - Image modes (text-to-image, edit-image): Dispatches via MAIN-world bridge (ogiZ0b RPC with fresh reCAPTCHA).
+   * - Video modes: Executes native DOM pointer sequence with multi-tier fallback.
    */
-  async submitPrompt(promptText, { clearBefore = true, timeout = 5000 } = {}) {
+  async submitPrompt(promptText, {
+    clearBefore = true,
+    timeout = 5000,
+    mode = null,
+    model = null,
+    aspectRatio = '16:9',
+    count = 1,
+    seed = null,
+    refMediaIds = [],
+    baseMediaId = null
+  } = {}) {
     if (clearBefore) {
       this.clearPrompt();
     }
 
+    // 1. Visibly inject prompt into ProseMirror so user sees active prompt in the box
     this.setPrompt(promptText);
-    await this.waitForGenerateButtonReady(timeout);
 
-    // Pacing delay: ensures InputEvent has settled before triggering Generate
+    // 2. Branching: Image modes use MAIN-world RPC bridge to bypass 0-credit botguard click barriers
+    const isImage = (mode && (mode.includes('image') || mode === 'text-to-image' || mode === 'edit-image')) ||
+                    (model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
+
+    if (isImage) {
+      logger.info(`[FlowPromptService] Utilizing MAIN world bridge for image generation (${model || 'Nano Banana 2'}, ratio: ${aspectRatio}, count: ${count})`);
+      try {
+        const bridgeRes = await flowBridgeClient.generateImage({
+          prompt: promptText,
+          model: model || 'Nano Banana 2',
+          aspectRatio: aspectRatio || '16:9',
+          count: count || 1,
+          seed,
+          refMediaIds,
+          baseMediaId
+        });
+
+        logger.info('[FlowPromptService] MAIN world bridge generation triggered successfully:', bridgeRes);
+        await sleep(350);
+        this.clearPrompt();
+        return true;
+      } catch (bridgeErr) {
+        logger.warn('[FlowPromptService] Bridge RPC failed, attempting DOM click fallback:', bridgeErr);
+      }
+    }
+
+    // 3. For Video mode or fallback: wait for button readiness and dispatch native DOM click
+    await this.waitForGenerateButtonReady(timeout).catch(() => {});
     await sleep(350);
 
     return await this.triggerGenerate();

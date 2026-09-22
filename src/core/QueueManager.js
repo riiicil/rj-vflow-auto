@@ -283,18 +283,18 @@ export class QueueManager {
       await updateQueueItem(itemId, { status: QUEUE_STATUS.INJECTING, error: null });
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'init', percent: 2 });
 
+      const mode = item.mode || cfg.mode || 'text-to-video';
+      const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
+      const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
+      const model = normalizeModelForMode(mode, rawModel);
+      const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
+      const duration = item.duration || cfg.duration || '6s';
+      const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
+
       // Parameter Branching:
       // If Single mode: read nextItem configuration and call applySettings(nextItem) on every iteration
       // If Batch mode: skip opening prompt settings popover; reuse pre-configured settings
       if (paramMode === 'single') {
-        const mode = item.mode || cfg.mode || 'text-to-video';
-        const isVideo = mode !== 'text-to-image' && mode !== 'edit-image';
-        const rawModel = item.model || cfg.model || (isVideo ? 'Veo 3.1 - Lite' : 'Nano Banana 2');
-        const model = normalizeModelForMode(mode, rawModel);
-        const aspectRatio = item.aspectRatio || cfg.aspectRatio || '16:9';
-        const duration = item.duration || cfg.duration || '6s';
-        const outputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
-
         logger.step('parameters (single)', `${mode} | ${model} | ratio: ${aspectRatio} | outputs: x${outputCount}`);
         this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'parameters', percent: 5 });
         await flowSettingsService.applySettings({
@@ -373,10 +373,15 @@ export class QueueManager {
       await new Promise(r => setTimeout(r, 450));
       const previousTopTile = flowWatcherService.getTopTileCard();
 
-      // 4. Submit prompt via native ProseMirror injection
+      // 4. Submit prompt via native ProseMirror injection / MAIN bridge
       logger.step('prompt injection', item.prompt);
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'prompt', percent: 13 });
-      await flowPromptService.submitPrompt(item.prompt);
+      await flowPromptService.submitPrompt(item.prompt, {
+        mode,
+        model,
+        aspectRatio,
+        count: outputCount
+      });
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'submitted', percent: 15 });
 
       // 5. Stage: GENERATING — Watch batch resolution across all virtual scroll rows
