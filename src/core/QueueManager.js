@@ -376,80 +376,141 @@ export class QueueManager {
       // 4. Submit prompt via native ProseMirror injection / MAIN bridge
       logger.step('prompt injection', item.prompt);
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'prompt', percent: 13 });
-      await flowPromptService.submitPrompt(item.prompt, {
+      const submitResult = await flowPromptService.submitPrompt(item.prompt, {
         mode,
         model,
         aspectRatio,
-        count: outputCount
+        count: outputCount,
+        seed: item.seed,
+        refMediaIds: item.refMediaIds,
+        baseMediaId: item.baseMediaId
       });
       this.notifyProgress({ itemId, status: QUEUE_STATUS.INJECTING, step: 'submitted', percent: 15 });
 
-      // 5. Stage: GENERATING — Watch batch resolution across all virtual scroll rows
-      await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
-      this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'spawning', percent: 18 });
-      const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
-      const watchResult = await flowWatcherService.waitForGeneration(
-        previousTopTile,
-        expectedOutputCount,
-        (progress) => {
-          const live = progress.percent || 0;
-          const mappedPercent = Math.max(18, Math.min(85, Math.round(15 + (live / 100) * 70)));
-          this.notifyProgress({
-            itemId,
-            status: QUEUE_STATUS.GENERATING,
-            percent: mappedPercent,
-            livePercent: live,
-            progress
-          });
-        },
-        180000,
-        item.prompt
-      );
-
-      // 6. Stage: DOWNLOADING — Handle asset downloads
       const shouldDownload = item.autoDownload !== undefined ? item.autoDownload : cfg.autoDownload;
 
-      if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
-        const successfulTiles = watchResult.tiles.filter(t => t.isSuccess);
-        if (successfulTiles.length > 0) {
+      if (submitResult?.isBridge) {
+        // IMAGE GENERATION via Option C MAIN-world batch RPC
+        await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'resolving', percent: 50 });
+        await new Promise(r => setTimeout(r, 400));
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'ready', percent: 85 });
+
+        const images = submitResult.images || [];
+        if (images.length === 0) {
+          throw new Error('[QueueManager] Image generation returned no media (possible moderation or quota limit)');
+        }
+
+        logger.success(`[QueueManager] Option C bridge generated ${images.length} image(s) successfully!`);
+
+        // Stage: DOWNLOADING
+        if (shouldDownload && images.length > 0) {
           await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
           this.notifyProgress({
             itemId,
             status: QUEUE_STATUS.DOWNLOADING,
             percent: 85,
-            downloadProgress: { current: 0, total: successfulTiles.length }
+            downloadProgress: { current: 0, total: images.length }
           });
 
-          const isImage = (item.mode && item.mode.includes('image')) || (cfg.mode && cfg.mode.includes('image'));
-          const defaultRes = isImage ? (cfg.imageResolution || '2K') : (cfg.videoResolution || '1080p');
+          const defaultRes = cfg.imageResolution || '2K';
           const targetRes = item.resolution || cfg.targetResolution || defaultRes;
-          logger.step('download', `Downloading ${successfulTiles.length} asset(s) at ${targetRes}`);
-          await flowDownloadService.downloadBatchTiles(successfulTiles, {
-            targetResolution: targetRes,
-            delayBetweenMs: 1000,
-            onProgress: (current, total) => {
-              const dlRowPercent = Math.min(99, Math.round(85 + (current / total) * 14));
-              this.notifyProgress({
-                itemId,
-                status: QUEUE_STATUS.DOWNLOADING,
-                percent: dlRowPercent,
-                downloadProgress: { current, total }
-              });
-            }
-          });
-        }
-      }
+          logger.step('download', `Downloading ${images.length} image(s) at ${targetRes}`);
 
-      // 7. Stage: COMPLETED or FAILED
-      if (watchResult.success) {
-        logger.success(`Item ${itemId} generated & processed successfully!`);
+          for (let i = 0; i < images.length; i++) {
+            const img = images[i];
+            const safePrompt = (item.prompt || 'image').slice(0, 30).replace(/[^a-zA-Z0-9_-]/g, '_');
+            const filename = `rj_flow_${safePrompt}_${img.mediaId || Date.now()}_${i + 1}.jpg`;
+
+            await flowDownloadService.downloadUrl(img.url, filename);
+
+            const dlPercent = Math.min(99, Math.round(85 + ((i + 1) / images.length) * 14));
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.DOWNLOADING,
+              percent: dlPercent,
+              downloadProgress: { current: i + 1, total: images.length }
+            });
+
+            if (i < images.length - 1) {
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        }
+
+        // Stage: COMPLETED
         await updateQueueItem(itemId, {
           status: QUEUE_STATUS.COMPLETED,
           completedAt: Date.now()
         });
         this.notifyProgress({ itemId, status: QUEUE_STATUS.COMPLETED, percent: 100 });
+        logger.success(`Item ${itemId} generated & processed successfully!`);
+
       } else {
-        throw new Error('[QueueManager] Generation tiles failed or were moderation-blocked');
+        // VIDEO GENERATION via native DOM trigger & FlowWatcherService
+        await updateQueueItem(itemId, { status: QUEUE_STATUS.GENERATING });
+        this.notifyProgress({ itemId, status: QUEUE_STATUS.GENERATING, step: 'spawning', percent: 18 });
+        const expectedOutputCount = Number(item.outputs || item.outputCount || cfg.outputCount || 1);
+        const watchResult = await flowWatcherService.waitForGeneration(
+          previousTopTile,
+          expectedOutputCount,
+          (progress) => {
+            const live = progress.percent || 0;
+            const mappedPercent = Math.max(18, Math.min(85, Math.round(15 + (live / 100) * 70)));
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.GENERATING,
+              percent: mappedPercent,
+              livePercent: live,
+              progress
+            });
+          },
+          180000,
+          item.prompt
+        );
+
+        // Stage: DOWNLOADING for Video
+        if (watchResult.success && shouldDownload && watchResult.tiles && watchResult.tiles.length > 0) {
+          const successfulTiles = watchResult.tiles.filter(t => t.isSuccess);
+          if (successfulTiles.length > 0) {
+            await updateQueueItem(itemId, { status: QUEUE_STATUS.DOWNLOADING });
+            this.notifyProgress({
+              itemId,
+              status: QUEUE_STATUS.DOWNLOADING,
+              percent: 85,
+              downloadProgress: { current: 0, total: successfulTiles.length }
+            });
+
+            const defaultRes = cfg.videoResolution || '1080p';
+            const targetRes = item.resolution || cfg.targetResolution || defaultRes;
+            logger.step('download', `Downloading ${successfulTiles.length} asset(s) at ${targetRes}`);
+            await flowDownloadService.downloadBatchTiles(successfulTiles, {
+              targetResolution: targetRes,
+              delayBetweenMs: 1000,
+              onProgress: (current, total) => {
+                const dlRowPercent = Math.min(99, Math.round(85 + (current / total) * 14));
+                this.notifyProgress({
+                  itemId,
+                  status: QUEUE_STATUS.DOWNLOADING,
+                  percent: dlRowPercent,
+                  downloadProgress: { current, total }
+                });
+              }
+            });
+          }
+        }
+
+        // Stage: COMPLETED or FAILED
+        if (watchResult.success) {
+          logger.success(`Item ${itemId} generated & processed successfully!`);
+          await updateQueueItem(itemId, {
+            status: QUEUE_STATUS.COMPLETED,
+            completedAt: Date.now()
+          });
+          this.notifyProgress({ itemId, status: QUEUE_STATUS.COMPLETED, percent: 100 });
+        } else {
+          throw new Error('[QueueManager] Generation tiles failed or were moderation-blocked');
+        }
       }
 
     } catch (err) {

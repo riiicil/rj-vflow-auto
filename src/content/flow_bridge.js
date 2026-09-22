@@ -230,7 +230,8 @@
       method: 'POST',
       credentials: 'include',
       headers: {
-        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'x-same-domain': '1'
       },
       body: `f.req=${encodeURIComponent(freqStr)}&at=${encodeURIComponent(at)}&`
     });
@@ -241,6 +242,110 @@
 
     const text = await response.text();
     return text;
+  }
+
+  /**
+   * Extracts generated image CDN URLs and media IDs from batchexecute response.
+   */
+  function parseImagesFromBatchResponse(text) {
+    const images = [];
+    const seen = new Set();
+
+    if (!text || typeof text !== 'string') return images;
+
+    function checkString(str) {
+      if (typeof str !== 'string') return;
+      if (str.includes('/image/')) {
+        const match = str.match(/(?:https?:\/\/[^\s"'\\]+)?\/image\/([a-zA-Z0-9_-]+)[^\s"'\\]*/);
+        if (match) {
+          const mediaId = match[1];
+          let fullUrl = match[0];
+          if (!fullUrl.startsWith('http')) {
+            fullUrl = `https://flow-content.google${fullUrl}`;
+          }
+          if (!seen.has(mediaId)) {
+            seen.add(mediaId);
+            images.push({ mediaId, url: fullUrl });
+          }
+        }
+      }
+    }
+
+    function walk(node) {
+      if (!node) return;
+      if (typeof node === 'string') {
+        checkString(node);
+      } else if (Array.isArray(node)) {
+        for (const item of node) walk(item);
+      } else if (typeof node === 'object') {
+        for (const val of Object.values(node)) walk(val);
+      }
+    }
+
+    // 1. Structured chunk walk
+    try {
+      const body = text.startsWith(")]}'") ? text.slice(text.indexOf('\n') + 1) : text;
+      const lines = body.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            walk(parsed);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    // 2. Global regex scan fallback
+    if (images.length === 0) {
+      const regex = /https?:\/\/[a-zA-Z0-9_.-]*flow-content\.google\/image\/([a-zA-Z0-9_-]+)[^\s"'\\]*/g;
+      let m;
+      while ((m = regex.exec(text)) !== null) {
+        const mediaId = m[1];
+        if (!seen.has(mediaId)) {
+          seen.add(mediaId);
+          images.push({ mediaId, url: m[0] });
+        }
+      }
+    }
+
+    return images;
+  }
+
+  /**
+   * Prepend synthetic tile cards to Google Flow's gallery DOM for immediate visual display.
+   */
+  function mountSyntheticGalleryTiles(images, prompt) {
+    try {
+      const container = document.querySelector('div.virtual-scroll-container, cdk-virtual-scroll-viewport .cdk-virtual-scroll-content-wrapper, cdk-virtual-scroll-viewport');
+      if (!container) return;
+
+      const row = document.createElement('div');
+      row.className = 'tile-row rj-synthetic-batch';
+      row.style.cssText = 'padding: 8px 0; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 12px; z-index: 5; position: relative; width: 100%;';
+
+      images.forEach((img) => {
+        const card = document.createElement('div');
+        card.className = 'flow-tile-container rj-synthetic-card';
+        card.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #242728; background: #0d0d0d; width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
+        card.innerHTML = `
+          <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #141517; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            <img class="thumbnail" src="${img.url}" alt="${prompt || 'Generated image'}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+          </div>
+          <div style="padding: 8px 12px; font-size: 11px; color: #8f969c; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1a1c1e;">
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;" title="${prompt}">${prompt || 'Image'}</span>
+            <span style="color: #57c1ff; font-weight: 600; font-size: 10px;">READY</span>
+          </div>
+        `;
+        row.appendChild(card);
+      });
+
+      container.insertBefore(row, container.firstChild);
+      logger.success(`Mounted ${images.length} generated image tile(s) into gallery DOM`);
+    } catch (err) {
+      logger.warn('Synthetic card mount notice (non-fatal):', err);
+    }
   }
 
   async function handleGenerateImage(params) {
@@ -342,17 +447,27 @@
       [clientUuid()]
     ];
 
-    logger.info(`Executing ogiZ0b RPC in MAIN world for model: ${wireModel}`);
+    logger.info(`Executing ogiZ0b RPC in MAIN world for model: ${wireModel} (count: ${safeCount})`);
     const responseText = await executeBatchRpc(RPC_GEN_IMAGE, innerPayload);
+
+    // Parse generated images from response
+    const images = parseImagesFromBatchResponse(responseText);
+    logger.info(`Parsed ${images.length} image(s) from ogiZ0b response`);
 
     // Auto-clear UI prompt box so the user sees the prompt was submitted cleanly
     clearPromptUI();
+
+    // Mount synthetic gallery tiles for visual feedback
+    if (images.length > 0) {
+      mountSyntheticGalleryTiles(images, prompt.trim());
+    }
 
     return {
       success: true,
       rpcid: RPC_GEN_IMAGE,
       model: wireModel,
       count: safeCount,
+      images,
       responseSummary: responseText.slice(0, 300)
     };
   }

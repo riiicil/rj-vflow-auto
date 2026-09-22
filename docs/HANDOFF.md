@@ -12,7 +12,7 @@
   - `fix(engine): sync UI generation via reCAPTCHA execution hook and native trigger dispatch`
   - `feat(engine): implement Option C MAIN-world reCAPTCHA and batchexecute RPC bridge for image generation`
   - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
-- **Working Tree**: Clean, unified `FlowPromptService.triggerGenerate()` DOM click pipeline active across all modes, reCAPTCHA Enterprise token pre-armed in MAIN world for image modes, logging completely harmonized under `[RJ V-Flow Auto]` with unified colors, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
+- **Working Tree**: Clean, verified Option C MAIN-world batchexecute RPC bridge (`ogiZ0b`) active for image generation with inline URL extraction and synthetic DOM tile mounting, native DOM click pipeline active for all video modes, background `chrome.downloads` handler active for reliable downloading, all logging harmonized under `[RJ V-Flow Auto]`, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated.
 
 ---
 
@@ -23,17 +23,15 @@ Phase 2 (Core Automation Engine & Services) was successfully completed across al
 Phase 3 (Dual-Mode UI Implementation & End-to-End Hardening) was successfully completed across Commits 1 through 19 and Sessions 34 through 39, merged into `dev` (`7b0f1d9`), and pushed to `origin/dev`.
 Phase 4 (Production Packaging Pipeline & Release) was completed, bundled, and obfuscated.
 
-### Engine Hardening: Image Mode Trigger Resolution (Option C Bridge & Unified Pipeline)
-- **Problem**: In Google Flow, Video mode (Veo 3.1) consumes paid quota and executes cleanly with synthetic clicks. Image mode (Nano Banana 2, Pro, Lite) consumes 0 credits and enforces client-side reCAPTCHA Enterprise bot risk evaluation (`recaptcha__en.js`). Synthetic button clicks (`isTrusted: false`) fail bot scoring, so the `<textarea name="g-recaptcha-response">` is never populated, causing Angular and the backend to silently discard the click.
-- **Permanent Solution (Option C, Pre-Armed Token & Unified Pipeline)**:
-  - Injected `flow_bridge.js` into Google Flow's page `MAIN` world (`world: 'MAIN'`).
-  - Unified logging: defined `logger` in `flow_bridge.js` matching `LoggerService.js` format and color tokens under `[RJ V-Flow Auto]`.
-  - Standardized ALL generation modes (Image, Video, Edit, Frames) onto `FlowPromptService.triggerGenerate()` using `simulateHumanClick(btn, { holdMs: 110, microMoves: true })`.
-  - For image modes, `submitPrompt()` calls `flowBridgeClient.armCaptchaToken('IMAGE_GENERATION')` right before triggering the native click.
-  - In `flow_bridge.js`, `mintCaptcha('IMAGE_GENERATION')` pre-mints a clean token in a detached microtask context and stores it in `preMintedToken`.
-  - When Angular's native click handler executes and calls `grecaptcha.enterprise.execute(SITE_KEY, { action: 'IMAGE_GENERATION' })`, our hook instantly supplies the clean token. If not pre-armed, an on-demand detached-turn fallback mints a clean token after a 20ms macrotask tick.
-  - Video mode (Veo 3.1) executes through the exact same `triggerGenerate()` pipeline (verified 100% working in console logs, 2/2 videos generated and downloaded).
-  - Enhanced fallback chain in `triggerGenerate()`: primary button click -> icon click -> native `.click()` -> ProseMirror Enter keydown -> host element click.
+### Engine Hardening: Image Mode Trigger Resolution (Option C Batchexecute RPC Bridge)
+- **Problem**: In Google Flow, Video mode (Veo 3.1) executes cleanly with synthetic clicks. Free-tier / 0-credit Image mode (Nano Banana 2, Pro, Lite) enforces strict reCAPTCHA Enterprise bot scoring and internal Angular form synchronization that swallows synthetic button clicks.
+- **Verified Solution (Option C Dual-Pipeline Architecture)**:
+  - **Image Mode (Text-to-Image, Edit-Image)**: Executed via `flowBridgeClient.generateImage()` calling `ogiZ0b` batchexecute RPC directly in the page's MAIN execution world with a freshly minted authentic `IMAGE_GENERATION` reCAPTCHA token and `'x-same-domain': '1'`.
+  - **Inline Media Extraction**: Extracted generated media IDs and signed CDN URLs (`flow-content.google/image/...`) directly from the `ogiZ0b` response payload, eliminating 180s gallery watcher timeouts.
+  - **Synthetic Gallery DOM Mounting**: Mounted preview cards into Google Flow's virtual scroll container so the user visually sees generated images immediately.
+  - **Automated Downloads**: Routed through `flowDownloadService.downloadUrl()` using the background service worker's `chrome.downloads.download()` API (with 1000ms inter-download pacing).
+  - **Video Mode (Veo 3.1 Family, Omni 1.1 Flash)**: 100% preserved on the proven native DOM click trigger pipeline (`simulateHumanClick(btn, { holdMs: 110, microMoves: true })`) and `FlowWatcherService`.
+  - **Harmonized Console Logging**: 100% unified under `%c[RJ V-Flow Auto]` with standard design tokens across all files.
 1. **Sub-phase 4.1 Production Bundler, AST Obfuscation & Packaging Pipeline Complete (`6d6374c`)**:
    - **Production Packaging Pipeline (`package.json`, `obfuscator.config.js`, `build.js`)**: Mirrored the production bundling architecture from `RJ_AIO_Metadata`. Added `esbuild`, `fs-extra`, and `javascript-obfuscator` dependencies with `"build": "node build.js"` script.
    - **Standalone ES Module Bundling**: Bundled entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`) with `esbuild` directly into `dist/LOAD THIS FOLDER/`. `content_main.js` completely inlines and resolves all 18 internal dependencies (`src/core/`, `src/services/`, `src/overlay/`) into a single 218.7kb production bundle.

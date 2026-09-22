@@ -276,21 +276,43 @@ export class FlowPromptService {
     const isImage = mode === 'text-to-image' || mode === 'edit-image' ||
       (!mode && model && (model.includes('Banana') || model.includes('NARWHAL') || model.includes('GEM_PIX_2') || model.includes('HARBOR_SEAL')));
 
-    // Wait for generate button readiness before dispatching trigger
-    await this.waitForGenerateButtonReady(timeout).catch(() => {});
-    await sleep(350);
-
     if (isImage) {
-      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — pre-arming clean reCAPTCHA Enterprise token`);
+      logger.info(`[FlowPromptService] Image mode detected (${mode || model}) — routing via Option C MAIN bridge (ogiZ0b RPC)`);
       try {
-        await flowBridgeClient.armCaptchaToken('IMAGE_GENERATION');
+        const bridgeRes = await flowBridgeClient.generateImage({
+          prompt: promptText,
+          model: model || 'Nano Banana 2',
+          aspectRatio: aspectRatio || '16:9',
+          count: count || 1,
+          seed,
+          refMediaIds,
+          baseMediaId
+        });
+
+        logger.success(`[FlowPromptService] Option C bridge RPC succeeded (${bridgeRes.images?.length || 0} images ready)`);
+        await sleep(350);
+        this.clearPrompt();
+        return {
+          success: true,
+          isBridge: true,
+          images: bridgeRes.images || [],
+          count: bridgeRes.images?.length || count
+        };
       } catch (bridgeErr) {
-        logger.warn('[FlowPromptService] Bridge captcha arming warning (proceeding with native click):', bridgeErr);
+        logger.error('[FlowPromptService] Option C bridge RPC failed:', bridgeErr);
+        throw bridgeErr;
       }
     }
 
-    // 3. For all modes (Image, Video, Edit, Frames): dispatch native DOM click pipeline
-    return await this.triggerGenerate();
+    // 3. For Video modes (text-to-video, image-to-video, frames): wait for button readiness and dispatch native DOM click
+    await this.waitForGenerateButtonReady(timeout).catch(() => {});
+    await sleep(350);
+
+    const clickSuccess = await this.triggerGenerate();
+    return {
+      success: clickSuccess,
+      isBridge: false
+    };
   }
 }
 
