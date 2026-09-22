@@ -537,13 +537,8 @@ export function simulateClick(element) {
   }
   element.dispatchEvent(new win.MouseEvent('mouseup', { ...commonOpts, buttons: 0 }));
 
-  // Dispatch real MouseEvent click with computed clientX/clientY before native .click()
+  // Dispatch real MouseEvent click with computed clientX/clientY (single click)
   element.dispatchEvent(new win.MouseEvent('click', commonOpts));
-
-  // Native click fallback
-  if (typeof element.click === 'function') {
-    element.click();
-  }
 
   return true;
 }
@@ -640,13 +635,8 @@ export async function simulateHumanClick(element, { holdMs = 85, microMoves = tr
   }
   element.dispatchEvent(new win.MouseEvent('mouseup', { ...clickOpts, buttons: 0 }));
 
-  // 6. Explicit native click event with real non-zero clientX/clientY
+  // 6. Explicit native click event with real non-zero clientX/clientY (single click)
   element.dispatchEvent(new win.MouseEvent('click', clickOpts));
-
-  // 7. Standard element.click() fallback
-  if (typeof element.click === 'function') {
-    element.click();
-  }
 
   return true;
 }

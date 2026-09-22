@@ -8,10 +8,11 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `fix(dom): eliminate double-click regression in simulateClick and target generate icon directly`
   - `fix(engine): add simulateHumanClick telemetry and isolate ingredient tiles in watcher`
   - `fix(dom): eliminate simulateClick double-click regression and resolve suffix has-text selector`
   - `fix(engine): resolve image mode prompt submission, simulateClick coordinates, and model fast-path`
-- **Working Tree**: Clean, `FlowDOM.js`, `FlowPromptService.js`, and `FlowWatcherService.js` hardened, reCAPTCHA Enterprise pointer telemetry satisfied, watcher ingredient false-positives eliminated, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
+- **Working Tree**: Clean, double-click bug on toggle buttons completely eliminated, generate button icon directly targeted, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
 
 ---
 

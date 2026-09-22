@@ -201,9 +201,10 @@ export class FlowPromptService {
     }
 
     const editor = this.getEditorNode();
+    const target = btn.querySelector('mat-icon') || btn;
 
-    // 1. Primary trigger: simulateHumanClick on generate button with natural hold time & micro-movements
-    await simulateHumanClick(btn, { holdMs: 90, microMoves: true });
+    // 1. Primary trigger: simulateHumanClick on generate button icon with natural hold time & micro-movements
+    await simulateHumanClick(target, { holdMs: 90, microMoves: true });
     await sleep(350);
 
     // 2. Fallback check: if the button is still enabled, Flow did not consume the click
