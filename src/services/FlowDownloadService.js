@@ -178,6 +178,38 @@ export class FlowDownloadService {
   }
 
   /**
+   * Downloads a media URL via background service worker chrome.downloads with direct anchor fallback.
+   */
+  async downloadUrl(url, filename = 'download.jpg') {
+    if (!url) return false;
+
+    // Sanitize filename and guarantee proper extension (.jpg / .png / .mp4)
+    let safeFilename = String(filename || 'rj_flow_media.jpg').replace(/[\\/:*?"<>|]/g, '_');
+    if (!/\.(jpg|jpeg|png|mp4|webm)$/i.test(safeFilename)) {
+      safeFilename += url.includes('video') ? '.mp4' : '.jpg';
+    }
+
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        const res = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ action: 'DOWNLOAD_URL', url, filename: safeFilename }, (response) => {
+            if (chrome.runtime.lastError) {
+              resolve({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              resolve(response || { success: true });
+            }
+          });
+        });
+        if (res && res.success) {
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    return this.triggerDirectDownload(url, safeFilename);
+  }
+
+  /**
    * Downloads a single tile, trying context menu upscaling first with fallback.
    */
   async downloadTile(tileElement, { targetResolution = '1080p', filename = 'generation' } = {}) {

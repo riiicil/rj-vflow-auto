@@ -100,22 +100,69 @@ Google Flow relies on the Google Material Symbols ligature font for its iconogra
 <mat-icon class="mat-icon material-symbols-outlined">download</mat-icon>
 <mat-icon class="mat-icon material-symbols-outlined">dashboard</mat-icon>
 <mat-icon class="mat-icon material-symbols-outlined">left_panel_close</mat-icon>
+<mat-icon class="mat-icon material-symbols-outlined">ink_eraser</mat-icon>
+<mat-icon class="mat-icon material-symbols-outlined">chrome_extension</mat-icon>
 ```
 
 Ligature font mechanics translate character strings into vector glyphs in the rendering engine. Consequently:
-- Ligature text nodes (`"settings_2"`, `"more_vert"`, `"download"`, `"arrow_forward"`, `"swap_horiz"`, `"cancel"`, `"dashboard"`, `"left_panel_close"`) are internal font identifiers.
+- Ligature text nodes (`"settings_2"`, `"more_vert"`, `"download"`, `"arrow_forward"`, `"swap_horiz"`, `"cancel"`, `"dashboard"`, `"left_panel_close"`, `"ink_eraser"`, `"chrome_extension"`, `"redo"`) are internal font identifiers.
 - **They are never translated by Google Translate or browser language locales.**
 - Selectors querying ligatures are 100% resilient across English, Spanish, Indonesian, Japanese, German, and French interfaces.
+- **Positional LTR Indexing**: For controls lacking distinct font ligatures (such as the tile size options: `S/M/L` in English vs `K/S/B` in Indonesian), the engine identifies the 3-button toggle group (`mat-button-toggle-group:not(:has(mat-icon))`) and resolves selections by screen Left-to-Right coordinate index (index 0 = Small, index 1 = Medium, index 2 = Large), guaranteeing 100% language independence.
 
 ### B. One-Time Page Setup & Sidenav Collapse
 At the start of queue execution, [`FlowSettingsService`](file:///c:/Users/admin/Desktop/git/RJ_V-Flow_Auto/src/services/FlowSettingsService.js) executes an automated one-time page setup:
 1. **Left Navigation Panel Auto-Collapse**: Invokes `ensureSidebarCollapsed()`. If expanded (`left_panel_close`), clicks to collapse it, preventing overlay overlap.
-2. **Grid View & Size S Configuration**: Opens `settings_2`, verifies Grid layout (`dashboard`), toggles Tile Size S (`GRID_SIZE_S_TOGGLE`), and ensures Auto-Clear Prompt switch (`button[name="clear-prompt-on-submit"]`) is enabled.
+2. **Grid View & Size S Configuration**: Opens `settings_2`, verifies Grid layout (`dashboard`), toggles Tile Size S (`GRID_SIZE_S_TOGGLE` via positional LTR index 0), and ensures Auto-Clear Prompt switch (`button[name="clear-prompt-on-submit"]` or ligature `ink_eraser`) is enabled.
 3. **Creative Agent Mode Suppression**: Inspects `button.agent-mode-chip-checked` and clicks to disable it with detailed audit logging.
 
-### C. Reference Media & Frame Ingestion
-- **Image-to-Video & Edit Image**: Ingested via native `ClipboardEvent('paste')` carrying binary `File` objects directly into the ProseMirror editor. Upload consent dialogs are automatically confirmed.
-- **Frame-to-Video (F2V)**: Sequentially dispatches two paste events into the editor (Start Frame first with `expectedChipCount = 1`, followed by End Frame with `expectedChipCount = 2`) separated by 500ms pacing delays. Bypasses empty chip buttons that would otherwise open unwanted selection menus.
+### C. Dual-Pipeline Execution Architecture (Video vs Image)
+
+Google Flow employs fundamentally distinct runtime flows for video and image generation:
+
+```mermaid
+graph TD
+    Item["Queue Item"] --> ModeCheck{"Mode Check"}
+
+    subgraph PipelineA ["Pipeline A: Video Generation (Veo 3.1 Family, Omni 1.1 Flash)"]
+        ModeCheck -->|Video Modes| Setup["One-Time Page Setup (Grid, Size S, Sidebar Collapse)"]
+        Setup --> SettingsPop["Popover Settings (Model, Ratio, Duration, Multiplier)"]
+        SettingsPop --> MediaIngest["Frame / Ingredient Ingestion (Clipboard Paste)"]
+        MediaIngest --> ProseMirror["ProseMirror Editor Text Injection"]
+        ProseMirror --> MintRecaptchaA["Mint reCAPTCHA Token (Action: VIDEO_GENERATION)"]
+        MintRecaptchaA --> NativeClick["Native Click (simulateHumanClick)"]
+        NativeClick --> Watcher["FlowWatcherService (4-State Lifecycle & Virtual Scroll Rows)"]
+        Watcher --> DownloadVideo["FlowDownloadService (Hotbar Context Menu 1080p/4K)"]
+    end
+
+    subgraph PipelineB ["Pipeline B: Pure Background Image RPC (Nano Banana 2 Family, Pro)"]
+        ModeCheck -->|Image Modes| BGPending["Immediate Transition to GENERATING"]
+        BGPending --> CheckEdit{"Mode = Edit Image?"}
+        CheckEdit -->|Yes| UploadRPC["Upload Reference via maseQ RPC (mediaId)"]
+        CheckEdit -->|No| MintRecaptchaB["Mint reCAPTCHA Token (Action: IMAGE_GENERATION)"]
+        UploadRPC --> MintRecaptchaB
+        MintRecaptchaB --> BatchRPC["Execute ogiZ0b RPC via MAIN World Bridge"]
+        BatchRPC --> ExtractVariants["Parse Variants x1-x4 from batchexecute Envelope"]
+        ExtractVariants --> SPrCadUpscale["Native SPrCad AI Upscaling (2K / 4K with Fallback)"]
+        SPrCadUpscale --> AuthFetch["In-Page Authenticated Binary Fetch (Session Cookies)"]
+        AuthFetch --> DirectDownload["chrome.downloads API Dispatch (Base64 Data URL)"]
+    end
+```
+
+1. **Pipeline A — Native DOM Stream Protocol (Video Modes)**:
+   - Targets Google Flow's Angular Material DOM directly.
+   - Text is injected natively via `execCommand('insertText')` + `InputEvent`.
+   - Start and End frames for Frame-to-Video are pasted sequentially into the editor.
+   - Triggers submission using `simulateHumanClick` with pre-armed reCAPTCHA Enterprise tokens minted in the MAIN world.
+   - Monitored by `FlowWatcherService` across virtual scroll rows until reaching definitive success.
+   - Assets are downloaded via hotbar context menu automation (`more_vert -> download`).
+
+2. **Pipeline B — Pure Background RPC Protocol (Image Modes)**:
+   - 100% decoupled from page DOM: zero text injection, zero button clicks, zero popovers, zero synthetic gallery tiles.
+   - References for `edit-image` mode are uploaded via internal `maseQ` batchexecute RPC.
+   - Generation executes via internal `ogiZ0b` batchexecute RPC with minted reCAPTCHA tokens.
+   - Outputs are upscaled via native `SPrCad` AI upscaler (2K `code: 1`, 4K `code: 2`) with tiered fallback (`4K -> 2K -> 1K/Original`).
+   - Binaries are fetched authenticated in-page and downloaded directly via `chrome.downloads`.
 
 ---
 
@@ -165,6 +212,7 @@ In Google Flow's Size S grid layout, multi-output runs (e.g. landscape 16:9 x3 o
   - *Execution Form Locking*: Locks all form controls during active runs while keeping row containers clickable for read-only parameter inspection.
   - *Graceful Stop Engine*: Supports `QUEUE_STATES.STOPPING`, finishing active generation and download before halting cleanly.
   - *Sort Mode Reordering & Click-to-Swap*: HTML5 drag-and-drop row reordering and slot click-to-swap.
+  - *Finished Queue Dual Action Buttons*: When queue processing completes or halts, the start button transforms into `#btnClearAllQueue` (`Clear all`) and `#btnResetQueue` (`Reset queue`). Resetting returns rows to `READY` while preserving all prompt texts, uploaded media, and parameter bindings.
 
 ---
 
@@ -181,7 +229,7 @@ Downloads execute purely within the browser tab context:
 ## 9. Production Packaging Pipeline (`build.js`)
 
 The project implements a bundle-first production packaging architecture:
-- **`esbuild`**: Bundles entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`), inlining all 18 internal modules into standalone scripts inside `dist/LOAD THIS FOLDER/`.
+- **`esbuild`**: Bundles entry points (`service_worker.js`, `popup.js`, `content_loader.js`, `content_main.js`), inlining all internal modules into standalone scripts inside `dist/LOAD THIS FOLDER/`.
 - **`javascript-obfuscator`**: Applies Manifest V3-safe AST obfuscation (Base64 string arrays, control flow flattening, safe console output).
 - **Asset Optimization**: Copies static assets (`styles/`, `assets/`, `popup/`, `overlay/`) and distribution links (`SC.url`, `SUPPORT ME.url`).
-- **Release Packaging**: Automatically archives distribution packages into `releases/RJ_V-Flow_Auto-v3.0.0.zip` (0.79 MB).
+- **Release Packaging**: Automatically archives distribution packages into `releases/RJ_V-Flow_Auto-v3.1.0.zip` and `releases/v3.1.0.zip`.

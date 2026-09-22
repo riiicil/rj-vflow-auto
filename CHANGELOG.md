@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-09-23
+
+### Added
+- **Pure Background Image RPC Architecture (`ogiZ0b` & `maseQ`)**:
+  - Image generation (`text-to-image`) executes directly via Google Flow's internal `ogiZ0b` batchexecute RPC in the MAIN world with authentic minted reCAPTCHA Enterprise tokens.
+  - Image editing (`edit-image`) uploads user reference images via internal `maseQ` (`upload_request`) batchexecute RPC, converting IndexedDB binaries directly to Google Cloud media references.
+  - 100% decoupled from DOM interaction: zero ProseMirror prompt injection, zero DOM element clicks, zero synthetic gallery preview tiles. Native tiles render automatically upon page refresh.
+- **Native AI Image Upscaling (`SPrCad`) & Tiered Fallback Engine**:
+  - Integrated Google Flow's native `SPrCad` (`UpsampleImage`) RPC supporting high-fidelity 2K (`code: 1`) and 4K (`code: 2`) AI upscaling directly from Google servers.
+  - Tiered resolution fallback in `QueueManager.js`: gracefully cascades `4K -> 2K -> 1K/Original` when higher tiers are quota-exhausted or tier-locked.
+  - Authenticated in-page image fetching via active session cookies converting to self-contained Base64 Data URLs, permanently eliminating Chrome download 403 `AccessDenied` XML errors.
+- **Finished Queue Dual Action Buttons**:
+  - Added `#btnClearAllQueue` (`[Trash] Clear all`) and `#btnResetQueue` (`[Rotate] Reset queue`) to the HUD footer right action bar.
+  - Dynamically displayed when all queue items reach a terminal state (`completed` or `failed`) or after a graceful stop.
+  - `Reset Queue` resets all finished items back to `READY` status while preserving 100% of prompt texts, uploaded reference media, frames, and parameters.
+  - `Clear All` wipes all rows and returns the Studio workspace to the empty dropzone state.
+- **Multi-Language Resilient DOM Engine**:
+  - Positional Left-to-Right (LTR) structural indexing for header Grid Size selection (`findGridSizeToggle`): Small (index 0), Medium (index 1), Large (index 2). Eliminates text query collisions where English `"S"` (Small) collided with Indonesian `"S"` (Sedang / Medium), and ensures full compatibility across German (`K/M/G`), French (`P/M/G`), Japanese/Chinese (`小/中/大`).
+  - Added Material Symbols ligature icon `ink_eraser` fallback for the "Clear prompt on submit" switch.
+  - Added Material Symbols ligature icon `chrome_extension` and corrected toggle indices for video Ingredients/Bahan selection.
+  - Language-agnostic numerical duration matching in `selectDuration` (e.g. `8` seamlessly matches `8s` in English and `8 dtk` in Indonesian).
+
+### Fixed
+- **Multi-Output Variant Extraction**: Resolved variant truncation by evaluating nested batchexecute JSON envelopes with global regex parsing, extracting all outputs (`x1`–`x4`).
+- **Omni 1.1 Flash Duration Visibility**: Fixed disappearing Duration segmented controls in the right sidebar by making `syncModelUI` mode-aware and dynamically evaluating the target row's mode in Single parameter mode.
+- **Progress Counter Fluidity**: Installed an active interval ticker during background RPC generation, providing smooth monotonic progress advancement (15% to 80%) without UI freezing.
+- **Strict Rule 3.B Compliance**: Purged all remaining English text strings (`[aria-label="Start generation"]`, `[aria-label="Clear prompt"]`, `[aria-label="Reuse prompt"]`) from `flow_bridge.js` and `FlowDOM.js`.
+
 ## [3.0.0] - 2026-09-22
 
 ### Added

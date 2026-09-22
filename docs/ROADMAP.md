@@ -17,7 +17,9 @@ gantt
     section Phase 3
     Dual-Mode UI Implementation           :done, 2026-09-21, 3d
     section Phase 4
-    Production Packaging & Release        :done, 2026-09-22, 2d
+    Production Packaging & Release v3.0   :done, 2026-09-22, 2d
+    section Phase 5
+    Engine Hardening & Multi-Language v3.1:done, 2026-09-23, 1d
 ```
 
 ---
@@ -80,3 +82,17 @@ gantt
   - Implemented `package.json`, `obfuscator.config.js`, and `build.js` mirroring RJ AIO Metadata architecture. Bundles ES modules via `esbuild`, applies AST obfuscation via `javascript-obfuscator`, copies distribution URLs (`SC.url`, `SUPPORT ME.url`), and produces clean `dist/LOAD THIS FOLDER/` and `releases/RJ_V-Flow_Auto-v3.0.0.zip`.
 - [x] **Sub-phase 4.2**: Factual Documentation Overhaul & Milestone Finalization `[COMPLETE]`
   - Overhauled all project documentation (`docs/ARCHITECTURE.md`, `README.md`, `CHANGELOG.md`, `docs/DECISIONS.md`, `docs/CURRENT_STATE.md`, `docs/HANDOFF.md`, `docs/ROADMAP.md`) to 100% reflect the factual codebase, removed `(Next-Gen v3.0)` suffixes, synchronized release version across `src/manifest.json` and `CHANGELOG.md`, and prepared final merge into `dev` and `main`.
+
+---
+
+### Phase 5: Post-Release Engine Hardening & Multi-Language Modernization (v3.1.0) `[COMPLETE]`
+- **Target Branch**: `task/fix-image-generation-trigger` $\to$ `dev`
+- [x] **Sub-phase 5.1**: Option C MAIN-World reCAPTCHA Hook & batchexecute RPC Bridge `[COMPLETE]`
+  - Bypassed 0-credit synthetic DOM button click dropping on Nano Banana models by establishing a unified `simulateHumanClick` click pipeline pre-armed with fresh reCAPTCHA Enterprise tokens minted in the MAIN world.
+- [x] **Sub-phase 5.2**: Pure Background Image RPC Engine (`ogiZ0b` & `maseQ`) & Native SPrCad AI Upscaling `[COMPLETE]`
+  - Completely decoupled image generation and editing from Google Flow's DOM. Uploads reference images via `maseQ` RPC, generates via `ogiZ0b` RPC, upscales to 2K/4K via native `SPrCad` RPC with tiered fallback (`4K -> 2K -> 1K/Original`), and fetches authenticated binaries in-page to eliminate 403 `AccessDenied` download errors.
+- [x] **Sub-phase 5.3**: Finished Queue Dual Action Buttons & Omni Duration Synchronization `[COMPLETE]`
+  - Implemented dynamic `#btnClearAllQueue` (`Clear all`) and `#btnResetQueue` (`Reset queue`) buttons upon queue completion. Resetting restores all rows to `READY` while preserving 100% of prompt text, uploaded ingredients, frames, and parameter bindings. Fixed Omni 1.1 Flash duration controls visibility in single row mode.
+- [x] **Sub-phase 5.4**: Multi-Language Resilient DOM Engine & Localization Audit `[COMPLETE]`
+  - Audited forensic captures on Indonesian (`id-ID`) systems. Resolved Grid Size S setup failure where `span:has-text("S")` collided with Indonesian 'Sedang' (Medium) instead of 'Kecil' (Small). Replaced text queries with structural positional LTR indexing (`index 0 = Small`, `index 1 = Medium`, `index 2 = Large`). Added Material Symbols ligatures `ink_eraser` and `chrome_extension`, and implemented numeric duration matching (`\d+`) across all global locales. Purged all remaining English text strings in compliance with `AGENTS.md` Rule 3.B.
+

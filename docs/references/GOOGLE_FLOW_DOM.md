@@ -45,23 +45,30 @@ flow-tile-view-header > header.header-base.header-desktop
   *Alternative structural path:* `flow-tile-view-header .tools-button-group > button:nth-of-type(3)`
 - **Why it is resilient**: The icon text `"settings_2"` is a Material font ligature; it remains `"settings_2"` regardless of the user's interface language.
 
-#### 2. Grid Settings Popover Controls (`.cdk-overlay-pane`)
+#### 2. Grid Settings Popover Controls (`.cdk-overlay-pane`, `flow-tile-view-settings`)
 When the grid settings button is clicked, an Angular CDK overlay opens:
-- **Layout Mode Toggle (Grid)**:
+- **Layout Mode Toggle (Grid / Petak)**:
   ```css
-  div.cdk-overlay-pane mat-button-toggle-group mat-button-toggle:nth-of-type(1) button
+  flow-tile-view-settings mat-button-toggle:has(mat-icon:has-text("dashboard")) button,
+  div.cdk-overlay-pane mat-button-toggle:has(mat-icon:has-text("dashboard")) button
   ```
-  *(Grid is always the first toggle option at index 0).*
-- **Tile Thumbnail Size (Medium / M)**:
-  ```css
-  div.cdk-overlay-pane mat-button-toggle-group mat-button-toggle:has(span:has-text("M")) button
-  ```
-  *(Size identifiers S, M, L are standard single-letter tokens).*
+  *(Identified via Material Symbols font ligature `"dashboard"`, invariant across all languages).*
+- **Tile Thumbnail Size (Small / Medium / Large)**:
+  > [!WARNING]
+  > **Do NOT query tile size by text letters (e.g. `span:has-text("S")`)!**  
+  > Google Flow localizes tile size initials: English is `S / M / L`, Indonesian is `K / S / B` (Kecil, Sedang, Besar), German is `K / M / G` (Klein, Mittel, Groß), French is `P / M / G` (Petit, Moyen, Grand), and Japanese/Chinese is `小 / 中 / 大`. Querying `"S"` on Indonesian interfaces mistakenly selects **Sedang (Medium)** instead of Small!
+  - **Language-Agnostic Positional LTR Resolution**:
+    Locate the 3-button toggle group (the group without `mat-icon`) and select by screen Left-to-Right positional index:
+    - **Small (Index 0)**: `flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:first-of-type button`
+    - **Medium (Index 1)**: `flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(2) button`
+    - **Large (Index 2)**: `flow-tile-view-settings mat-button-toggle-group:not(:has(mat-icon)) mat-button-toggle:nth-of-type(3) button`
 - **Clear Prompt on Submit Toggle Switch**:
+  Target via the programmatic `name` attribute or the Material Symbols ligature `ink_eraser`:
   ```css
-  div.cdk-overlay-pane mat-slide-toggle button[role="switch"]
+  button[name="clear-prompt-on-submit"]
   ```
-  *Verification:* Check `aria-checked="true"`. If `false`, invoke `.click()`.
+  *Fallback:* `container:has(mat-icon:has-text("ink_eraser")) button[role="switch"]`  
+  *Verification:* Check `aria-checked="true"`. If `false`, invoke `.click()`. Never target `sound-on-hover` or `silent-videos`.
 
 ---
 
@@ -164,10 +171,10 @@ Opened by clicking `button.settings-trigger-button`:
 #### 2. Mode & Media Toggles (Using Ligatures & Universal Tokens)
 - **Video Mode**: `mat-button-toggle:has(mat-icon:has-text("videocam")) button`
 - **Image Mode**: `mat-button-toggle:has(mat-icon:has-text("image")) button`
-- **Frames Sub-Mode**: `mat-button-toggle:has(mat-icon:has-text("crop_free")) button`
-- **Ingredients Sub-Mode**: `mat-button-toggle-group mat-button-toggle:nth-of-type(2) button`
+- **Ingredients Sub-Mode**: `mat-button-toggle:has(mat-icon:has-text("chrome_extension")) button` *(Index 0 in sub-mode group; native Google Flow ligature is `chrome_extension`)*
+- **Frames Sub-Mode**: `mat-button-toggle:has(mat-icon:has-text("crop_free")) button` *(Index 1 in sub-mode group)*
 - **Video Duration (Omni Only)**:
-  - Toggles containing pure numbers + `"s"`: `:has-text("4s")`, `:has-text("6s")`, `:has-text("8s")`, `:has-text("10s")`.
+  - Match by numerical digit (`\d+`) to support both English (`4s`, `6s`, `8s`, `10s`) and Indonesian (`4 dtk`, `6 dtk`, `8 dtk`, `10 dtk`).
 - **Output Multiplier**:
   - Pure multiplier tokens: `:has-text("x1")`, `:has-text("x2")`, `:has-text("x3")`, `:has-text("x4")`.
 - **Aspect Ratio**:

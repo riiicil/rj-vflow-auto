@@ -171,3 +171,36 @@
 - **Consequences**:
   - **Positive**: Single standalone 218.7kb production script; secure AST obfuscation; turnkey "Load unpacked" directory (`dist/LOAD THIS FOLDER/`); automated zip generation.
   - **Negative**: Requires running `npm run build` prior to producing distribution packages.
+
+---
+
+## ADR-014: Pure Background Image RPC Architecture & Native SPrCad AI Upscaling (`QueueManager`, `FlowBridge`)
+- **Status**: `ACCEPTED`
+- **Date**: 2026-09-23
+- **Context**: Image generation modes (`text-to-image`, `edit-image`) on 0-credit models (Nano Banana 2 family) suffered from brittle DOM interactions (ProseMirror clearing, ingredient chip DOM manipulation, and synthetic tile TrustedHTML CSP violations), and Chrome background downloads incurred 403 `AccessDenied` errors due to missing session cookies.
+- **Decision**:
+  1. Route image generation purely through Google Flow's internal `ogiZ0b` batchexecute RPC in the MAIN world, powered by authentic minted reCAPTCHA Enterprise tokens.
+  2. Upload reference images for `edit-image` mode via internal `maseQ` (`upload_request`) batchexecute RPC directly from IndexedDB binaries to Google Cloud media references.
+  3. Perform AI upscaling via native `SPrCad` (`UpsampleImage`) RPC supporting 2K (`code: 1`) and 4K (`code: 2`) with tiered fallback (`4K -> 2K -> 1K/Original`).
+  4. Fetch raw image binaries inside the active page context using session cookies and convert to self-contained Base64 Data URLs prior to downloading.
+  5. Decouple image generation entirely from Google Flow's page DOM (zero synthetic tiles, zero DOM clicks, zero input injection).
+- **Consequences**:
+  - **Positive**: 100% immune to DOM UI changes, popover glitches, and synthetic tile TrustedHTML CSP violations; authentic high-res 2K/4K upscaling; zero 403 download errors; ultra-fast background throughput.
+  - **Negative**: Video modes continue to require DOM click triggers and gallery tile observation (`FlowWatcherService`).
+
+---
+
+## ADR-015: Multi-Language Resilient DOM Engine with Positional LTR Indexing (`FlowDOM`, `FlowSettingsService`)
+- **Status**: `ACCEPTED`
+- **Date**: 2026-09-23
+- **Context**: Google Flow localizes tile size toggle labels (`S / M / L` in English, `K / S / B` in Indonesian, `K / M / G` in German, `P / M / G` in French, `小 / 中 / 大` in Japanese/Chinese) and duration units (`s` in English, `dtk` in Indonesian). Hardcoded text queries like `span:has-text("S")` caused severe collisions in Indonesian where "S" represented Sedang (Medium) rather than Small, and failed completely on other language configurations.
+- **Decision**:
+  1. Identify toggle groups structurally: the tile size group is the 3-button `mat-button-toggle-group` without `mat-icon`.
+  2. Resolve tile size options strictly by screen Left-to-Right (LTR) positional index (`getBoundingClientRect().left`): `index 0 = Small`, `index 1 = Medium`, `index 2 = Large`.
+  3. Query Material Symbols ligatures (`ink_eraser` for auto-clear prompt switch, `chrome_extension` for video ingredients, `redo` for tile reuse) instead of localized text.
+  4. Match video duration via numerical digits (`\d+`) rather than language-specific units (`s` vs `dtk`).
+  5. Strictly eliminate all English text string selectors in compliance with `AGENTS.md` Rule 3.B.
+- **Consequences**:
+  - **Positive**: 100% resilient across all localized Google Flow interfaces worldwide; zero text collisions; bulletproof automation across English, Indonesian, French, German, Spanish, Japanese, and Chinese.
+  - **Negative**: Assumes standard LTR button ordering within Angular Material button toggle groups.
+
