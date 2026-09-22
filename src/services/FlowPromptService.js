@@ -18,6 +18,7 @@ import {
   simulateEnter,
   sleep
 } from '../core/FlowDOM.js';
+import { logger } from './LoggerService.js';
 
 export class FlowPromptService {
   /**
@@ -206,6 +207,7 @@ export class FlowPromptService {
 
     // 2. Fallback check: if the button is still enabled, Flow did not consume the click
     if (this.isGenerateButtonReady()) {
+      logger.warn('[FlowPromptService] Primary generate click not consumed, attempting ProseMirror Enter fallback');
       // Secondary fallback: ProseMirror native Enter submission
       if (editor) {
         simulateEnter(editor);
@@ -214,6 +216,7 @@ export class FlowPromptService {
 
       // Tertiary fallback: click directly on inner mat-icon or touch-target
       if (this.isGenerateButtonReady()) {
+        logger.warn('[FlowPromptService] Enter trigger not consumed, attempting inner mat-icon direct click');
         const innerTarget = btn.querySelector('.mat-mdc-button-touch-target') || btn.querySelector('mat-icon');
         if (innerTarget) {
           simulateClick(innerTarget);

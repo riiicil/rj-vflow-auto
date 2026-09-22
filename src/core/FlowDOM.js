@@ -121,14 +121,18 @@ function queryAllWithHasText(selector, root) {
       continue;
     }
 
-    // Pattern B: target:has-text("text")
-    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)$/);
+    // Pattern B: target:has-text("text") [suffix]
+    const matchDirect = trimmed.match(/^(.*?):has-text\(["'](.*?)["']\)(.*)$/);
     if (matchDirect) {
-      const [, targetSelector, expectedText] = matchDirect;
+      const [, targetSelector, expectedText, suffix] = matchDirect;
       const candidates = targetSelector.trim() ? Array.from(root.querySelectorAll(targetSelector.trim())) : Array.from(root.querySelectorAll('*'));
       for (const el of candidates) {
-        if (el.textContent && el.textContent.trim() === expectedText.trim()) {
-          results.push(el);
+        if (el.textContent && el.textContent.trim().includes(expectedText.trim())) {
+          if (suffix && suffix.trim()) {
+            results.push(...Array.from(el.querySelectorAll(suffix.trim())));
+          } else {
+            results.push(el);
+          }
         }
       }
       continue;
@@ -520,12 +524,6 @@ export function simulateClick(element) {
   // Native click
   if (typeof element.click === 'function') {
     element.click();
-  }
-
-  // If button has an inner icon or MDC touch target, also ensure event propagates
-  const innerTarget = element.querySelector?.('.mat-mdc-button-touch-target, mat-icon');
-  if (innerTarget && innerTarget !== element) {
-    innerTarget.dispatchEvent(new win.MouseEvent('click', commonOpts));
   }
 
   return true;

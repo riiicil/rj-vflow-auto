@@ -8,8 +8,9 @@
 - **Current Milestone**: Post-Phase 4 Maintenance & Engine Hardening
 - **Active Branch**: `task/fix-image-generation-trigger`
 - **Latest Commits**:
+  - `fix(dom): eliminate simulateClick double-click regression and resolve suffix has-text selector`
   - `fix(engine): resolve image mode prompt submission, simulateClick coordinates, and model fast-path`
-- **Working Tree**: Clean, all 4 modified files (`FlowDOM.js`, `FlowPromptService.js`, `FlowSettingsService.js`, `QueueManager.js`) tested and built via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated.
+- **Working Tree**: Clean, `FlowDOM.js` and `FlowPromptService.js` hardened, double-click regression eliminated, verified via `npm run build`, production bundle in `dist/LOAD THIS FOLDER/` updated and verified.
 
 ---
 
